@@ -997,7 +997,7 @@ body {
     padding: 0.9rem 1.6rem;
     border-radius: 9999px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-    display: flex;
+    display: none;
     align-items: center;
     gap: 0.85rem;
     z-index: 9999;
