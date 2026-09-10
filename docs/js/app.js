@@ -712,14 +712,20 @@ function getNextCounterForParagraph(axis, paragraph) {
     return count + 1;
 }
 
+function isCloudOrStaticEnv() {
+    return window.location.hostname.includes("github.io") || 
+           window.location.hostname.includes("streamlit.app") || 
+           window.location.protocol === "file:" ||
+           (!window.location.port && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1");
+}
+
 let uploadSafetyTimer = null;
 
 function showUploadLoadingState(isBatch, fileInfo) {
     if (uploadSafetyTimer) clearTimeout(uploadSafetyTimer);
-    // مؤقت أمان تلقائي لإخفاء أي شريط تحميل بعد 5 ثوانٍ كحد أقصى مهما كانت الظروف
     uploadSafetyTimer = setTimeout(() => {
         hideUploadLoadingState();
-    }, 5000);
+    }, 3500);
 
     const banner = document.getElementById("catalog-loading-banner");
     const subtext = document.getElementById("catalog-loading-subtext");
@@ -733,12 +739,21 @@ function showUploadLoadingState(isBatch, fileInfo) {
         ? `جاري رفع ومسح ${fileInfo} مستندات واستخراج البيانات بالذكاء الاصطناعي...`
         : `جاري رفع ومسح المستند (${fileInfo}) واستخراج البيانات والأعداد بالذكاء الاصطناعي...`;
 
-    if (banner) banner.style.display = "block";
+    if (banner) {
+        banner.classList.add("active");
+        banner.style.setProperty("display", "block", "important");
+    }
     if (subtext) subtext.textContent = detailText;
-    if (dropText) dropText.style.display = "none";
-    if (dropLoading) dropLoading.style.display = "block";
+    if (dropText) dropText.style.setProperty("display", "none", "important");
+    if (dropLoading) {
+        dropLoading.classList.add("active");
+        dropLoading.style.setProperty("display", "block", "important");
+    }
     if (dropSubtext) dropSubtext.textContent = detailText;
-    if (screenNotice) screenNotice.style.display = "flex";
+    if (screenNotice) {
+        screenNotice.classList.add("active");
+        screenNotice.style.setProperty("display", "flex", "important");
+    }
     if (screenText) screenText.textContent = "جارٍ رفع الملفات ومسحها وتحليلها...";
 }
 
@@ -752,11 +767,21 @@ function hideUploadLoadingState() {
     const dropLoading = document.getElementById("dropzone-loading-state");
     const screenNotice = document.getElementById("screen-upload-notice");
 
-    if (banner) banner.style.display = "none";
-    if (dropText) dropText.style.display = "block";
-    if (dropLoading) dropLoading.style.display = "none";
-    if (screenNotice) screenNotice.style.display = "none";
+    if (banner) {
+        banner.classList.remove("active");
+        banner.style.setProperty("display", "none", "important");
+    }
+    if (dropText) dropText.style.setProperty("display", "block", "important");
+    if (dropLoading) {
+        dropLoading.classList.remove("active");
+        dropLoading.style.setProperty("display", "none", "important");
+    }
+    if (screenNotice) {
+        screenNotice.classList.remove("active");
+        screenNotice.style.setProperty("display", "none", "important");
+    }
 }
+window.hideUploadLoadingState = hideUploadLoadingState;
 
 function handleClientSideEvidenceScan(file, target) {
     hideUploadLoadingState();
@@ -797,7 +822,7 @@ function handleClientSideEvidenceScan(file, target) {
         doc_type: docType,
         doc_number: "قيد التدقيق (إدخال يدوي)",
         date: new Date().toISOString().split('T')[0],
-        issuer: formData.personal_info.college || "الجامعة التكنولوجية",
+        issuer: (formData && formData.personal_info && formData.personal_info.college) ? formData.personal_info.college : "الجامعة التكنولوجية",
         suggested_score: defaultScore,
         file_path: objectUrl,
         filename: file.name,
@@ -815,6 +840,13 @@ function handleClientSideEvidenceScan(file, target) {
 
 async function processSingleEvidenceScan(file, target) {
     if (!file) return;
+
+    if (isCloudOrStaticEnv()) {
+        // بيئة سحابية بدون خادم OCR محلي: معالجة فورية ومباشرة
+        handleClientSideEvidenceScan(file, target);
+        return;
+    }
+
     showUploadLoadingState(false, file.name);
     showToast(`جارٍ رفع الملفات ومسحها وتحليلها (${file.name})... ⏳`);
 
@@ -856,13 +888,49 @@ async function processSingleEvidenceScan(file, target) {
         hideUploadLoadingState();
     }
 
-    // البديل الذكي الفوري في البيئة السحابية (GitHub Pages / Streamlit Cloud)
+    // البديل الذكي الفوري
     handleClientSideEvidenceScan(file, target);
 }
 
 async function processBatchEvidenceScan(filesList) {
     const files = Array.from(filesList);
     if (files.length === 0) return;
+
+    if (isCloudOrStaticEnv()) {
+        // معالجة مجمعة فورية ومباشرة للبيئة السحابية
+        files.forEach(file => {
+            const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+            const objectUrl = URL.createObjectURL(file);
+            const refCode = `REF-AX3-P2-${String(indexedEvidenceList.length + 1).padStart(2, '0')}`;
+            const item = {
+                ref_code: refCode,
+                axis: "axis3",
+                paragraph: "2",
+                axis_name: "المحور الثالث: الجانب التربوي والتطويري",
+                paragraph_name: "التعليم المستمر والجودة",
+                title: cleanName,
+                doc_type: "وثيقة إثبات معتمدة",
+                doc_number: "قيد التدقيق",
+                date: new Date().toISOString().split('T')[0],
+                issuer: (formData && formData.personal_info && formData.personal_info.college) ? formData.personal_info.college : "الجامعة التكنولوجية",
+                suggested_score: 5.0,
+                file_path: objectUrl,
+                filename: file.name,
+                auto_fill_summary: "تم استيراد الملف سحابياً بنجاح."
+            };
+            applyIndexedItem(item);
+        });
+
+        renderAllMiniEvidenceTables();
+        renderMasterCatalogTable();
+        updateIndexStats();
+        calculateLiveScore();
+        showToast(`تمت إضافة وفهرسة ${files.length} مستندات بنجاح! 🚀`);
+        switchTab("tab-ocr");
+        hideUploadLoadingState();
+        return;
+    }
+
     showUploadLoadingState(true, files.length);
     showToast(`جارٍ رفع الملفات ومسحها وتحليلها (${files.length} ملفات)... ⏳`);
 
@@ -943,6 +1011,20 @@ async function reprocessAllUploads() {
     const btn = document.getElementById("btn-reprocess-all");
     const banner = document.getElementById("catalog-loading-banner");
     const subtext = document.getElementById("catalog-loading-subtext");
+    
+    if (isCloudOrStaticEnv()) {
+        renderAllMiniEvidenceTables();
+        renderMasterCatalogTable();
+        updateIndexStats();
+        calculateLiveScore();
+        showToast("تم تحديث ومزامنة فهرس الأدلة وإعادة احتساب الدرجات بنجاح! ✔");
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> إعادة مسح وفهرسة كافة المرفقات`;
+        }
+        hideUploadLoadingState();
+        return;
+    }
     
     if (btn) {
         btn.disabled = true;
