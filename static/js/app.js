@@ -1673,16 +1673,17 @@ async function exportDocx() {
             const blob = await response.blob();
             downloadBlob(blob, `استمارة_تقييم_الأداء_${formData.personal_info.last_name || '2026'}.docx`);
             showToast("تم تصدير استمارة Word الرسمية مع فهرس الأدلة بنجاح!");
-        } else {
-            alert("حدث خطأ أثناء تصدير ملف Word");
+            return;
         }
     } catch (err) {
-        console.error("Export Word error:", err);
-        alert("فشل التصدير إلى Word");
+        console.warn("Backend Word export unavailable:", err);
     } finally {
         btn.disabled = false;
         btn.innerHTML = `<i class="fa-solid fa-file-word"></i> تحميل Word (.docx)`;
     }
+
+    showToast("تنبيه: لتنزيل ملف Word (.docx) الرسمي، يمكنك فتح الشريط الجانبي في المنصة أو استخدام زر 'طباعة' لحفظ نسخة PDF.");
+    alert("تنبيه التصدير:\nلتنزيل ملف Word (.docx) الرسمي المولد بنظام Python، يرجى فتح الشريط الجانبي (>) في المنصة السحابية والضغط على 'تحميل ملف Word (.docx)'، أو استخدام زر 'طباعة' لحفظ نسخة PDF فورية.");
 }
 
 async function exportPdf() {
@@ -1706,16 +1707,18 @@ async function exportPdf() {
             const blob = await response.blob();
             downloadBlob(blob, `استمارة_تقييم_الأداء_${formData.personal_info.last_name || '2026'}.pdf`);
             showToast("تم تصدير استمارة PDF الرسمية مع فهرس الأدلة والتواقيع بنجاح!");
-        } else {
-            alert("حدث خطأ أثناء تصدير ملف PDF");
+            return;
         }
     } catch (err) {
-        console.error("Export PDF error:", err);
-        alert("فشل التصدير إلى PDF");
+        console.warn("Backend PDF export unavailable, falling back to browser print:", err);
     } finally {
         btn.disabled = false;
         btn.innerHTML = `<i class="fa-solid fa-file-pdf"></i> تحميل PDF`;
     }
+
+    // بديل فوري وفعال: فتح نافذة الطباعة / الحفظ بصيغة PDF الرسمية
+    showToast("جارٍ فتح نافذة الطباعة والحفظ بصيغة PDF الرسمية... 🖨️");
+    window.print();
 }
 
 async function exportDossierPdf() {
@@ -1740,17 +1743,17 @@ async function exportDossierPdf() {
             const blob = await response.blob();
             downloadBlob(blob, `المصبار_التوثيقي_المدمج_${formData.personal_info.last_name || '2026'}.pdf`);
             showToast("تم إنشاء وتنزيل المصبار التوثيقي المدمج (Dossier PDF) مع الفهرس التفاعلي بنجاح! 📚");
-        } else {
-            const errData = await response.json().catch(() => ({}));
-            alert(errData.detail || "حدث خطأ أثناء تجميع وتصدير المصبار التوثيقي المدمج");
+            return;
         }
     } catch (err) {
-        console.error("Export dossier error:", err);
-        alert("فشل تصدير المصبار التوثيقي المدمج");
+        console.warn("Backend dossier export unavailable:", err);
     } finally {
         btn.disabled = false;
         btn.innerHTML = `<i class="fa-solid fa-book-bookmark"></i> المصبار المدمج (PDF)`;
     }
+
+    showToast("تنبيه: المصبار التوثيقي المدمج متاح للتحميل عبر الشريط الجانبي في المنصة السحابية.");
+    alert("تنبيه التصدير:\nلتحميل المصبار التوثيقي الشامل (Dossier PDF) المدمج مع وثائق الإثبات، يرجى فتح الشريط الجانبي (>) في المنصة السحابية والنقر على 'تحميل الملف التوثيقي الشامل (Dossier)'.");
 }
 
 function downloadBlob(blob, filename) {
