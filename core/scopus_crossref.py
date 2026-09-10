@@ -205,3 +205,7 @@ def calculate_paper_score_and_role(
             "rule_description": f"بحث محلي / مؤتمر علمي مقوم بصفة ({author_role}) -> 25.0 درجة.",
             "is_scopus": False
         }
+
+
+# توفير مسمى بديل متوافق (Alias) لدعم استدعاءات query_crossref_api
+query_crossref_api = fetch_doi_metadata

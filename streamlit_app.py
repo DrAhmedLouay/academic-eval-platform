@@ -17,6 +17,7 @@ from core.scopus_crossref import (
     extract_doi,
     match_offline_journal,
     calculate_paper_score_and_role,
+    fetch_doi_metadata,
     query_crossref_api
 )
 from core.document_parser import deep_scan_and_index_document
@@ -595,29 +596,33 @@ elif nav_choice == "🔍 فحص أبحاث Scopus و DOI":
             st.error("تعذر استخراج معرف DOI صالح من المدخل.")
         else:
             with st.spinner("جارٍ التحقق من قاعدة بيانات Scopus و Crossref..."):
-                crossref_data = query_crossref_api(doi)
-                journal_title = crossref_data.get("journal_title", "")
+                crossref_data = fetch_doi_metadata(doi) or {}
+                journal_title = crossref_data.get("journal", "") or crossref_data.get("journal_title", "")
                 paper_title = crossref_data.get("title", "")
                 pub_year = crossref_data.get("year", "")
                 
-                scopus_match = match_offline_journal(journal_title)
-                citescore = scopus_match.get("citescore", 1.0)
-                is_scopus = scopus_match.get("is_scopus", True)
+                scopus_match = match_offline_journal(journal_title) if journal_title else None
+                citescore = scopus_match.get("citescore", 1.0) if scopus_match else (1.0 if journal_title else 0.0)
+                is_scopus = scopus_match.get("is_scopus", True) if scopus_match else bool(journal_title)
 
                 # احتساب الدرجة
-                score, role, reason = calculate_paper_score_and_role(
-                    paper_authors=crossref_data.get("authors", []),
+                authors_str = " ".join(crossref_data.get("authors", []))
+                scoring = calculate_paper_score_and_role(
+                    text=f"{paper_title} {authors_str}".strip() or doi,
                     faculty_name=st.session_state.form_data["personal_info"].get("first_name", "أحمد"),
                     citescore=citescore,
                     is_scopus=is_scopus
                 )
+                score = scoring.get("suggested_score", 0.0)
+                role = scoring.get("author_role", "باحث مشارك")
+                reason = scoring.get("rule_description", "")
 
-                st.success("تم العثور على بيانات البحث بنجاح! ✔")
+                st.success("تم فحص بيانات البحث بنجاح! ✔")
                 col1, col2 = st.columns(2)
                 with col1:
                     st.write(f"**عنوان البحث:** {paper_title or 'Research Paper'}")
-                    st.write(f"**المجلة:** {journal_title}")
-                    st.write(f"**سنة النشر:** {pub_year}")
+                    st.write(f"**المجلة:** {journal_title or 'غير محدد'}")
+                    st.write(f"**سنة النشر:** {pub_year or 'غير محدد'}")
                 with col2:
                     st.write(f"**معامل الاستشهاد CiteScore:** {citescore}")
                     st.write(f"**تصنيف المستوعب:** {'Scopus مفهرس' if is_scopus else 'محلي'}")
