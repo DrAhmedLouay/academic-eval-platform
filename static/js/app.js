@@ -2819,6 +2819,20 @@ function saveDraft() {
 }
 
 async function loadDraft() {
+    // === كشف علامة إعادة الضبط: إذا جاءنا من resetForm نعرض واجهة فارغة تماماً ===
+    const resetFlag = localStorage.getItem("faculty_eval_reset_flag");
+    if (resetFlag === "1") {
+        localStorage.removeItem("faculty_eval_reset_flag");
+        indexedEvidenceList = [];
+        syncEvidenceWithScores();
+        populateUIFromState();
+        renderAllMiniEvidenceTables();
+        renderMasterCatalogTable();
+        updateIndexStats();
+        calculateLiveScore();
+        return; // الخروج المبكر: لا نجلب أي فهرس أدلة
+    }
+
     const saved = localStorage.getItem("faculty_eval_draft_2026_indexed") || localStorage.getItem("faculty_eval_draft_2026");
     if (saved) {
         try {
@@ -2949,10 +2963,20 @@ function handleRestoreFile(e) {
     reader.readAsText(file);
 }
 
-function resetForm() {
+async function resetForm() {
     if (confirm("هل أنت متأكد من تفريغ كافة حقول الاستمارة والأدلة المفهرسة؟")) {
+        // 1. حذف المسودات من localStorage
         localStorage.removeItem("faculty_eval_draft_2026_indexed");
         localStorage.removeItem("faculty_eval_draft_2026");
+        // 2. وضع علامة إعادة ضبط لمنع loadDraft من إعادة تحميل فهرس الأدلة
+        localStorage.setItem("faculty_eval_reset_flag", "1");
+        // 3. إفراغ كاش الخادم (indexed_results_cache.json)
+        try {
+            await fetch("/api/clear-all-evidence", { method: "POST" });
+        } catch (e) {
+            console.warn("Could not reach server to clear evidence cache:", e);
+        }
+        // 4. إعادة تحميل الصفحة بواجهة فارغة تماماً
         location.reload();
     }
 }
