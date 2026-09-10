@@ -1,0 +1,1669 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة تقييم أداء أعضاء الهيئة التدريسية - استمارة 21 (2025-2026)</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <!-- الترويسة الرئيسية -->
+    <header class="main-header">
+        <div class="header-container">
+            <div class="brand-title">
+                <i class="fa-solid fa-graduation-cap fa-2x text-yellow-400" style="color: #facc15;"></i>
+                <div>
+                    <h1>وزارة التعليم العالي والبحث العلمي - العراق</h1>
+                    <p>جهاز الإشراف والتقويم العلمي | استمارة رقم (21): تقييم أداء أعضاء الهيئة التدريسية 2025-2026</p>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <button type="button" class="btn btn-warning" id="btn-sample-data" title="تعبئة بيانات تدريسي نموذجية مع مرفقاتها للاختبار الفوري">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> تعبئة بيانات تجريبية
+                </button>
+                <button type="button" class="btn btn-outline" id="btn-save-draft" title="تنزيل نسخة احتياطية من البيانات بصيغة JSON">
+                    <i class="fa-solid fa-floppy-disk"></i> حفظ مسودة
+                </button>
+                <button type="button" class="btn btn-outline" id="btn-restore-draft" title="استرجاع مسودة سابقة">
+                    <i class="fa-solid fa-folder-open"></i> استعادة
+                </button>
+                <input type="file" id="restore-file-input" style="display: none;" accept=".json">
+                <input type="file" id="paragraph-scan-input" style="display: none;" accept=".pdf,.jpg,.jpeg,.png,.webp">
+                <input type="file" id="batch-scan-input" style="display: none;" multiple accept=".pdf,.jpg,.jpeg,.png,.webp">
+                <button type="button" class="btn btn-outline" id="btn-vlm-settings-header" title="إعدادات محرك الذكاء الاصطناعي (Gemini / Apple Vision)">
+                    <i class="fa-solid fa-brain"></i> إعدادات الذكاء
+                </button>
+                <button type="button" class="btn btn-outline" id="btn-toggle-auditor-mode" title="تفعيل نمط التدقيق والمراجعة الأكاديمية">
+                    <i class="fa-solid fa-user-check"></i> نمط المدقق
+                </button>
+                <button type="button" class="btn btn-outline" id="btn-reset" title="تفريغ الاستمارة">
+                    <i class="fa-solid fa-rotate-right"></i> إعادة ضبط
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- شريط الإشعار الخاص بالمبادرة وحالة التطوير -->
+    <div class="initiative-announcement-bar">
+        <div class="initiative-container">
+            <span class="pulse-indicator"></span>
+            <i class="fa-solid fa-circle-info" style="color: #60a5fa;"></i>
+            <span><strong>إشعار رسمي:</strong> هذه المنصة قيد التطوير وبمبادرة شخصية من <strong>المهندس المعماري الدكتور أحمد لؤي أحمد</strong> لدعم أتمتة وتسهيل احتساب استمارة تقييم الأداء السنوي لأعضاء الهيئة التدريسية.</span>
+        </div>
+    </div>
+
+    <!-- شريط إشعار نسخة GitHub Pages السريعة -->
+    <div id="gh-pages-banner" style="background: linear-gradient(90deg, #eff6ff, #f0fdf4); border-bottom: 1px solid #bfdbfe; padding: 10px 20px; font-size: 0.88rem; color: #1e3a8a; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+        <div>
+            <i class="fa-solid fa-cloud text-blue-600" style="margin-left: 6px;"></i>
+            <span><strong>نسخة الويب التفاعلية (GitHub Pages):</strong> احتساب فوري دقيق، تفقيط عربي، وحفظ محلي للمسودات. لتصدير ملفات Word و PDF الرسمية والمسح السحابي بالذكاء الاصطناعي، انتقل إلى منصة Streamlit.</span>
+        </div>
+        <div>
+            <a href="https://share.streamlit.io" id="link-streamlit-cloud" target="_blank" class="btn btn-primary" style="padding: 5px 14px; font-size: 0.8rem; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; border-radius: 6px; background: #1e3a8a; color: white;">
+                <i class="fa-solid fa-rocket"></i> تشغيل نسخة Streamlit السحابية
+            </a>
+        </div>
+    </div>
+
+    <!-- شريط الدرجات التراكمي العائم (Sticky Live Scoreboard) -->
+    <div class="sticky-scoreboard">
+        <div class="scoreboard-container">
+            <div class="score-pills">
+                <div class="score-pill">
+                    <span class="label">المحور 1 (التدريس 50%)</span>
+                    <span class="val" id="score-axis1">0.0 / 50%</span>
+                </div>
+                <div class="score-pill">
+                    <span class="label">المحور 2 (البحثي 30%)</span>
+                    <span class="val" id="score-axis2">0.0 / 30%</span>
+                </div>
+                <div class="score-pill">
+                    <span class="label">المحور 3 (التربوي 20%)</span>
+                    <span class="val" id="score-axis3">0.0 / 20%</span>
+                </div>
+                <div class="score-pill">
+                    <span class="label">مواطن القوة (+5)</span>
+                    <span class="val" id="score-axis4" style="color: #16a34a;">+0.0</span>
+                </div>
+                <div class="score-pill">
+                    <span class="label">العقوبات</span>
+                    <span class="val" id="score-axis5" style="color: #dc2626;">-0.0</span>
+                </div>
+                <div class="score-pill total">
+                    <span class="label">المجموع النهائي الموزون</span>
+                    <span class="val" id="score-final">0.0 %</span>
+                </div>
+                <div>
+                    <span class="rating-badge rating-ضعيف" id="badge-rating">ضعيف</span>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <button type="button" class="btn btn-primary" id="btn-export-docx">
+                    <i class="fa-solid fa-file-word"></i> تحميل Word (.docx)
+                </button>
+                <button type="button" class="btn btn-success" id="btn-export-pdf">
+                    <i class="fa-solid fa-file-pdf"></i> تحميل PDF
+                </button>
+                <button type="button" class="btn btn-dark" id="btn-export-dossier-pdf" title="تصدير المصبار التوثيقي الكامل (الاستمارة 21 + جميع وثائق الأدلة مدمجة بملف PDF واحد مع الفهرس التفاعلي)">
+                    <i class="fa-solid fa-book-bookmark"></i> المصبار المدمج (PDF)
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-print" title="طباعة مباشرة">
+                    <i class="fa-solid fa-print"></i> طباعة
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- شريط التنبيهات الوزارية إن وجد -->
+    <div style="max-width: 1400px; margin: 1rem auto 0 auto; padding: 0 1.5rem;">
+        <div id="global-warnings-box" style="display: none;"></div>
+    </div>
+
+    <!-- التبويبات الرئيسية -->
+    <nav class="tabs-nav">
+        <button class="tab-btn active" data-tab="tab-personal">
+            <i class="fa-solid fa-id-card"></i> البيانات الرئيسة (ص1)
+        </button>
+        <button class="tab-btn" data-tab="tab-axis1">
+            <i class="fa-solid fa-chalkboard-user"></i> المحور الأول: التدريس (50%)
+        </button>
+        <button class="tab-btn" data-tab="tab-axis2">
+            <i class="fa-solid fa-microscope"></i> المحور الثاني: النشاط العلمي (30%)
+        </button>
+        <button class="tab-btn" data-tab="tab-axis3">
+            <i class="fa-solid fa-award"></i> المحور الثالث: التربوي (20%)
+        </button>
+        <button class="tab-btn" data-tab="tab-axis45">
+            <i class="fa-solid fa-shield-halved"></i> مواطن القوة والعقوبات
+        </button>
+        <button class="tab-btn" data-tab="tab-ocr">
+            <i class="fa-solid fa-folder-tree"></i> فهرس الأدلة (<span id="attachments-count">0</span>)
+        </button>
+        <button class="tab-btn" data-tab="tab-summary">
+            <i class="fa-solid fa-file-signature"></i> النتائج والمصادقة
+        </button>
+    </nav>
+
+    <!-- المحتوى الرئيسي للتبويبات -->
+    <main class="main-content">
+
+        <!-- ============================================================== -->
+        <!-- تبويب 1: البيانات الرئيسة -->
+        <!-- ============================================================== -->
+        <div class="tab-pane active" id="tab-personal">
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-building-columns"></i> التبعية الأكاديمية ورقم الاستمارة</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>الجامعة</label>
+                        <input type="text" class="form-control" data-bind="personal_info.university" placeholder="مثال: الجامعة التكنولوجية">
+                    </div>
+                    <div class="form-group">
+                        <label>الكلية / المعهد</label>
+                        <input type="text" class="form-control" data-bind="personal_info.college" placeholder="مثال: كلية هندسة العمارة">
+                    </div>
+                    <div class="form-group">
+                        <label>القسم / الفرع</label>
+                        <input type="text" class="form-control" data-bind="personal_info.department" placeholder="مثال: قسم هندسة التصميم المعماري">
+                    </div>
+                    <div class="form-group">
+                        <label>رقم الاستمارة</label>
+                        <input type="text" class="form-control" data-bind="personal_info.form_no" placeholder="مثال: 2026/1024">
+                    </div>
+                    <div class="form-group">
+                        <label>ترميز الاستمارة</label>
+                        <input type="text" class="form-control" data-bind="personal_info.form_code" placeholder="مثال: AGY-ENG-52">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-user"></i> الاسم الرباعي واللقب</span>
+                </div>
+                <div class="form-grid" style="grid-template-columns: repeat(5, 1fr);">
+                    <div class="form-group">
+                        <label>الاسم الأول</label>
+                        <input type="text" class="form-control" data-bind="personal_info.first_name" placeholder="الاسم">
+                    </div>
+                    <div class="form-group">
+                        <label>اسم الأب</label>
+                        <input type="text" class="form-control" data-bind="personal_info.father_name" placeholder="اسم الأب">
+                    </div>
+                    <div class="form-group">
+                        <label>اسم الجد</label>
+                        <input type="text" class="form-control" data-bind="personal_info.grandfather_name" placeholder="اسم الجد">
+                    </div>
+                    <div class="form-group">
+                        <label>اسم جد الأب</label>
+                        <input type="text" class="form-control" data-bind="personal_info.great_grandfather_name" placeholder="اسم جد الأب">
+                    </div>
+                    <div class="form-group">
+                        <label>اللقب</label>
+                        <input type="text" class="form-control" data-bind="personal_info.last_name" placeholder="اللقب">
+                    </div>
+                </div>
+
+                <div class="form-card-title" style="margin-top: 1.5rem;">
+                    <span><i class="fa-solid fa-person-breastfeeding"></i> اسم الأم الثلاثي</span>
+                </div>
+                <div class="form-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="form-group">
+                        <label>اسم الأم</label>
+                        <input type="text" class="form-control" data-bind="personal_info.mother_name">
+                    </div>
+                    <div class="form-group">
+                        <label>اسم والد الأم</label>
+                        <input type="text" class="form-control" data-bind="personal_info.mother_father_name">
+                    </div>
+                    <div class="form-group">
+                        <label>اسم جد الأم</label>
+                        <input type="text" class="form-control" data-bind="personal_info.mother_grandfather_name">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-address-card"></i> بيانات البطاقة الموحدة / الجنسية</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>رقم الجنسية أو البطاقة الموحدة</label>
+                        <input type="text" class="form-control" data-bind="personal_info.national_id" placeholder="12 رقم">
+                    </div>
+                    <div class="form-group">
+                        <label>السجل</label>
+                        <input type="text" class="form-control" data-bind="personal_info.registry_no">
+                    </div>
+                    <div class="form-group">
+                        <label>الصحيفة</label>
+                        <input type="text" class="form-control" data-bind="personal_info.page_no">
+                    </div>
+                    <div class="form-group">
+                        <label>يوم الإصدار</label>
+                        <input type="text" class="form-control" data-bind="personal_info.issue_day" placeholder="DD">
+                    </div>
+                    <div class="form-group">
+                        <label>شهر الإصدار</label>
+                        <input type="text" class="form-control" data-bind="personal_info.issue_month" placeholder="MM">
+                    </div>
+                    <div class="form-group">
+                        <label>سنة الإصدار</label>
+                        <input type="text" class="form-control" data-bind="personal_info.issue_year" placeholder="YYYY">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-certificate"></i> الشهادة والتعيين واللقب العلمي</span>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>الشهادة</label>
+                        <select class="form-control" data-bind="personal_info.degree">
+                            <option value="دكتوراه">دكتوراه</option>
+                            <option value="ماجستير">ماجستير</option>
+                            <option value="دبلوم عالي">دبلوم عالي</option>
+                            <option value="بكالوريوس">بكالوريوس</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>رقم وتاريخ الأمر الوزاري أو الجامعي</label>
+                        <input type="text" class="form-control" data-bind="personal_info.order_no_and_date" placeholder="مثال: 452 في 2018/06/10">
+                    </div>
+                    <div class="form-group">
+                        <label>تاريخ منح الشهادة (يوم/شهر)</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" class="form-control" data-bind="personal_info.degree_day" placeholder="يوم">
+                            <input type="text" class="form-control" data-bind="personal_info.degree_month" placeholder="شهر">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>البلد المانح</label>
+                        <input type="text" class="form-control" data-bind="personal_info.granting_country" placeholder="العراق / بلد آخر">
+                    </div>
+                    <div class="form-group">
+                        <label>الجامعة المانحة</label>
+                        <input type="text" class="form-control" data-bind="personal_info.granting_univ">
+                    </div>
+                    <div class="form-group">
+                        <label>الكلية والقسم المانح</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" class="form-control" data-bind="personal_info.granting_college" placeholder="الكلية">
+                            <input type="text" class="form-control" data-bind="personal_info.granting_dept" placeholder="القسم">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>الاختصاص العام</label>
+                        <input type="text" class="form-control" data-bind="personal_info.general_specialty">
+                    </div>
+                    <div class="form-group">
+                        <label>الاختصاص الدقيق</label>
+                        <input type="text" class="form-control" data-bind="personal_info.specific_specialty">
+                    </div>
+                    <div class="form-group">
+                        <label>اللقب العلمي الحالي</label>
+                        <select class="form-control" data-bind="personal_info.academic_title">
+                            <option value="أستاذ">أستاذ (بروفيسور)</option>
+                            <option value="أستاذ مساعد">أستاذ مساعد</option>
+                            <option value="مدرس">مدرس</option>
+                            <option value="مدرس مساعد">مدرس مساعد</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>الجهة المانحة للقب العلمي</label>
+                        <input type="text" class="form-control" data-bind="personal_info.title_granter">
+                    </div>
+                    <div class="form-group">
+                        <label>تاريخ الحصول على اللقب (يوم/شهر/سنة)</label>
+                        <div style="display: flex; gap: 0.25rem;">
+                            <input type="text" class="form-control" data-bind="personal_info.title_day" placeholder="يوم">
+                            <input type="text" class="form-control" data-bind="personal_info.title_month" placeholder="شهر">
+                            <input type="text" class="form-control" data-bind="personal_info.title_year" placeholder="سنة">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-card-title" style="margin-top: 1.5rem;">
+                    <span><i class="fa-solid fa-phone"></i> معلومات الاتصال</span>
+                </div>
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="form-group">
+                        <label>رقم الموبايل</label>
+                        <input type="text" class="form-control" data-bind="personal_info.phone" placeholder="07xxxxxxxxx">
+                    </div>
+                    <div class="form-group">
+                        <label>البريد الإلكتروني الجامعي</label>
+                        <input type="email" class="form-control" data-bind="personal_info.email" placeholder="faculty@uotechnology.edu.iq">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end;">
+                <button type="button" class="btn btn-primary" onclick="switchTab('tab-axis1')">
+                    التالي: المحور الأول (جودة التدريس) <i class="fa-solid fa-arrow-left"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- تبويب 2: المحور الأول (جودة التدريس - 50%) -->
+        <!-- ============================================================== -->
+        <div class="tab-pane" id="tab-axis1">
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span>المحور الأول: جودة التدريس والتعليم والالتزام الوظيفي (الوزن 50%)</span>
+                    <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer; color: #1e3a8a;">
+                        <input type="checkbox" id="is_non_teaching" data-bind="is_non_teaching">
+                        <strong>تدريسي غير مكلف بمهام تدريسية (تحتسب له الفقرة 5 فقط بدرجة 100)</strong>
+                    </label>
+                </div>
+
+                <div id="non-teaching-notice" class="alert alert-info" style="display: none;">
+                    ℹ️ تم تفعيل وضع "تدريسي غير مكلف بمهام تدريسية". سيتم احتساب درجات الفقرة (5) الالتزام الوظيفي فقط لتشكل درجة المحور الأول بأكمله (من 100 درجة بواقع 20 درجة لكل بند).
+                </div>
+
+                <!-- فقرة 1: المقررات -->
+                <div class="teaching-only" style="margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
+                            1. المقررات التي قام بتدريسها (الدرجة القصوى: 20 درجة)
+                        </h4>
+                        <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 1, 'المقررات التي قام بتدريسها')">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> مسح وقراءة أمر تكليف التدريس AI
+                        </button>
+                    </div>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+                        تمنح (20) درجة لكل مقرر دراسي فصلي أو سنوي (أولية أو عليا) (نظري أو عملي). ويعتمد كل 2 نشاط مادة دراسية لتدريسي النشاطات الطلابية.
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <label style="font-weight: 700;">الدرجة المعطاة (من 20):</label>
+                        <input type="number" min="0" max="20" class="form-control" style="width: 120px;" data-bind="axis1.courses_score" value="0" placeholder="0">
+                        <span id="score-status-axis1-p1" class="score-status-badge"></span>
+                    </div>
+                    <div id="evidence-container-axis1-p1" class="evidence-container" style="display: none;"></div>
+                </div>
+
+                <!-- فقرة 2: إدارة الصف والاستبيان -->
+                <div class="teaching-only" style="margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
+                            2. إدارة الصف والعلاقة مع الطلبة وإثارة دافعيتهم (الدرجة القصوى: 20 درجة)
+                        </h4>
+                        <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 2, 'استبيان تقييم الطلبة')">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> مسح استمارة تقييم الطلبة AI
+                        </button>
+                    </div>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+                        التقييم من خلال استمارة استبيان توزع على الطلبة: (20 درجة لنسبة 80% فأكثر)، (17 درجة لنسبة 70-79%)، (14 درجة لنسبة 69-60%)، (12 درجة لنسبة 59-50%)، (8 درجات لما دون ذلك).
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <label style="font-weight: 700;">الدرجة المعطاة (من 20):</label>
+                        <input type="number" min="0" max="20" class="form-control" style="width: 120px;" data-bind="axis1.classroom_management_score" value="0" placeholder="0">
+                        <span id="score-status-axis1-p2" class="score-status-badge"></span>
+                    </div>
+                    <div id="evidence-container-axis1-p2" class="evidence-container" style="display: none;"></div>
+                </div>
+
+                <!-- فقرة 3: التعليم المدمج -->
+                <div class="teaching-only" style="margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
+                            3. التعليم المدمج (تمنح 5 درجات لكل فقرة - القصوى: 20 درجة)
+                        </h4>
+                        <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 3, 'التعليم المدمج')">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> مسح وتوثيق التعليم المدمج AI
+                        </button>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.9rem;">
+                        <label><input type="checkbox" onchange="updateBlendedItems()"> يستخدم طرائق تدريس متعددة ومتنوعة (المحاضرة، المناقشة، الاستقصاء، العصف الذهني...)</label>
+                        <label><input type="checkbox" onchange="updateBlendedItems()"> يستخدم الأمثلة التوضيحية والتطبيقية لإثراء المادة التعليمية</label>
+                        <label><input type="checkbox" onchange="updateBlendedItems()"> يستخدم وسائل الإيضاح أو عرض أفلام علمية متخصصة أو أي وسيلة أخرى</label>
+                        <label><input type="checkbox" onchange="updateBlendedItems()"> ينشر محاضراته وفعالياته العلمية على الموقع الإلكتروني للكلية أو القنوات التعليمية (لا تقل عن 5 فعاليات)</label>
+                    </div>
+                    <div style="margin-top: 0.5rem;"><span id="score-status-axis1-p3" class="score-status-badge"></span></div>
+                    <div id="evidence-container-axis1-p3" class="evidence-container" style="display: none;"></div>
+                </div>
+
+                <!-- فقرة 4: وصف المقرر -->
+                <div class="teaching-only" style="margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
+                            4. وصف المقرر الدراسي وتحديثه والأساليب المستعملة في تقييم الطلبة (تمنح 4 درجات لكل فقرة - القصوى: 20 درجة)
+                        </h4>
+                        <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 4, 'وصف المقرر الدراسي')">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> مسح وثيقة وصف المقرر AI
+                        </button>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.9rem;">
+                        <label><input type="checkbox" onchange="updateCourseDescItems()"> يقدم وصف المقرر الدراسي في بداية العام الدراسي متضمنة الخطة الدراسية</label>
+                        <label><input type="checkbox" onchange="updateCourseDescItems()"> يعرض مفردات المقرر ويوزع الأنشطة والواجبات على الطلبة</label>
+                        <label><input type="checkbox" onchange="updateCourseDescItems()"> يقدم مقترحات لتطوير المقرر ويستخدم المصادر الحديثة في إعداد المحاضرات دورياً</label>
+                        <label><input type="checkbox" onchange="updateCourseDescItems()"> يستخدم أساليب متنوعة لتقييم أداء الطلبة (تحريرية، شفوية، تقارير الكترونية...)</label>
+                        <label><input type="checkbox" onchange="updateCourseDescItems()"> يقدم تغذية راجعة للطلبة حول أدائهم ويعرض الإجابات النموذجية للاختبارات</label>
+                    </div>
+                    <div style="margin-top: 0.5rem;"><span id="score-status-axis1-p4" class="score-status-badge"></span></div>
+                    <div id="evidence-container-axis1-p4" class="evidence-container" style="display: none;"></div>
+                </div>
+
+                <!-- فقرة 5: الالتزام الوظيفي -->
+                <div style="margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
+                            5. الالتزام الوظيفي (تمنح 4 درجات لكل فقرة للتدريسي المكلف / 20 درجة للتدريسي غير المكلف)
+                        </h4>
+                        <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 5, 'الالتزام الوظيفي')">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> مسح وثائق الالتزام والدوام AI
+                        </button>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.9rem;">
+                        <label><input type="checkbox" onchange="updateCommitmentItems()"> الالتزام بالأنظمة والتعليمات والدوام اليومي والمحاضرات واجتماعات القسم</label>
+                        <label><input type="checkbox" onchange="updateCommitmentItems()"> يحرص على العمل بكفاءة ضمن المواعيد المحددة لإنهاء العمل المطلوب</label>
+                        <label><input type="checkbox" onchange="updateCommitmentItems()"> يبادر لبذل جهود إضافية لتحقيق أهداف العمل ويؤدي نشاطات إضافية لمهامه</label>
+                        <label><input type="checkbox" onchange="updateCommitmentItems()"> الالتزام بأداء دوره في المهام واللجان المكلف بها</label>
+                        <label><input type="checkbox" onchange="updateCommitmentItems()"> يستخدم برامج الحاسوب ويتمكن من حل المشكلات عند حدوث أزمات في العمل</label>
+                    </div>
+                    <div style="margin-top: 0.5rem;"><span id="score-status-axis1-p5" class="score-status-badge"></span></div>
+                    <div id="evidence-container-axis1-p5" class="evidence-container" style="display: none;"></div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between;">
+                <button type="button" class="btn btn-secondary" onclick="switchTab('tab-personal')">
+                    <i class="fa-solid fa-arrow-right"></i> السابق: البيانات الرئيسة
+                </button>
+                <button type="button" class="btn btn-primary" onclick="switchTab('tab-axis2')">
+                    التالي: المحور الثاني (النشاط العلمي) <i class="fa-solid fa-arrow-left"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- تبويب 3: المحور الثاني (النشاط العلمي والبحثي - 30%) -->
+        <!-- ============================================================== -->
+        <div class="tab-pane" id="tab-axis2">
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span>المحور الثاني: النشاط العلمي والبحثي (الوزن 30%)</span>
+                    <span style="font-size: 0.85rem; color: #64748b;">يملأ من قبل اللجنة العلمية بعد تقديم الوثائق</span>
+                </div>
+
+                <div class="alert alert-warning">
+                    ⚠️ <strong>تنبيه وزاري هام:</strong> في حال كانت درجة الفقرة (1) النشر في المستوعبات العالمية (Clarivate / Scopus) تساوي <strong>صفراً</strong>، فإن درجة التقييم النهائية للاستمارة <strong>لا يجوز أن تتجاوز 75 درجة</strong> مطلقاً.
+                </div>
+
+                <!-- فقرة 1: بحوث سكوباس وكلاريفيت -->
+                <div style="margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
+                            1. البحوث العلمية المنشورة في المجلات المفهرسة ضمن المستوعبات العالمية (Clarivate / Scopus)
+                        </h4>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span class="badge" style="background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; font-weight: 700;">القصوى: 60 درجة</span>
+                            <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis2', 1, 'البحوث العالمية Scopus/Clarivate')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> مسح وقراءة بحث Scopus / عالمي AI
+                            </button>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+                        تمنح (60) درجة لبحوث CiteScore ≥ 1 (للباحث الأول أو المراسل أو المنفرد) و (35، 25، 20 للبقية). وتمنح (30) درجة لبحوث CiteScore < 1 (و 18، 12، 10 للبقية). وتستثنى المجلات العراقية المفهرسة من شرط معامل الاستشهاد.
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <label style="font-weight: 700;">إجمالي الدرجة المستحقة للفقرة (من 60):</label>
+                        <input type="number" min="0" max="60" class="form-control" style="width: 120px;" data-bind="axis2.global_research_score" value="0" placeholder="0">
+                        <span id="score-status-axis2-p1" class="score-status-badge"></span>
+                    </div>
+                    <div id="evidence-container-axis2-p1" class="evidence-container" style="display: none;"></div>
+                </div>
+
+                <!-- فقرة 2: البحوث المحلية والكتب المؤلفة -->
+                <div style="margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
+                            2. البحوث العلمية المنشورة في المجلات العربية والمحلية والكتب المؤلفة
+                        </h4>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span class="badge" style="background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; font-weight: 700;">القصوى: 25 درجة</span>
+                            <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis2', 2, 'البحوث المحلية والكتب المؤلفة')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> مسح بحث محلي / مؤتمر / كتاب AI
+                            </button>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+                        مجلات عربية/محلية ومؤتمرات دولية (25 درجة للمنفرد/الأول)، مؤتمرات محلية (15 درجة)، كتاب صنف أول عالمي مقوم (20 درجة)، كتاب عربي/محلي (15 درجة)، كتاب حاصل على ISBN (10 درجات).
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <label style="font-weight: 700;">إجمالي الدرجة المستحقة للفقرة (من 25):</label>
+                        <input type="number" min="0" max="25" class="form-control" style="width: 120px;" data-bind="axis2.local_research_score" value="0" placeholder="0">
+                        <span id="score-status-axis2-p2" class="score-status-badge"></span>
+                    </div>
+                    <div id="evidence-container-axis2-p2" class="evidence-container" style="display: none;"></div>
+                </div>
+
+                <!-- فقرة 3: الإشراف والتقويم العلمي -->
+                <div style="margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
+                            3. الإشراف على الطلبة والنشاطات العلمية الأخرى
+                        </h4>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span class="badge" style="background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; font-weight: 700;">القصوى: 15 درجة</span>
+                            <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis2', 3, 'الإشراف والنشاطات العلمية')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> مسح أمر إشراف / تقويم علمي AI
+                            </button>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+                        إشراف دكتوراه (15/10 مشترك)، ماجستير (12/7 مشترك)، دبلوم عالي (9/5 مشترك)، بحوث تخرج بكالوريوس (6 درجات)، تقويم علمي أو لغوي لبحوث أو رسائل (5 درجات)، محاضر ورشة (10 درجات).
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <label style="font-weight: 700;">إجمالي الدرجة المستحقة للفقرة (من 15):</label>
+                        <input type="number" min="0" max="15" class="form-control" style="width: 120px;" data-bind="axis2.supervision_score" value="0" placeholder="0">
+                        <span id="score-status-axis2-p3" class="score-status-badge"></span>
+                    </div>
+                    <div id="evidence-container-axis2-p3" class="evidence-container" style="display: none;"></div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between;">
+                <button type="button" class="btn btn-secondary" onclick="switchTab('tab-axis1')">
+                    <i class="fa-solid fa-arrow-right"></i> السابق: المحور الأول
+                </button>
+                <button type="button" class="btn btn-primary" onclick="switchTab('tab-axis3')">
+                    التالي: المحور الثالث (التربوي والإرشادي) <i class="fa-solid fa-arrow-left"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- تبويب 4: المحور الثالث (الجانب التربوي والإرشادي - 20%) -->
+        <!-- ============================================================== -->
+        <div class="tab-pane" id="tab-axis3">
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span>المحور الثالث: الجانب التربوي والإرشادي والتعليم المستمر (الوزن 20%)</span>
+                    <span style="font-size: 0.85rem; color: #64748b;">الدرجة القصوى للمحور: 100 درجة</span>
+                </div>
+
+                <!-- فقرة 1: اللجان -->
+                <div style="margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
+                            1. المشاركة في اللجان الدائمية والمؤقتة داخل وزارة التعليم العالي
+                        </h4>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span class="badge" style="background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; font-weight: 700;">القصوى: 30 درجة</span>
+                            <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis3', 1, 'المشاركة في اللجان الدائمية والمؤقتة')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> مسح وقراءة أمر تكليف بلجنة AI
+                            </button>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+                        عضو لجنة امتحانية (30 درجة)، لجنة دائمية (20 درجة)، لجنة مؤقتة (10 درجات)، مشارك بالامتحان التقويمي (5 درجات)، لجان سمنار دراسات عليا (3 درجات).
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <label style="font-weight: 700;">الدرجة المعطاة (من 30):</label>
+                        <input type="number" min="0" max="30" class="form-control" style="width: 120px;" data-bind="axis3.committees_score" value="0" placeholder="0">
+                        <span id="score-status-axis3-p1" class="score-status-badge"></span>
+                    </div>
+                    <div id="evidence-container-axis3-p1" class="evidence-container" style="display: none;"></div>
+                </div>
+
+                <!-- فقرة 2: التعليم المستمر والجودة -->
+                <div style="margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
+                            2. المشاركة في لجان التعليم المستمر والجودة
+                        </h4>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span class="badge" style="background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; font-weight: 700;">القصوى: 20 درجة</span>
+                            <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis3', 2, 'التعليم المستمر والجودة')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> مسح شهادة / أمر تعليم مستمر AI
+                            </button>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+                        محاضر في التعليم المستمر والجودة (10 درجات)، حضور (6 درجات - لحضورين كحد أقصى)، دورات طرائق التدريس الحديثة (8 درجات).
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <label style="font-weight: 700;">الدرجة المعطاة (من 20):</label>
+                        <input type="number" min="0" max="20" class="form-control" style="width: 120px;" data-bind="axis3.continuous_learning_score" value="0" placeholder="0">
+                        <span id="score-status-axis3-p2" class="score-status-badge"></span>
+                    </div>
+                    <div id="evidence-container-axis3-p2" class="evidence-container" style="display: none;"></div>
+                </div>
+
+                <!-- فقرة 3: كتب الشكر والتقدير -->
+                <div style="margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
+                            3. كتب الشكر والتقدير أو الشهادة التقديرية خلال عام التقييم
+                        </h4>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span class="badge" style="background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; font-weight: 700;">القصوى: 20 درجة</span>
+                            <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis3', 3, 'كتب الشكر والتقدير')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> مسح كتاب شكر وتقدير AI
+                            </button>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+                        من الوزير (20 شكر / 10 تثمين)، من وكيل الوزير أو رئيس الجامعة (15 شكر / 8 تثمين)، من مساعد رئيس الجامعة أو عميد الكلية (10 شكر / 3 تثمين).
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <label style="font-weight: 700;">الدرجة المعطاة (من 20):</label>
+                        <input type="number" min="0" max="20" class="form-control" style="width: 120px;" data-bind="axis3.thank_you_score" value="0" placeholder="0">
+                        <span id="score-status-axis3-p3" class="score-status-badge"></span>
+                    </div>
+                    <div id="evidence-container-axis3-p3" class="evidence-container" style="display: none;"></div>
+                </div>
+
+                <!-- فقرة 4: الزيارات الميدانية والتطوعية -->
+                <div style="margin-bottom: 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                        <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
+                            4. الزيارات الميدانية والحقلية والأعمال التطوعية وخدمة المجتمع
+                        </h4>
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span class="badge" style="background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; font-weight: 700;">القصوى: 30 درجة</span>
+                            <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis3', 4, 'الزيارات الميدانية والتطوعية')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> مسح أمر زيارة أو عمل تطوعي AI
+                            </button>
+                        </div>
+                    </div>
+                    <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+                        زيارة ميدانية للإشراف على الطلبة (12 درجة)، عمل تطوعي داخل الوزارة/الجامعة بكتاب رسمي (8 درجات)، نشاطات وخدمات خارج الوزارة ومؤسسات المجتمع (6 درجات).
+                    </p>
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <label style="font-weight: 700;">الدرجة المعطاة (من 30):</label>
+                        <input type="number" min="0" max="30" class="form-control" style="width: 120px;" data-bind="axis3.field_visits_score" value="0" placeholder="0">
+                        <span id="score-status-axis3-p4" class="score-status-badge"></span>
+                    </div>
+                    <div id="evidence-container-axis3-p4" class="evidence-container" style="display: none;"></div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between;">
+                <button type="button" class="btn btn-secondary" onclick="switchTab('tab-axis2')">
+                    <i class="fa-solid fa-arrow-right"></i> السابق: المحور الثاني
+                </button>
+                <button type="button" class="btn btn-primary" onclick="switchTab('tab-axis45')">
+                    التالي: مواطن القوة والعقوبات <i class="fa-solid fa-arrow-left"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- تبويب 5: المحور الرابع والخامس (مواطن القوة والعقوبات) -->
+        <!-- ============================================================== -->
+        <div class="tab-pane" id="tab-axis45">
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span>المحور الرابع: مواطن القوة العلمية (تملأ من قبل المسؤول المباشر)</span>
+                    <span class="badge" style="background: #dcfce7; color: #15803d; padding: 4px 10px; border-radius: 6px; font-weight: 700;">القصوى: 5 درجات إضافية</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; background: #f8fafc; padding: 0.75rem 1rem; border-radius: 0.5rem; border: 1px dashed #cbd5e1;">
+                    <p style="font-size: 0.85rem; color: #64748b; margin: 0;">
+                        تضاف درجات مواطن القوة بحد أقصى (5) درجات إلى المجموع النهائي، بشرط ألا تتجاوز درجة التقييم النهائية (100) درجة.
+                    </p>
+                    <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis4', 1, 'مواطن القوة والجوائز')">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> مسح وثيقة إثبات قوة AI
+                    </button>
+                </div>
+                <div id="evidence-container-axis4-p1" class="evidence-container" style="display: none; margin-bottom: 1.5rem;"></div>
+
+                <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));">
+                    <div class="form-group">
+                        <label>1. براءات الاختراع والجوائز في عام التقييم (3 درجات)</label>
+                        <input type="number" min="0" max="3" class="form-control" data-bind="axis4.items.item1" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>2. معامل هيرش h-index في Scopus (1-4 درجات)</label>
+                        <select class="form-control" data-bind="axis4.items.item2">
+                            <option value="0">لا يوجد (0 درجة)</option>
+                            <option value="1">h-index = 1 (درجة واحدة)</option>
+                            <option value="2">h-index = 2-3 (درجتان)</option>
+                            <option value="3">h-index = 4-6 (3 درجات)</option>
+                            <option value="4">h-index = 7 فأكثر (4 درجات)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>3. مسؤول وحدة شؤون المرأة والعاملين معهم (3 درجات)</label>
+                        <input type="number" min="0" max="3" class="form-control" data-bind="axis4.items.item3" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>4. تطوير منظومة إلكترونية لإدارة أحد البرامج (3 درجات)</label>
+                        <input type="number" min="0" max="3" class="form-control" data-bind="axis4.items.item4" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>5. مسؤولي الشعب والوحدات الإرشادية والارتباط (3 درجات)</label>
+                        <input type="number" min="0" max="3" class="form-control" data-bind="axis4.items.item5" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>6. مجالس الاعتماد والمقيم الوطني وفريق الأداء (4 درجات)</label>
+                        <input type="number" min="0" max="4" class="form-control" data-bind="axis4.items.item6" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>7. مدراء أقسام وشعب ضمان الجودة والعاملين فيها (5 درجات)</label>
+                        <input type="number" min="0" max="5" class="form-control" data-bind="axis4.items.item7" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>8. المدرب المعتمد في طرائق التدريس بتكليف وزاري (5 درجات)</label>
+                        <input type="number" min="0" max="5" class="form-control" data-bind="axis4.items.item8" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>9. البحوث الإضافية المفهرسة غير المستفاد منها (4 درجات)</label>
+                        <input type="number" min="0" max="4" class="form-control" data-bind="axis4.items.item9" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>10. دعم نادي الطلبة بمبلغ (2000) دينار شهرياً (3 درجات)</label>
+                        <input type="number" min="0" max="3" class="form-control" data-bind="axis4.items.item10" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>11. الانتماء إلى نقابة الأكاديميين (3 درجات)</label>
+                        <input type="number" min="0" max="3" class="form-control" data-bind="axis4.items.item11" placeholder="0">
+                    </div>
+                    <div class="form-group">
+                        <label>12. مسؤولي شعب ووحدات حقوق الإنسان (3 درجات)</label>
+                        <input type="number" min="0" max="3" class="form-control" data-bind="axis4.items.item12" placeholder="0">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span>المحور الخامس: العقوبات (خصم الدرجات بالكامل بدون وزن)</span>
+                    <span class="badge" style="background: #fee2e2; color: #b91c1c; padding: 4px 10px; border-radius: 6px; font-weight: 700;">تخصم بالكامل من المجموع النهائي</span>
+                </div>
+
+                <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                    <div class="form-group">
+                        <label>لفت نظر (خصم 3 درجات لكل عقوبة)</label>
+                        <input type="number" min="0" class="form-control" placeholder="عدد العقوبات" onchange="updatePenalty('notice', this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>الإنذار (خصم 5 درجات لكل عقوبة)</label>
+                        <input type="number" min="0" class="form-control" placeholder="عدد العقوبات" onchange="updatePenalty('warning', this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>قطع الراتب (خصم 7 درجات لكل عقوبة)</label>
+                        <input type="number" min="0" class="form-control" placeholder="عدد العقوبات" onchange="updatePenalty('salary_cut', this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>التوبيخ (خصم 11 درجة لكل عقوبة)</label>
+                        <input type="number" min="0" class="form-control" placeholder="عدد العقوبات" onchange="updatePenalty('reprimand', this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>إنقاص الراتب (خصم 13 درجة لكل عقوبة)</label>
+                        <input type="number" min="0" class="form-control" placeholder="عدد العقوبات" onchange="updatePenalty('salary_reduction', this.value)">
+                    </div>
+                    <div class="form-group">
+                        <label>تنزيل الدرجة (خصم 15 درجة لكل عقوبة)</label>
+                        <input type="number" min="0" class="form-control" placeholder="عدد العقوبات" onchange="updatePenalty('grade_demotion', this.value)">
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between;">
+                <button type="button" class="btn btn-secondary" onclick="switchTab('tab-axis3')">
+                    <i class="fa-solid fa-arrow-right"></i> السابق: المحور الثالث
+                </button>
+                <button type="button" class="btn btn-primary" onclick="switchTab('tab-ocr')">
+                    التالي: مركز المرفقات و OCR <i class="fa-solid fa-arrow-left"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- تبويب 6: فهرس الأدلة والملف التوثيقي وقارئ OCR الذكي -->
+        <!-- ============================================================== -->
+        <div class="tab-pane" id="tab-ocr">
+            <!-- بطاقات مؤشرات التوثيق والأدلة (KPI Stats) -->
+            <div class="index-stats-grid">
+                <div class="index-stat-card">
+                    <div class="stat-icon" style="color: #2563eb; background: #eff6ff;"><i class="fa-solid fa-file-lines"></i></div>
+                    <div class="stat-data">
+                        <span class="stat-number" id="stat-total-docs">0</span>
+                        <span class="stat-title">إجمالي الوثائق المفهرسة</span>
+                    </div>
+                </div>
+                <div class="index-stat-card">
+                    <div class="stat-icon" style="color: #16a34a; background: #f0fdf4;"><i class="fa-solid fa-calculator"></i></div>
+                    <div class="stat-data">
+                        <span class="stat-number" id="stat-total-score">+0</span>
+                        <span class="stat-title">مجموع النقاط المحتسبة</span>
+                    </div>
+                </div>
+                <div class="index-stat-card">
+                    <div class="stat-icon" style="color: #d97706; background: #fffbeb;"><i class="fa-solid fa-list-check"></i></div>
+                    <div class="stat-data">
+                        <span class="stat-number" id="stat-total-paragraphs">0 من 12</span>
+                        <span class="stat-title">الفقرات المغطاة بالأدلة</span>
+                    </div>
+                </div>
+                <div class="index-stat-card">
+                    <div class="stat-icon" style="color: #9333ea; background: #faf5ff;"><i class="fa-solid fa-chart-pie"></i></div>
+                    <div class="stat-data">
+                        <span class="stat-number" id="stat-completion-pct">0%</span>
+                        <span class="stat-title">نسبة اكتمال التوثيق</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-cloud-arrow-up"></i> رفع ومعالجة الوثائق الرسمية والمرفقات بالذكاء الاصطناعي (OCR)</span>
+                </div>
+                <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 1.25rem;">
+                    قم بسحب وإفلات أي أمر إداري، كتاب شكر، بحث علمي، أو شهادة مشاركة بصيغة PDF أو صورة. يدعم النظام المسح الفردي والمجمع، حيث يستخرج النصوص والبيانات التوثيقية ويوجهها آلياً للفقرة المناسبة ويحتسب درجاتها وفهرستها برمز رسمي!
+                </p>
+
+                <div class="ocr-dropzone" id="main-ocr-dropzone">
+                    <div id="dropzone-text">
+                        <i class="fa-solid fa-file-arrow-up dropzone-icon"></i>
+                        <h3 style="font-size: 1.15rem; font-weight: 800; color: #1e3a8a; margin-bottom: 0.25rem;">
+                            اسحب وأفلت الملفات هنا أو انقر للاختيار من جهازك
+                        </h3>
+                        <p style="font-size: 0.85rem; color: #64748b;">
+                            يدعم ملفات PDF وصور المستندات JPG, PNG, WEBP (معالجة نصية واستخراج OCR فوري وفهرسة آلية)
+                        </p>
+                        <div style="margin-top: 0.75rem;">
+                            <button type="button" class="btn btn-primary" onclick="event.stopPropagation(); triggerBatchScan();" style="font-size: 0.85rem; padding: 0.4rem 1rem;">
+                                <i class="fa-solid fa-layer-group"></i> اختيار مجموعة ملفات للمسح المجمع
+                            </button>
+                        </div>
+                    </div>
+                    <div id="dropzone-loading-state" style="display: none; padding: 1.5rem 1rem;">
+                        <i class="fa-solid fa-arrows-rotate fa-spin fa-3x text-blue-600" style="color: #2563eb; margin-bottom: 0.75rem; display: inline-block;"></i>
+                        <h3 style="font-size: 1.25rem; font-weight: 800; color: #1e3a8a; margin-bottom: 0.35rem;">
+                            جارٍ رفع الملفات ومسحها وتحليلها...
+                        </h3>
+                        <p style="font-size: 0.88rem; color: #475569;" id="dropzone-loading-subtext">
+                            يقوم محرك الذكاء الاصطناعي و OCR باستخراج البيانات وقراءة خط اليد وإسنادها للاستمارة
+                        </p>
+                    </div>
+                    <input type="file" id="ocr-file-input" style="display: none;" accept=".pdf,.jpg,.jpeg,.png,.webp">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 2rem; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+                    <div class="form-card-title" style="margin: 0;">
+                        <span><i class="fa-solid fa-table-list"></i> الفهرس الشامل للوثائق والمرفقات المعتمدة (الملف التوثيقي الرسمي)</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-primary" onclick="reprocessAllUploads()" id="btn-reprocess-all" style="font-size: 0.85rem; padding: 0.45rem 1rem; background: #0284c7; border-color: #0284c7; box-shadow: 0 2px 4px rgba(2,132,199,0.25);">
+                            <i class="fa-solid fa-arrows-rotate"></i> إعادة مسح وفهرسة كافة المرفقات
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="clearStuckEvidence()" id="btn-clear-stuck" style="font-size: 0.85rem; padding: 0.45rem 0.9rem; color: #b45309; border-color: #fcd34d; background: #fffbeb; font-weight: 700;">
+                            <i class="fa-solid fa-broom"></i> إفراغ الملفات العالقة
+                        </button>
+                        <button type="button" class="btn btn-outline" onclick="clearAllEvidence()" id="btn-clear-all" style="font-size: 0.85rem; padding: 0.45rem 0.9rem; color: #dc2626; border-color: #fca5a5; background: #fef2f2; font-weight: 700;">
+                            <i class="fa-solid fa-trash-can"></i> إفراغ كامل الفهرس
+                        </button>
+                        <label style="font-weight: 700; font-size: 0.85rem; color: #475569;">تصفية حسب المحور:</label>
+                        <select id="catalog-filter-axis" class="form-control" style="width: 200px; font-size: 0.85rem; padding: 0.4rem 0.75rem;">
+                            <option value="all">جميع المحاور والفقرات</option>
+                            <option value="axis1">المحور الأول: جودة التدريس</option>
+                            <option value="axis2">المحور الثاني: النشاط العلمي</option>
+                            <option value="axis3">المحور الثالث: التربوي والإرشادي</option>
+                            <option value="axis4">المحور الرابع: مواطن القوة</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- شريط مؤشر رفع ومسح وتحليل الملفات في الفهرس الشامل -->
+                <div id="catalog-loading-banner" class="catalog-loading-banner" style="display: none;">
+                    <div class="catalog-loading-content">
+                        <div class="spinner-blue"></div>
+                        <div style="flex: 1;">
+                            <h4 style="margin: 0; color: #1e3a8a; font-size: 1.05rem; font-weight: 800;">
+                                <i class="fa-solid fa-cloud-arrow-up text-blue-600"></i> جارٍ رفع الملفات ومسحها وتحليلها...
+                            </h4>
+                            <p style="margin: 0.25rem 0 0 0; font-size: 0.84rem; color: #475569;" id="catalog-loading-subtext">
+                                يرجى الانتظار قليلاً، يقوم الذكاء الاصطناعي بقراءة الوثائق ومسحها واستخراج الأعداد والتواريخ وفهرستها في الاستمارة...
+                            </p>
+                        </div>
+                    </div>
+                    <div class="loading-progress-bar">
+                        <div class="loading-progress-fill"></div>
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="official-table">
+                        <thead>
+                            <tr>
+                                <th class="yellow-bg" style="width: 40px;">ت</th>
+                                <th class="yellow-bg" style="width: 110px;">رمز الفهرسة</th>
+                                <th class="yellow-bg">نوع الوثيقة</th>
+                                <th class="yellow-bg" style="width: 130px;">العدد / التاريخ</th>
+                                <th class="yellow-bg">موضوع الوثيقة (م/ ) والجهة المعنون إليها (إلى/ )</th>
+                                <th class="yellow-bg" style="width: 140px;">المحور والفقرة</th>
+                                <th class="yellow-bg" style="width: 70px;">الدرجة</th>
+                                <th class="yellow-bg auditor-col" style="width: 130px;">تدقيق الجودة</th>
+                                <th class="yellow-bg" style="width: 60px;">إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody id="master-catalog-body">
+                            <tr>
+                                <td colspan="8" style="text-align: center; color: #94a3b8; padding: 2.5rem;">
+                                    <i class="fa-regular fa-folder-open fa-3x" style="margin-bottom: 0.75rem; display: block; opacity: 0.4;"></i>
+                                    لم يتم تسجيل أي وثائق مفهرسة بعد. يمكنك سحب وإفلات الوثائق أعلاه أو استخدام أزرار المسح المخصصة في كل فقرة.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between;">
+                <button type="button" class="btn btn-secondary" onclick="switchTab('tab-axis45')">
+                    <i class="fa-solid fa-arrow-right"></i> السابق: مواطن القوة والعقوبات
+                </button>
+                <button type="button" class="btn btn-primary" onclick="switchTab('tab-summary')">
+                    التالي: النتائج والمصادقة <i class="fa-solid fa-arrow-left"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ============================================================== -->
+        <!-- تبويب 7: التقرير النهائي والمصادقة الرسمية -->
+        <!-- ============================================================== -->
+        <div class="tab-pane" id="tab-summary">
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-stamp"></i> النتائج النهائية للتقييم ومصادقة الاستمارة رقم (21)</span>
+                    <div class="quick-actions">
+                        <button type="button" class="btn btn-primary" onclick="exportDocx()">
+                            <i class="fa-solid fa-file-word"></i> تنزيل Word (.docx)
+                        </button>
+                        <button type="button" class="btn btn-success" onclick="exportPdf()">
+                            <i class="fa-solid fa-file-pdf"></i> تنزيل PDF
+                        </button>
+                    </div>
+                </div>
+
+                <table class="official-table">
+                    <thead>
+                        <tr>
+                            <th class="yellow-bg" style="width: 40px;">ت</th>
+                            <th class="yellow-bg">المحاور</th>
+                            <th class="yellow-bg" style="width: 140px;">وزن المحور</th>
+                            <th class="yellow-bg" style="width: 140px;">الدرجة حسب الوزن</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td style="text-align: center; font-weight: 700;">1</td>
+                            <td><strong>جودة التدريس والتعليم والالتزام الوظيفي</strong></td>
+                            <td style="text-align: center;">%50</td>
+                            <td style="text-align: center; font-weight: 800;" id="sum-ax1">0.0</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: center; font-weight: 700;">2</td>
+                            <td><strong>النشاط العلمي والبحثي</strong></td>
+                            <td style="text-align: center;">%30</td>
+                            <td style="text-align: center; font-weight: 800;" id="sum-ax2">0.0</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: center; font-weight: 700;">3</td>
+                            <td><strong>الجانب التربوي والإرشادي والتعليم المستمر</strong></td>
+                            <td style="text-align: center;">%20</td>
+                            <td style="text-align: center; font-weight: 800;" id="sum-ax3">0.0</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: center; font-weight: 700;">4</td>
+                            <td><strong>مواطن القوة</strong></td>
+                            <td style="text-align: center;">حتى 5 درجات</td>
+                            <td style="text-align: center; font-weight: 800; color: #16a34a;" id="sum-ax4">+0.0</td>
+                        </tr>
+                        <tr style="background-color: #f1f5f9;">
+                            <td style="text-align: center; font-weight: 700;">5</td>
+                            <td><strong>مجموع المحاور الثلاثة</strong></td>
+                            <td style="text-align: center;">%100</td>
+                            <td style="text-align: center; font-weight: 800;" id="sum-three-axes">0.0</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: center; font-weight: 700;">6</td>
+                            <td><strong>خصم درجات العقوبات</strong></td>
+                            <td style="text-align: center;">تخصم بالكامل</td>
+                            <td style="text-align: center; font-weight: 800; color: #dc2626;" id="sum-ax5">-0.0</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.5rem 0;">
+                    <div style="background: #ffffdd; border: 2px solid #000; padding: 1.25rem; border-radius: 0.5rem; text-align: center;">
+                        <span style="font-size: 0.9rem; font-weight: 700; color: #475569; display: block; margin-bottom: 0.5rem;">مجموع الدرجة النهائية رقماً:</span>
+                        <span style="font-size: 2rem; font-weight: 900; color: #1e3a8a;" id="summary-final-score">0.0 %</span>
+                    </div>
+                    <div style="background: #ffffdd; border: 2px solid #000; padding: 1.25rem; border-radius: 0.5rem; text-align: center;">
+                        <span style="font-size: 0.9rem; font-weight: 700; color: #475569; display: block; margin-bottom: 0.5rem;">مجموع الدرجة كتابة (التفقيط العربي الرسمي):</span>
+                        <span style="font-size: 1.15rem; font-weight: 800; color: #1e293b;" id="summary-score-words">صفر درجة فقط لا غير</span>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <h4 style="font-weight: 800; margin-bottom: 0.75rem; color: #1e293b;">التقدير النهائي للتقييم:</h4>
+                    <table class="official-table">
+                        <thead>
+                            <tr>
+                                <th>امتياز (90 فأكثر)</th>
+                                <th>جيد جداً (80 - 89)</th>
+                                <th>جيد (70 - 79)</th>
+                                <th>ضعيف (أقل من 70)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td id="cell-rat-امتياز" style="text-align: center; font-weight: 800; font-size: 1.1rem;">-</td>
+                                <td id="cell-rat-جيد-جدا" style="text-align: center; font-weight: 800; font-size: 1.1rem;">-</td>
+                                <td id="cell-rat-جيد" style="text-align: center; font-weight: 800; font-size: 1.1rem;">-</td>
+                                <td id="cell-rat-ضعيف" style="text-align: center; font-weight: 800; font-size: 1.1rem;">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- قسم المصادقة والتواقيع الرقمية والأختام الرسمية -->
+                <div class="signature-section-card" style="margin-top: 2rem; padding: 1.5rem; border: 2px solid #cbd5e1; border-radius: 0.75rem; background: #f8fafc;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.75rem;">
+                        <h4 style="font-weight: 800; font-size: 1.15rem; color: #1e3a8a; margin: 0;">
+                            <i class="fa-solid fa-file-signature text-blue-600"></i> التواقيع الرقمية والمصادقة الرسمية (الصفحة 5)
+                        </h4>
+                        <span style="font-size: 0.8rem; color: #64748b; background: #e2e8f0; padding: 3px 8px; border-radius: 4px;">
+                            تظهر التواقيع والأختام آلياً في وثيقة الاستمارة الرسمية (PDF)
+                        </span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; text-align: right; margin-bottom: 1.5rem;">
+                        <!-- توقيع المسؤول المباشر -->
+                        <div class="sig-box" style="background: white; padding: 1.2rem; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                <label style="font-weight: 700; color: #1e293b; margin: 0;">توقيع المسؤول المباشر (رئيس القسم / الفرع):</label>
+                                <button type="button" class="btn btn-outline" style="padding: 2px 8px; font-size: 0.75rem;" onclick="clearSignature('direct')" title="مسح التوقيع">
+                                    <i class="fa-solid fa-eraser"></i> مسح
+                                </button>
+                            </div>
+                            <div style="position: relative; border: 1px dashed #94a3b8; border-radius: 6px; background: #fafafa; overflow: hidden; margin-bottom: 0.75rem;">
+                                <canvas id="sig-canvas-direct" width="380" height="120" style="display: block; width: 100%; height: 120px; cursor: crosshair; touch-action: none;"></canvas>
+                                <span style="position: absolute; bottom: 6px; right: 10px; font-size: 0.7rem; color: #94a3b8; pointer-events: none;">وقّع هنا باستخدام الفأرة أو القلم / اللمس</span>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0.5rem;">
+                                <label style="font-size: 0.82rem; font-weight: 600;">اسم المسؤول المباشر:</label>
+                                <input type="text" class="form-control" id="sig-direct-name" data-bind="approvals.direct_manager_name" placeholder="أ.م.د. ...">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.82rem; font-weight: 600;">التاريخ:</label>
+                                <input type="text" class="form-control" id="sig-direct-date" data-bind="approvals.direct_manager_date" placeholder="2026/06/15">
+                            </div>
+                        </div>
+
+                        <!-- توقيع المسؤول الأعلى -->
+                        <div class="sig-box" style="background: white; padding: 1.2rem; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                                <label style="font-weight: 700; color: #1e293b; margin: 0;">توقيع المسؤول الأعلى (عميد الكلية / المعهد):</label>
+                                <button type="button" class="btn btn-outline" style="padding: 2px 8px; font-size: 0.75rem;" onclick="clearSignature('higher')" title="مسح التوقيع">
+                                    <i class="fa-solid fa-eraser"></i> مسح
+                                </button>
+                            </div>
+                            <div style="position: relative; border: 1px dashed #94a3b8; border-radius: 6px; background: #fafafa; overflow: hidden; margin-bottom: 0.75rem;">
+                                <canvas id="sig-canvas-higher" width="380" height="120" style="display: block; width: 100%; height: 120px; cursor: crosshair; touch-action: none;"></canvas>
+                                <span style="position: absolute; bottom: 6px; right: 10px; font-size: 0.7rem; color: #94a3b8; pointer-events: none;">وقّع هنا باستخدام الفأرة أو القلم / اللمس</span>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0.5rem;">
+                                <label style="font-size: 0.82rem; font-weight: 600;">اسم المسؤول الأعلى:</label>
+                                <input type="text" class="form-control" id="sig-higher-name" data-bind="approvals.higher_manager_name" placeholder="أ.د. ...">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.82rem; font-weight: 600;">التاريخ:</label>
+                                <input type="text" class="form-control" id="sig-higher-date" data-bind="approvals.higher_manager_date" placeholder="2026/06/20">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ختم الكلية الرسمي ومصادقة رئيس الجامعة -->
+                    <div style="background: white; padding: 1.25rem; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
+                        <div style="flex: 1; min-width: 260px;">
+                            <h4 style="font-weight: 800; font-size: 1.05rem; color: #0f172a; margin-bottom: 0.35rem;">
+                                <i class="fa-solid fa-stamp text-blue-600"></i> الختم الرسمي للكلية / الجامعة:
+                            </h4>
+                            <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
+                                أرفق صورة الختم الدائري أو البيضاوي للكلية ليتم تثبيته آلياً فوق توقيع العميد والمصادقة في الصفحة الخامسة.
+                            </p>
+                            <input type="file" id="college-stamp-input" accept="image/*" style="display: none;">
+                            <button type="button" class="btn btn-outline" onclick="document.getElementById('college-stamp-input').click()">
+                                <i class="fa-solid fa-upload"></i> رفع صورة الختم الرسمي
+                            </button>
+                            <button type="button" class="btn btn-outline" id="btn-remove-stamp" style="display:none; color:#dc2626; border-color:#fca5a5;" onclick="removeCollegeStamp()">
+                                <i class="fa-solid fa-trash-can"></i> إزالة الختم
+                            </button>
+                        </div>
+                        <div id="stamp-preview-box" style="width: 140px; height: 140px; border: 2px dashed #cbd5e1; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #fafafa; overflow: hidden; position: relative;">
+                            <span id="stamp-placeholder-text" style="font-size: 0.75rem; color: #94a3b8; text-align: center; padding: 0.5rem;">ختم الكلية الرسمي</span>
+                            <img id="stamp-preview-img" src="" alt="ختم الكلية" style="display:none; max-width: 90%; max-height: 90%; object-fit: contain;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-start;">
+                <button type="button" class="btn btn-secondary" onclick="switchTab('tab-ocr')">
+                    <i class="fa-solid fa-arrow-right"></i> السابق: مركز المرفقات
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- تذييل المنصة وحقوق المبادرة -->
+    <footer class="platform-footer">
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <div class="footer-title">
+                        <i class="fa-solid fa-compass-drafting" style="color: #60a5fa;"></i>
+                        <span>منصة التقييم الأكاديمي الذكية (استمارة رقم 21)</span>
+                    </div>
+                    <p class="footer-initiative-text">
+                        هذه المنصة <strong>قيد التطوير وبمبادرة شخصية من المهندس المعماري الدكتور أحمد لؤي أحمد</strong> بهدف أتمتة وتسهيل احتساب درجات التقييم السنوي وفهرسة الوثائق الثبوتية بالذكاء الاصطناعي وقراءة النصوص المكتوبة بخط اليد و OCR وفق المعايير الوزارية الرسمية المعتمدة لعام 2025-2026.
+                    </p>
+                </div>
+                <div class="footer-badges">
+                    <span class="footer-badge"><i class="fa-solid fa-code-branch"></i> نسخة تجريبية قيد التطوير</span>
+                </div>
+            </div>
+            <div class="footer-bottom" style="justify-content: center;">
+                <span>جميع الحقوق محفوظة للمبادرة &copy; 2025 - 2026</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- النافذة المنبثقة لمراجعة واعتماد مرفق OCR -->
+    <div class="modal-overlay" id="ocr-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-wand-magic-sparkles text-blue-600"></i> مراجعة واعتماد بيانات المرفق (OCR)</h3>
+                <button class="modal-close" id="modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                    <div>
+                        <span style="font-size: 0.85rem; color: #64748b;">اسم الملف:</span>
+                        <strong id="modal-filename" style="color: #1e3a8a; margin-right: 0.5rem;">-</strong>
+                    </div>
+                    <button type="button" class="btn btn-outline" id="modal-preview-current-file-btn" style="padding: 3px 10px; font-size: 0.8rem; color: #2563eb; border-color: #93c5fd;">
+                        <i class="fa-regular fa-eye"></i> معاينة وتحميل الملف الأصلي
+                    </button>
+                </div>
+
+                <div>
+                    <label style="font-weight: 700; font-size: 0.85rem; color: #334155; margin-bottom: 0.35rem; display: block;">
+                        النص المستخرج عبر الماسح الضوئي و OCR:
+                    </label>
+                    <div class="extracted-box" id="modal-extracted-text"></div>
+                </div>
+
+                <div class="form-card-title" style="margin-top: 0.5rem; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center;">
+                    <span>البيانات المستخرجة آلياً (يمكنك التعديل إن لزم):</span>
+                    <span id="modal-handwriting-badge" class="badge-handwritten-lg" style="display: none;">
+                        <i class="fa-solid fa-pen-nib"></i> تم التعرف على خط اليد بالذكاء الاصطناعي
+                    </span>
+                </div>
+
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="form-group">
+                        <label>نوع الوثيقة</label>
+                        <input type="text" class="form-control" id="modal-doc-type">
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>رقم الأمر / العدد / الإشارة</span>
+                            <span id="modal-docnum-hw-hint" class="badge-handwritten" style="display:none;"><i class="fa-solid fa-pen-nib"></i> خط يد</span>
+                        </label>
+                        <input type="text" class="form-control" id="modal-doc-number">
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; justify-content: space-between; align-items: center;">
+                            <span>التاريخ</span>
+                            <span id="modal-docdate-hw-hint" class="badge-handwritten" style="display:none;"><i class="fa-solid fa-pen-nib"></i> خط يد</span>
+                        </label>
+                        <input type="text" class="form-control" id="modal-doc-date">
+                    </div>
+                    <div class="form-group">
+                        <label>الجهة المانحة / المصدرة</label>
+                        <input type="text" class="form-control" id="modal-doc-issuer">
+                    </div>
+                </div>
+
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                    <div class="form-group">
+                        <label>موضوع الوثيقة أو الكتاب (م/ )</label>
+                        <input type="text" class="form-control" id="modal-doc-title" placeholder="موضوع الكتاب أو الأمر الإداري...">
+                    </div>
+                    <div class="form-group">
+                        <label>الجهة المعنون إليها (إلى/ )</label>
+                        <input type="text" class="form-control" id="modal-doc-recipient" placeholder="الجهة المعنون إليها الكتاب إن وجدت...">
+                    </div>
+                </div>
+
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr 120px;">
+                    <div class="form-group">
+                        <label>المحور المستهدف</label>
+                        <select class="form-control" id="modal-suggested-axis">
+                            <option value="axis1">المحور الأول: جودة التدريس والالتزام</option>
+                            <option value="axis2">المحور الثاني: النشاط العلمي والبحثي</option>
+                            <option value="axis3">المحور الثالث: الجانب التربوي والإرشادي</option>
+                            <option value="axis4">المحور الرابع: مواطن القوة</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>الفقرة المستهدفة</label>
+                        <input type="text" class="form-control" id="modal-suggested-paragraph" placeholder="1 أو 2 أو 3...">
+                    </div>
+                    <div class="form-group">
+                        <label>الدرجة المقترحة</label>
+                        <input type="number" step="0.5" class="form-control" id="modal-suggested-score">
+                    </div>
+                </div>
+
+                <div class="alert alert-info" style="margin-bottom: 0;">
+                    ℹ️ <span id="modal-justification"></span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" id="modal-cancel-btn" style="color: #334155; border-color: #cbd5e1;">إلغاء</button>
+                <button type="button" class="btn btn-success" id="modal-confirm-btn">
+                    <i class="fa-solid fa-check-double"></i> اعتماد وإدراج في الاستمارة
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة معاينة وتحميل الوثائق المرفوعة (Document Preview & Download Modal) -->
+    <div class="modal-overlay" id="doc-preview-modal">
+        <div class="modal-content modal-content-lg">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <i class="fa-solid fa-file-pdf fa-xl" id="preview-type-icon" style="color: #2563eb;"></i>
+                    <div>
+                        <h3 id="preview-modal-title" style="margin: 0; font-size: 1.1rem; color: #0f172a;">معاينة الوثيقة الثبوتية</h3>
+                        <span id="preview-modal-ref" class="badge-ref" style="font-size: 0.75rem; margin-top: 2px;">REF-00</span>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <a href="#" id="preview-download-btn" class="btn btn-primary" download style="padding: 0.35rem 0.85rem; font-size: 0.82rem;">
+                        <i class="fa-solid fa-download"></i> تحميل الملف
+                    </a>
+                    <a href="#" id="preview-open-new-btn" target="_blank" class="btn btn-outline" style="padding: 0.35rem 0.85rem; font-size: 0.82rem; color: #334155; border-color: #cbd5e1;" title="فتح في تبويب جديد مستقل">
+                        <i class="fa-solid fa-arrow-up-right-from-square"></i> فتح بنافذة مستقلة
+                    </a>
+                    <button type="button" class="modal-close" id="preview-modal-close-btn">&times;</button>
+                </div>
+            </div>
+            
+            <div class="modal-body" style="padding: 1rem 1.5rem; gap: 0.75rem; flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+                <!-- بطاقة تفاصيل الوثيقة السريعة -->
+                <div class="preview-meta-card">
+                    <div class="preview-meta-grid">
+                        <div>
+                            <span class="preview-meta-lbl">نوع الوثيقة:</span>
+                            <strong id="preview-meta-type">-</strong>
+                        </div>
+                        <div>
+                            <span class="preview-meta-lbl">العدد / التاريخ:</span>
+                            <span id="preview-meta-number-date"><strong>-</strong></span>
+                        </div>
+                        <div>
+                            <span class="preview-meta-lbl">المحور والفقرة:</span>
+                            <div style="display: inline-flex; align-items: center; gap: 6px;">
+                                <span id="preview-meta-axis" style="color: #0369a1; font-weight: 700;">-</span>
+                                <button type="button" class="btn btn-outline" id="btn-preview-reclassify" style="padding: 2px 7px; font-size: 0.72rem; color: #0284c7; border-color: #bae6fd; background: #f0f9ff;" title="تغيير المحور والفقرة">
+                                    <i class="fa-solid fa-sliders"></i> تعديل
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="preview-meta-lbl">الدرجة المحتسبة:</span>
+                            <span id="preview-meta-score" class="badge-score-add">+0</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 0.4rem; font-size: 0.82rem;">
+                        <span class="preview-meta-lbl">الموضوع / العنوان:</span>
+                        <strong id="preview-meta-title" style="color: #1e3a8a;">-</strong>
+                    </div>
+                </div>
+
+                <!-- شريط أدوات الذكاء الاصطناعي للمعاينة: الصناديق المحيطة، الاقتطاع اليدوي، فحص Scopus -->
+                <div class="preview-ai-toolbar" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; background: #f1f5f9; padding: 0.5rem 0.85rem; border-radius: 6px; border: 1px solid #cbd5e1;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                        <button type="button" class="btn btn-outline" id="btn-toggle-bbox" style="padding: 4px 10px; font-size: 0.8rem; background: white;" title="إظهار/إخفاء المربعات المكتشفة للعدد والتاريخ والموضوع">
+                            <i class="fa-solid fa-vector-square text-blue-600"></i> <span id="toggle-bbox-text">إخفاء المربعات المكتشفة</span>
+                        </button>
+                        <button type="button" class="btn btn-outline" id="btn-start-cropper" style="padding: 4px 10px; font-size: 0.8rem; background: white;" title="تحديد مقتطف يدوي بالماوس وقراءته فوراً">
+                            <i class="fa-solid fa-crop-simple text-purple-600"></i> قص مقتطف يدوي (Snippet OCR)
+                        </button>
+                        <span id="cropper-hint" style="display:none; font-size: 0.78rem; color: #6d28d9; font-weight: 700;">
+                            <i class="fa-solid fa-arrow-pointer"></i> اسحب مؤشر الفأرة على الصورة لتحديد المستطيل المراد قراءته
+                        </span>
+                        <button type="button" class="btn btn-success" id="btn-confirm-crop" style="display:none; padding: 4px 10px; font-size: 0.8rem;">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> قراءة المقتطف الآن
+                        </button>
+                        <button type="button" class="btn btn-outline" id="btn-cancel-cropper" style="display:none; padding: 4px 10px; font-size: 0.8rem; color:#dc2626; border-color:#fca5a5;">
+                            إلغاء القص
+                        </button>
+                    </div>
+                    <div id="preview-scopus-section" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span id="preview-scopus-badge" class="badge-scopus" style="display:none; font-size:0.75rem;"></span>
+                        <button type="button" class="btn btn-outline" id="btn-check-scopus" style="display:none; padding: 4px 10px; font-size: 0.8rem; background: white; color: #d97706; border-color: #fcd34d;" title="فحص بيانات المجلة ومعامل الاقتباس">
+                            <i class="fa-solid fa-magnifying-glass"></i> فحص Scopus / Crossref
+                        </button>
+                    </div>
+                </div>
+
+                <!-- حاوية العرض والمعاينة التفاعلية -->
+                <div class="preview-viewer-container" id="preview-viewer-container">
+                    <iframe id="preview-frame" src="" style="width: 100%; height: 100%; min-height: 520px; border: 1px solid #cbd5e1; border-radius: 8px; background: #525659;"></iframe>
+                    <div id="preview-image-box" style="display: none; height: 100%; min-height: 520px; overflow: auto; text-align: center; background: #0f172a; border-radius: 8px; padding: 1rem; position: relative;">
+                        <div id="preview-image-wrapper" style="position: relative; display: inline-block; max-width: 100%; vertical-align: middle;">
+                            <img id="preview-image" src="" alt="معاينة الوثيقة" style="display: block; max-width: 100%; max-height: 70vh; object-fit: contain; box-shadow: 0 4px 15px rgba(0,0,0,0.4); border-radius: 4px;">
+                            <div id="bbox-overlay-layer" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></div>
+                            <div id="crop-selection-rect" style="display: none; position: absolute; border: 2px dashed #a855f7; background: rgba(168, 85, 247, 0.2); pointer-events: none; z-index: 10;"></div>
+                        </div>
+                    </div>
+                    <div id="preview-fallback-box" style="display: none; padding: 3rem 1.5rem; text-align: center; background: #f8fafc; border-radius: 8px; border: 1px dashed #cbd5e1;">
+                        <i class="fa-solid fa-file-circle-question fa-3x" style="color: #94a3b8; margin-bottom: 1rem; display: block;"></i>
+                        <h4 style="margin-bottom: 0.5rem; color: #1e293b;">لا تتوفر معاينة مباشرة داخل المتصفح لهذا النوع من الملفات</h4>
+                        <p style="color: #64748b; font-size: 0.88rem; margin-bottom: 1.25rem;" id="preview-fallback-text">يمكنك تنزيل الملف لمطالعته على جهازك مباشرة.</p>
+                        <a href="#" id="preview-fallback-download" class="btn btn-primary" download><i class="fa-solid fa-download"></i> تنزيل الوثيقة الآن</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer" style="padding: 0.75rem 1.5rem; justify-content: space-between; background: #f8fafc; border-top: 1px solid var(--border-color);">
+                <div style="font-size: 0.78rem; color: #64748b; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fa-solid fa-circle-check text-green-600" style="color: #16a34a;"></i>
+                    <span>الوثيقة محفوظة ومفهرسة رسمياً ومسندة للاستمارة رقم 21</span>
+                </div>
+                <button type="button" class="btn btn-secondary" id="preview-modal-bottom-close-btn">إغلاق المعاينة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة إعادة تصنيف المحور والفقرة للوثيقة (Reclassify Document Axis & Paragraph Modal) -->
+    <div class="modal-overlay" id="reclassify-modal">
+        <div class="modal-content" style="max-width: 580px;">
+            <div class="modal-header" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="width: 38px; height: 38px; border-radius: 8px; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center;">
+                        <i class="fa-solid fa-sliders fa-lg"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.08rem; color: #0f172a;">إعادة تصنيف الوثيقة وتغيير المحور / الفقرة</h3>
+                        <p style="margin: 0; font-size: 0.78rem; color: #64748b;">نقل الوثيقة وتحديث احتساب النقاط تلقائياً في استمارة التقييم</p>
+                    </div>
+                </div>
+                <button type="button" class="modal-close" id="reclassify-close-btn">&times;</button>
+            </div>
+            
+            <div class="modal-body" style="padding: 1.25rem; gap: 1rem; display: flex; flex-direction: column;">
+                <!-- بطاقة ملخص الوثيقة الحالية -->
+                <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 0.85rem 1rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                        <span id="reclassify-ref-badge" class="badge-ref" style="font-size: 0.78rem;">REF-00</span>
+                        <span id="reclassify-doc-number-date" style="font-size: 0.8rem; color: #475569; font-weight: 600;">-</span>
+                    </div>
+                    <div style="font-size: 0.88rem; font-weight: 700; color: #1e293b; margin-bottom: 0.3rem;" id="reclassify-filename">-</div>
+                    <div style="font-size: 0.8rem; color: #64748b;">
+                        التصنيف الحالي: <span id="reclassify-current-placement" style="font-weight: 700; color: #dc2626;">-</span>
+                    </div>
+                </div>
+
+                <!-- اختيار المحور الجديد -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-weight: 700; font-size: 0.85rem; margin-bottom: 4px; display: block;">
+                        <i class="fa-solid fa-layer-group text-blue-600"></i> المحور المستهدف الجديد:
+                    </label>
+                    <select id="reclassify-axis-select" class="form-control" style="font-size: 0.88rem; padding: 0.45rem 0.65rem;" onchange="onReclassifyAxisChange()">
+                        <option value="1">المحور الأول: النشاط التدريسي والتربوي (Axis 1)</option>
+                        <option value="2">المحور الثاني: النشاط العلمي والبحثي (Axis 2)</option>
+                        <option value="3">المحور الثالث: النشاط الإداري والخدمي واللجان (Axis 3)</option>
+                        <option value="4">المحور الرابع: نقاط القوة والإبداع والشهادات التقديرية (Axis 4)</option>
+                    </select>
+                </div>
+
+                <!-- اختيار الفقرة الجديدة ضمن المحور -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-weight: 700; font-size: 0.85rem; margin-bottom: 4px; display: block;">
+                        <i class="fa-solid fa-list-check text-blue-600"></i> الفقرة / البند المستهدف:
+                    </label>
+                    <select id="reclassify-paragraph-select" class="form-control" style="font-size: 0.88rem; padding: 0.45rem 0.65rem;" onchange="onReclassifyParagraphChange()">
+                        <!-- Dynamic options loaded via JS -->
+                    </select>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <!-- تعديل نوع الوثيقة -->
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 4px; display: block;">نوع الوثيقة المعتمد:</label>
+                        <input type="text" id="reclassify-doc-type-input" class="form-control" style="font-size: 0.85rem; padding: 0.4rem 0.6rem;" placeholder="مثال: أمر إداري، شهادة تقديرية...">
+                    </div>
+                    <!-- تعديل الدرجة المقترحة للوثيقة -->
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 4px; display: block;">
+                            الدرجة الممنوحة للوثيقة: <span id="reclassify-score-hint" style="color: #0284c7; font-weight: normal; font-size: 0.76rem;">(الحد الأقصى: 5)</span>
+                        </label>
+                        <input type="number" step="0.5" min="0" max="100" id="reclassify-score-input" class="form-control" style="font-size: 0.85rem; padding: 0.4rem 0.6rem;" value="0">
+                    </div>
+                </div>
+
+                <!-- ملاحظات التدقيق وإعادة التصنيف -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-weight: 600; font-size: 0.82rem; margin-bottom: 4px; display: block;">ملاحظات سبب إعادة التصنيف (اختياري):</label>
+                    <input type="text" id="reclassify-notes-input" class="form-control" style="font-size: 0.85rem; padding: 0.4rem 0.6rem;" placeholder="مثال: لم يتعرف الذكاء الاصطناعي على الأمر الإداري كمحور أول">
+                </div>
+
+                <div class="alert alert-info" style="font-size: 0.8rem; margin: 0; padding: 0.6rem 0.85rem; line-height: 1.5; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <strong>تحديث تلقائي:</strong> سيتم نقل الوثيقة وحذف تأثيرها من الفقرة السابقة وإضافتها للفقرة الجديدة مع إعادة احتساب استمارة التقييم مباشرة وتحديث الكاش في السيرفر.
+                </div>
+            </div>
+
+            <div class="modal-footer" style="padding: 0.75rem 1.25rem; background: #f8fafc; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button type="button" class="btn btn-secondary" id="reclassify-cancel-btn" onclick="closeReclassifyModal()">إلغاء</button>
+                <button type="button" class="btn btn-primary" id="reclassify-confirm-btn" onclick="confirmReclassify()">
+                    <i class="fa-solid fa-check"></i> حفظ التغييرات وإعادة الاحتساب
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- دوال مساعدة في صفحة HTML لتحديث بنود المحور الأول والعقوبات -->
+    <script>
+        function updateBlendedItems() {
+            if (window.manualScoreOverrides) window.manualScoreOverrides["axis1.blended_learning_items"] = true;
+            const boxes = document.querySelectorAll('#tab-axis1 input[onchange="updateBlendedItems()"]');
+            formData.axis1.blended_learning_items = Array.from(boxes).map(b => b.checked ? 5 : 0);
+            if (window.updateScoreStatusBadges) window.updateScoreStatusBadges();
+            debounceCalculate();
+        }
+        function updateCourseDescItems() {
+            if (window.manualScoreOverrides) window.manualScoreOverrides["axis1.course_description_items"] = true;
+            const boxes = document.querySelectorAll('#tab-axis1 input[onchange="updateCourseDescItems()"]');
+            formData.axis1.course_description_items = Array.from(boxes).map(b => b.checked ? 4 : 0);
+            if (window.updateScoreStatusBadges) window.updateScoreStatusBadges();
+            debounceCalculate();
+        }
+        function updateCommitmentItems() {
+            if (window.manualScoreOverrides) window.manualScoreOverrides["axis1.job_commitment_items"] = true;
+            const boxes = document.querySelectorAll('#tab-axis1 input[onchange="updateCommitmentItems()"]');
+            const pt = formData.is_non_teaching ? 20 : 4;
+            formData.axis1.job_commitment_items = Array.from(boxes).map(b => b.checked ? pt : 0);
+            if (window.updateScoreStatusBadges) window.updateScoreStatusBadges();
+            debounceCalculate();
+        }
+        function updatePenalty(type, countStr) {
+            const count = parseInt(countStr) || 0;
+            formData.axis5.penalties = formData.axis5.penalties.filter(p => p.type !== type);
+            if (count > 0) {
+                formData.axis5.penalties.push({ type: type, count: count });
+            }
+            debounceCalculate();
+        }
+
+        // تحديث جدول الملخص النهائي
+        const origUpdateSummary = window.updateSummaryTableUI;
+        window.updateSummaryTableUI = function(evalRes) {
+            if (!evalRes) return;
+            if (origUpdateSummary) origUpdateSummary(evalRes);
+            const sumAx1 = document.getElementById("sum-ax1");
+            if (sumAx1 && evalRes.axis1) sumAx1.textContent = evalRes.axis1.weighted_score;
+            const sumAx2 = document.getElementById("sum-ax2");
+            if (sumAx2 && evalRes.axis2) sumAx2.textContent = evalRes.axis2.weighted_score;
+            const sumAx3 = document.getElementById("sum-ax3");
+            if (sumAx3 && evalRes.axis3) sumAx3.textContent = evalRes.axis3.weighted_score;
+            const sumAx4 = document.getElementById("sum-ax4");
+            if (sumAx4 && evalRes.axis4) sumAx4.textContent = `+${evalRes.axis4.awarded_score}`;
+            const sumThree = document.getElementById("sum-three-axes");
+            if (sumThree) sumThree.textContent = evalRes.three_axes_total;
+            const sumAx5 = document.getElementById("sum-ax5");
+            if (sumAx5 && evalRes.axis5) sumAx5.textContent = `-${evalRes.axis5.total_deduction}`;
+
+            // تحديث مجموع الدرجة النهائية رقماً وكتابة (التفقيط العربي الرسمي)
+            const sumFinalScore = document.getElementById("summary-final-score");
+            if (sumFinalScore) sumFinalScore.textContent = `${evalRes.final_score} %`;
+            const sumScoreWords = document.getElementById("summary-score-words");
+            if (sumScoreWords) {
+                const words = evalRes.score_in_words || (window.numberToArabicWords ? window.numberToArabicWords(evalRes.final_score) : "صفر درجة فقط لا غير");
+                sumScoreWords.textContent = words;
+            }
+
+            // جدول التقديرات
+            ["امتياز", "جيد-جدا", "جيد", "ضعيف"].forEach(r => {
+                const cell = document.getElementById(`cell-rat-${r}`);
+                if (cell && evalRes.rating) {
+                    const match = evalRes.rating.replace(" ", "-") === r;
+                    cell.innerHTML = match ? '<span style="color:#15803d; background:#dcfce7; padding:4px 12px; border-radius:4px;">✔ مستحق</span>' : '-';
+                }
+            });
+        };
+    </script>
+    <!-- نافذة إعدادات محرك الذكاء الاصطناعي والرؤية الحاسوبية (VLM & Vision Settings) -->
+    <div class="modal-overlay" id="vlm-settings-modal">
+        <div class="modal-content" style="max-width: 540px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-brain text-blue-600"></i> إعدادات الذكاء الاصطناعي (Gemini VLM & Vision)</h3>
+                <button type="button" class="modal-close" id="vlm-settings-close-btn">&times;</button>
+            </div>
+            <div class="modal-body" style="gap: 1rem;">
+                <div class="alert alert-info" style="font-size: 0.85rem; line-height: 1.6; margin-bottom: 0;">
+                    <i class="fa-solid fa-circle-info"></i> يعتمد النظام على معالجة هجينة فائقة الدقة: محرك Google Gemini 1.5 Flash لفهم الوثائق المعقدة والمكتوبة بخط اليد بدقة استثنائية، مع محرك Apple Vision OCR المحلي الفوري بدون إنترنت.
+                </div>
+
+                <div class="form-group">
+                    <label style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">
+                        مفتاح Google Gemini API Key:
+                    </label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="password" class="form-control" id="vlm-api-key-input" placeholder="AIzaSy..." style="font-family: monospace;">
+                        <button type="button" class="btn btn-outline" id="btn-toggle-key-visibility" title="إظهار / إخفاء المفتاح">
+                            <i class="fa-solid fa-eye" id="eye-key-icon"></i>
+                        </button>
+                    </div>
+                    <small style="color: #64748b; font-size: 0.75rem; margin-top: 4px; display: block;">
+                        يُحفظ المفتاح محلياً في ملف البيئة المشفر لاستخدامه في المسح والاستخراج الذكي.
+                    </small>
+                </div>
+
+                <div class="form-group">
+                    <label style="font-weight: 700; font-size: 0.88rem; margin-bottom: 0.35rem; display: block;">
+                        نموذج الذكاء الاصطناعي المعتمد (VLM Model):
+                    </label>
+                    <select class="form-control" id="vlm-model-select">
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (مستحسن: فائق السرعة والدقة واقتصادي)</option>
+                        <option value="gemini-1.5-pro">Gemini 1.5 Pro (تحليل استدلالي عميق للمخطوطات غير الواضحة)</option>
+                        <option value="gemini-2.0-flash">Gemini 2.0 Flash (الجيل الجديد التجريبي)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="background: #f8fafc; padding: 0.75rem; border-radius: 6px; border: 1px solid #e2e8f0;">
+                    <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; margin: 0;">
+                        <input type="checkbox" id="vlm-local-fallback-check" checked style="width: 18px; height: 18px;">
+                        <span style="font-weight: 700; font-size: 0.85rem; color: #1e293b;">
+                            تفعيل محرك Apple Vision OCR المحلي كبديل تلقائي وسريع عند انقطاع الإنترنت
+                        </span>
+                    </label>
+                </div>
+
+                <div id="vlm-test-status" style="display: none; padding: 0.6rem; border-radius: 6px; font-size: 0.85rem;"></div>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button type="button" class="btn btn-outline" id="btn-test-vlm-api">
+                    <i class="fa-solid fa-vial"></i> فحص الاتصال
+                </button>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button type="button" class="btn btn-outline" id="vlm-settings-cancel-btn">إلغاء</button>
+                    <button type="button" class="btn btn-primary" id="vlm-settings-save-btn">
+                        <i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة نتيجة قراءة المقتطف اليدوي (Snippet OCR Result Modal) -->
+    <div class="modal-overlay" id="snippet-result-modal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-crop-simple text-purple-600"></i> نتيجة قراءة المقتطف المحدد</h3>
+                <button type="button" class="modal-close" id="snippet-modal-close-btn">&times;</button>
+            </div>
+            <div class="modal-body" style="gap: 0.75rem;">
+                <div>
+                    <label style="font-weight: 700; font-size: 0.85rem; color: #475569; display: block; margin-bottom: 0.35rem;">
+                        النص المستخرج من المقتطف:
+                    </label>
+                    <div id="snippet-extracted-text" class="extracted-box" style="min-height: 80px; font-size: 0.95rem; font-weight: 700;"></div>
+                </div>
+
+                <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                    <div class="form-group">
+                        <label style="font-size: 0.8rem;">رقم الأمر / العدد المكتشف:</label>
+                        <div style="display: flex; gap: 0.35rem;">
+                            <input type="text" class="form-control" id="snippet-detected-num" style="font-weight: 800;">
+                            <button type="button" class="btn btn-outline" id="btn-apply-snippet-num" title="اعتماده كرقم للوثيقة" style="padding: 2px 7px;">
+                                <i class="fa-solid fa-check"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label style="font-size: 0.8rem;">التاريخ المكتشف:</label>
+                        <div style="display: flex; gap: 0.35rem;">
+                            <input type="text" class="form-control" id="snippet-detected-date" style="font-weight: 800;">
+                            <button type="button" class="btn btn-outline" id="btn-apply-snippet-date" title="اعتماده كتاريخ للوثيقة" style="padding: 2px 7px;">
+                                <i class="fa-solid fa-check"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="snippet-modal-ok-btn">تم</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- إشعار عائم على الشاشة عند رفع الملفات ومسحها وتحليلها -->
+    <div id="screen-upload-notice" class="floating-upload-notice" style="display: none;">
+        <i class="fa-solid fa-arrows-rotate fa-spin fa-lg" style="color: #60a5fa;"></i>
+        <span id="screen-upload-notice-text" style="font-weight: 700;">جارٍ رفع الملفات ومسحها وتحليلها...</span>
+    </div>
+    <script src="js/app.js"></script>
+</body>
+</html>

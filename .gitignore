@@ -1,0 +1,37 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Temporary exports and logs
+exports/*
+!exports/.gitkeep
+*.log
+.system_generated/
+.tempmediaStorage/
+
+# Keep uploads directory structure tracked
+uploads/*
+!uploads/.gitkeep
+
+# Environment variables
+.env
+
+# Backups and scratch
+uploads_backup/
+scratch/
+*_bin

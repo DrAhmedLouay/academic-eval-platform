@@ -1,0 +1,8 @@
+{
+  "engine": "hybrid",
+  "gemini_api_key": "TEST_KEY_12345",
+  "model": "gemini-1.5-flash",
+  "faculty_default_name": "أحمد لؤي أحمد",
+  "enable_local_fallback": true,
+  "vlm_model": "gemini-1.5-pro"
+}

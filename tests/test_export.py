@@ -1,0 +1,106 @@
+import unittest
+import os
+from core.docx_generator import create_form_21_docx
+from core.pdf_generator import create_form_21_pdf
+
+class TestExportGenerators(unittest.TestCase):
+    def setUp(self):
+        self.sample_data = {
+            "personal_info": {
+                "university": "جامعة بغداد",
+                "college": "كلية الهندسة",
+                "department": "الهندسة المدنية",
+                "first_name": "علي",
+                "father_name": "حسين",
+                "grandfather_name": "كاظم",
+                "great_grandfather_name": "جواد",
+                "last_name": "الزبيدي",
+                "mother_name": "فاطمة",
+                "mother_father_name": "محمد",
+                "mother_grandfather_name": "علي",
+                "national_id": "198512345678",
+                "registry_no": "142",
+                "page_no": "58",
+                "issue_year": "2020",
+                "issue_month": "05",
+                "issue_day": "12",
+                "degree": "دكتوراه",
+                "order_no_and_date": "ق/452 في 2018/06/10",
+                "degree_year": "2018",
+                "degree_month": "06",
+                "degree_day": "10",
+                "granting_country": "العراق",
+                "granting_univ": "جامعة بغداد",
+                "granting_college": "كلية الهندسة",
+                "granting_dept": "الهندسة المدنية",
+                "general_specialty": "هندسة مدنية",
+                "specific_specialty": "إنشاءات وجسور",
+                "academic_title": "أستاذ مساعد",
+                "title_granter": "مجلس جامعة بغداد",
+                "title_year": "2022",
+                "title_month": "03",
+                "title_day": "15",
+                "phone": "07701234567",
+                "email": "dr.ali@uobaghdad.edu.iq"
+            },
+            "is_non_teaching": False,
+            "axis1": {
+                "courses_score": 20,
+                "classroom_management_score": 20,
+                "blended_learning_items": [5, 5, 5, 5],
+                "course_description_items": [4, 4, 4, 4, 4],
+                "job_commitment_items": [4, 4, 4, 4, 4]
+            },
+            "axis2": {
+                "global_research_score": 60,
+                "local_research_score": 25,
+                "supervision_score": 15
+            },
+            "axis3": {
+                "committees_score": 30,
+                "continuous_learning_score": 20,
+                "thank_you_score": 20,
+                "field_visits_score": 30
+            },
+            "axis4": {
+                "items": {"item1": 3, "item2": 4}
+            },
+            "axis5": {
+                "penalties": []
+            }
+        }
+        self.sample_attachments = [
+            {
+                "type_arabic": "كتاب شكر وتقدير",
+                "document_number": "م.و/1042",
+                "date": "2025/11/15",
+                "title": "كتاب شكر من معالي وزير التعليم العالي والبحث العلمي",
+                "axis_name": "المحور الثالث",
+                "suggested_paragraph": "3",
+                "suggested_score": 20.0
+            },
+            {
+                "type_arabic": "بحث منشور في مستوعب عالمي",
+                "document_number": "10.1016/j.apenergy.2025.109823",
+                "date": "2025/08/20",
+                "title": "High Performance Structural Concrete (Scopus CiteScore 4.8)",
+                "axis_name": "المحور الثاني",
+                "suggested_paragraph": "1",
+                "suggested_score": 60.0
+            }
+        ]
+
+    def test_docx_generation(self):
+        docx_path = "exports/test_form_21.docx"
+        res = create_form_21_docx(self.sample_data, docx_path, self.sample_attachments)
+        self.assertTrue(os.path.exists(docx_path))
+        self.assertGreater(os.path.getsize(docx_path), 5000)
+
+    def test_pdf_generation(self):
+        pdf_path = "exports/test_form_21.pdf"
+        res = create_form_21_pdf(self.sample_data, pdf_path, self.sample_attachments)
+        self.assertTrue(os.path.exists(pdf_path))
+        self.assertGreater(os.path.getsize(pdf_path), 10000)
+
+if __name__ == "__main__":
+    unittest.main()
