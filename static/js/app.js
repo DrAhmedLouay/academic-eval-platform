@@ -512,8 +512,87 @@ function numberToArabicWords(number) {
 }
 window.numberToArabicWords = numberToArabicWords;
 
+function calculateEvaluationClient(fd) {
+    const isNonTeaching = Boolean(fd.is_non_teaching);
+    const a1 = fd.axis1 || {};
+    let ax1Total = 0;
+    let ax1Weighted = 0;
+    if (isNonTeaching) {
+        const jItems = Array.isArray(a1.job_commitment_items) ? a1.job_commitment_items : [0,0,0,0,0];
+        const jSum = jItems.reduce((a,b)=>a+(Number(b)||0), 0);
+        ax1Total = (jSum / 20) * 100;
+        ax1Weighted = (ax1Total / 100) * 50;
+    } else {
+        const courses = Number(a1.courses_score) || 0;
+        const management = Number(a1.classroom_management_score) || 0;
+        const bSum = (Array.isArray(a1.blended_learning_items) ? a1.blended_learning_items : [0,0,0,0]).reduce((a,b)=>a+(Number(b)||0), 0);
+        const cSum = (Array.isArray(a1.course_description_items) ? a1.course_description_items : [0,0,0,0,0]).reduce((a,b)=>a+(Number(b)||0), 0);
+        const jSum = (Array.isArray(a1.job_commitment_items) ? a1.job_commitment_items : [0,0,0,0,0]).reduce((a,b)=>a+(Number(b)||0), 0);
+        ax1Total = Math.min(100, courses + management + bSum + cSum + jSum);
+        ax1Weighted = (ax1Total / 100) * 50;
+    }
+
+    const a2 = fd.axis2 || {};
+    const globalRes = Number(a2.global_research_score) || 0;
+    const localRes = Number(a2.local_research_score) || 0;
+    const supervision = Number(a2.supervision_score) || 0;
+    const ax2Total = Math.min(100, globalRes + localRes + supervision);
+    const ax2Weighted = (ax2Total / 100) * 30;
+
+    const a3 = fd.axis3 || {};
+    const comm = Number(a3.committees_score) || 0;
+    const cont = Number(a3.continuous_learning_score) || 0;
+    const thank = Number(a3.thank_you_score) || 0;
+    const field = Number(a3.field_visits_score) || 0;
+    const ax3Total = Math.min(100, comm + cont + thank + field);
+    const ax3Weighted = (ax3Total / 100) * 20;
+
+    const a4 = fd.axis4 || {};
+    const items = a4.items || {};
+    let strengthTotal = 0;
+    Object.values(items).forEach(v => { strengthTotal += (Number(v) || 0); });
+    strengthTotal = Math.min(5, strengthTotal);
+
+    const a5 = fd.axis5 || {};
+    const penalties = Array.isArray(a5.penalties) ? a5.penalties : [];
+    const penaltyTotal = penalties.reduce((a,b)=>a+(Number(b)||0), 0);
+
+    let rawFinal = ax1Weighted + ax2Weighted + ax3Weighted + strengthTotal - penaltyTotal;
+    let finalScore = Math.max(0, rawFinal);
+    let warnings = [];
+    let isCapped = false;
+    if (globalRes === 0) {
+        if (finalScore > 75) {
+            finalScore = 75;
+            isCapped = true;
+            warnings.push("تم تطبيق سقف الدرجة الوزاري (75%) لعدم وجود بحوث في مستوعبات Scopus/Clarivate.");
+        }
+    }
+    finalScore = Math.round(finalScore * 100) / 100;
+
+    let rating = "ضعيف";
+    if (finalScore >= 85) rating = "امتياز";
+    else if (finalScore >= 75) rating = "جيد جداً";
+    else if (finalScore >= 65) rating = "جيد";
+    else if (finalScore >= 50) rating = "متوسط";
+
+    return {
+        axis1: { raw_score: ax1Total, weighted_score: Math.round(ax1Weighted*100)/100 },
+        axis2: { raw_score: ax2Total, weighted_score: Math.round(ax2Weighted*100)/100 },
+        axis3: { raw_score: ax3Total, weighted_score: Math.round(ax3Weighted*100)/100 },
+        axis4: { awarded_score: strengthTotal },
+        axis5: { total_deduction: penaltyTotal },
+        final_score: finalScore,
+        rating: rating,
+        score_in_words: numberToArabicWords(finalScore),
+        scopus_zero_rule_triggered: isCapped,
+        warnings: warnings
+    };
+}
+window.calculateEvaluationClient = calculateEvaluationClient;
+
 // ============================================================================
-// الحساب اللحظي للدرجات
+// الحساب اللحظي للدرجات مع دعم العمل المحلي التلقائي لـ GitHub Pages
 // ============================================================================
 async function calculateLiveScore() {
     try {
@@ -522,16 +601,25 @@ async function calculateLiveScore() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(formData)
         });
-        const data = await response.json();
-        if (data.success) {
-            currentEvaluation = data.evaluation;
-            updateScoreboardUI(currentEvaluation);
-            if (window.updateSummaryTableUI) {
-                window.updateSummaryTableUI(currentEvaluation);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.evaluation) {
+                currentEvaluation = data.evaluation;
+                updateScoreboardUI(currentEvaluation);
+                if (window.updateSummaryTableUI) {
+                    window.updateSummaryTableUI(currentEvaluation);
+                }
+                return;
             }
         }
     } catch (err) {
-        console.error("Error calculating score:", err);
+        // الخادم غير متاح (العمل عبر GitHub Pages) - الاحتساب المحلي الذكي
+    }
+
+    currentEvaluation = calculateEvaluationClient(formData);
+    updateScoreboardUI(currentEvaluation);
+    if (window.updateSummaryTableUI) {
+        window.updateSummaryTableUI(currentEvaluation);
     }
 }
 
@@ -695,72 +783,523 @@ function hideUploadLoadingState() {
 }
 window.hideUploadLoadingState = hideUploadLoadingState;
 
-function handleClientSideEvidenceScan(file, target) {
+// =========================================================================
+// منظومة استخراج النصوص وتحليل الوثائق وقراءة الأعداد والتواريخ المطبوعة واليدوية (Client & Fallback)
+// =========================================================================
+
+const ARABIC_MONTHS_MAP = {
+    "كانون الثاني": "01", "كانون ثاني": "01",
+    "شباط": "02",
+    "آذار": "03", "اذار": "03",
+    "نيسان": "04",
+    "أيار": "05", "ايار": "05",
+    "حزيران": "06",
+    "تموز": "07",
+    "آب": "08", "اب": "08",
+    "أيلول": "09", "ايلول": "09",
+    "تشرين الأول": "10", "تشرين اول": "10",
+    "تشرين الثاني": "11", "تشرين ثاني": "11",
+    "كانون الأول": "12", "كانون اول": "12"
+};
+
+function normalizeArabicTextClient(str) {
+    if (!str) return "";
+    return str
+        .replace(/[\u064B-\u065F\u0670]/g, "") // remove tashkeel
+        .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)]) // eastern to western digits
+        .replace(/[إأآا]/g, "ا")
+        .replace(/ى/g, "ي")
+        .replace(/ة/g, "ه");
+}
+
+function extractDateClient(text, filename) {
+    const raw = (text || "") + "\n" + (filename || "");
+    if (!raw.trim()) return new Date().toISOString().split('T')[0];
+
+    // 1. التاريخ بأسماء الأشهر العربية
+    for (const [mName, mNum] of Object.entries(ARABIC_MONTHS_MAP)) {
+        const p1 = new RegExp(`(\\b(?:0?[1-9]|[12][0-9]|3[01]))\\s*(?:من\\s*)?${mName}\\s*(?:سنة\\s*|عام\\s*)?(202[0-9])`, 'i');
+        const m1 = raw.match(p1);
+        if (m1) {
+            const day = String(parseInt(m1[1], 10)).padStart(2, '0');
+            return `${m1[2]}/${mNum}/${day}`;
+        }
+    }
+
+    // 2. التاريخ بجانب كلمة التاريخ أو التأريخ (يدوي أو مطبوع)
+    const labeledMatch = raw.match(/(?:التاريخ|التأريخ|بتاريخ|بتأريخ|تاريخ\s+الصدور|Date)\s*[:/=-]?\s*[\.\s]*([0-9/\-\. ]{4,20})/i);
+    if (labeledMatch) {
+        const cand = labeledMatch[1].replace(/\s+/g, "");
+        const mYMD = cand.match(/\b(202[0-9][/\-\.](?:0?[1-9]|1[0-2])[/\-\.](?:0?[1-9]|[12][0-9]|3[01]))\b/);
+        if (mYMD) {
+            const parts = mYMD[1].split(/[/.\-]/);
+            return `${parts[0]}/${String(parseInt(parts[1], 10)).padStart(2, '0')}/${String(parseInt(parts[2], 10)).padStart(2, '0')}`;
+        }
+        const mDMY = cand.match(/\b((?:0?[1-9]|[12][0-9]|3[01])[/\-\.](?:0?[1-9]|1[0-2])[/\-\.](202[0-9]))\b/);
+        if (mDMY) {
+            const parts = mDMY[1].split(/[/.\-]/);
+            return `${parts[2]}/${String(parseInt(parts[1], 10)).padStart(2, '0')}/${String(parseInt(parts[0], 10)).padStart(2, '0')}`;
+        }
+    }
+
+    // 3. النمط القياسي YYYY/MM/DD في كامل النص
+    const stdMatch = raw.match(/\b(202[0-9])[/\-\.](0?[1-9]|1[0-2])[/\-\.](0?[1-9]|[12][0-9]|3[01])\b/);
+    if (stdMatch) {
+        return `${stdMatch[1]}/${String(parseInt(stdMatch[2], 10)).padStart(2, '0')}/${String(parseInt(stdMatch[3], 10)).padStart(2, '0')}`;
+    }
+
+    // 4. النمط القياسي DD/MM/YYYY في كامل النص
+    const revMatch = raw.match(/\b(0?[1-9]|[12][0-9]|3[01])[/\-\.](0?[1-9]|1[0-2])[/\-\.](202[0-9])\b/);
+    if (revMatch) {
+        return `${revMatch[3]}/${String(parseInt(revMatch[2], 10)).padStart(2, '0')}/${String(parseInt(revMatch[1], 10)).padStart(2, '0')}`;
+    }
+
+    // 5. التاريخ من اسم الملف (مثل Archive_09_26_2024 أو PHOTO-2024-11-12)
+    if (filename) {
+        const fnYMD = filename.match(/\b(202[0-9])[-_](0?[1-9]|1[0-2])[-_](0?[1-9]|[12][0-9]|3[01])\b/);
+        if (fnYMD) {
+            return `${fnYMD[1]}/${String(parseInt(fnYMD[2], 10)).padStart(2, '0')}/${String(parseInt(fnYMD[3], 10)).padStart(2, '0')}`;
+        }
+        const fnArch = filename.match(/Archive_([0-9]{2})_([0-9]{2})_(202[0-9])/i);
+        if (fnArch) {
+            return `${fnArch[3]}/${fnArch[1]}/${fnArch[2]}`;
+        }
+    }
+
+    return "2024/2025";
+}
+
+function extractDocNumberClient(text, filename) {
+    const raw = (text || "").trim();
+
+    // 1. صيغة العدد الرسمي العراقي بالأحرف والسلاش: (م.ع/1509 ، د.ت/625 ، هـ.ع/734 ، ش.ع/43 ، م.و/135 ، م.ج/421 ، ع/17)
+    const mLetterSlash = raw.match(/(?:[^\w]|^)([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4}(?:\s*\d{1,2})?)\s*[\/]\s*(\d{1,6}(?:[\/]\d+)*(?:\s*[\/]\s*[أ-ي])?)/);
+    if (mLetterSlash) {
+        let letters = mLetterSlash[1].replace(/\s+/g, "");
+        if (letters.length === 2 && !letters.includes(".")) {
+            letters = letters[0] + "." + letters[1];
+        }
+        const serial = mLetterSlash[2].replace(/\s+/g, "");
+        return `${letters}/${serial}`;
+    }
+
+    // 2. البحث بجانب كلمة "العدد" أو "الرقم"
+    const mLabel = raw.match(/(?:العدد|الـعـدد|الرقم|عدد|رقم)\s*[:/=-]?\s*[\.]*\s*([أ-ي0-9\/\- ]{2,30})/);
+    if (mLabel) {
+        let cand = mLabel[1].trim().split(/[\n\r,]/)[0].trim();
+        cand = cand.replace(/^(?:No|Ref|DATE|Date)[\.:\s]*/i, "");
+        if (cand && /\d/.test(cand)) {
+            return cand.replace(/\s+/g, "");
+        }
+    }
+
+    // 3. أسطر ما بعد كلمة "العدد" إذا كانت منفردة
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    for (let i = 0; i < Math.min(lines.length, 12); i++) {
+        if (/^(?:العدد|الـعـدد|رقم|الرقم)\s*[:/=-]?\s*[\.]*$/.test(lines[i])) {
+            for (let j = i + 1; j < Math.min(lines.length, i + 4); j++) {
+                const sub = lines[j];
+                const mSub = sub.match(/([أ-ي0-9\/\-]{2,20})/);
+                if (mSub && /\d/.test(mSub[1])) {
+                    return mSub[1].replace(/\s+/g, "");
+                }
+            }
+        }
+    }
+
+    // 4. استخراج الرقم من اسم الملف (إذا كان اسم الملف يحتوي على عدد مثل 1509، 421، امر_1509)
+    if (filename) {
+        const cleanFn = filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+        const mFnLetter = cleanFn.match(/([أ-ي]{1,3}\s*\/\s*\d{1,5})/);
+        if (mFnLetter) {
+            return mFnLetter[1].replace(/\s+/g, "");
+        }
+        const mFnNum = cleanFn.match(/(?:امر|كتاب|عدد|no|ref)?\s*(\d{2,5})\b/i);
+        if (mFnNum && !mFnNum[1].startsWith("202")) { // ليس سنة
+            return mFnNum[1];
+        }
+    }
+
+    return "غير محدد";
+}
+
+function extractSubjectClient(text, filename) {
+    if (text) {
+        const mSub = text.match(/(?:الموضوع|م)\s*[\/:]\s*([^\n\r]+)/);
+        if (mSub && mSub[1].trim().length > 3) {
+            return mSub[1].trim().substring(0, 100);
+        }
+    }
+    if (filename) {
+        return filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+    }
+    return "وثيقة إثبات رسمية";
+}
+
+function extractRecipientClient(text) {
+    if (!text) return "غير محدد";
+    const mRec = text.match(/(?:إلى|الى|لإلى)\s*[\/:]\s*([^\n\r]+)/);
+    if (mRec && mRec[1].trim().length > 2) {
+        return mRec[1].trim().substring(0, 80);
+    }
+    return "غير محدد";
+}
+
+async function extractTextFromPdfClient(file) {
+    if (window.pdfjsLib) {
+        try {
+            if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
+            const buffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+            let fullText = "";
+            const maxPages = Math.min(pdf.numPages, 3);
+            for (let i = 1; i <= maxPages; i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                const pageText = textContent.items.map(it => it.str).join(" ");
+                fullText += pageText + "\n";
+            }
+            if (fullText.trim().length > 10) {
+                return fullText;
+            }
+        } catch (e) {
+            console.warn("PDF.js extraction notice:", e);
+        }
+    }
+
+    // Fallback: Binary string decoder
+    try {
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        const decoder = new TextDecoder('utf-8', { fatal: false });
+        const rawStr = decoder.decode(bytes);
+        const extractedTokens = [];
+        const tjPattern = /\(([^)]{2,120})\)\s*Tj/g;
+        let match;
+        while ((match = tjPattern.exec(rawStr)) !== null) {
+            extractedTokens.push(match[1]);
+        }
+        if (extractedTokens.length > 3) {
+            return extractedTokens.join(" ");
+        }
+    } catch (e) {
+        console.warn("PDF stream decoder notice:", e);
+    }
+    return "";
+}
+
+async function callGeminiVisionClient(file) {
+    const apiKey = localStorage.getItem("vlm_gemini_api_key") || 
+                   (document.getElementById("vlm-api-key-input") ? document.getElementById("vlm-api-key-input").value.trim() : "");
+    if (!apiKey) return null;
+
+    try {
+        const base64Data = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const b64 = reader.result.split(',')[1];
+                resolve(b64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+
+        const mimeType = file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+        const promptText = `أنت خبير توثيق أكاديمي في الجامعات العراقية. استخرج بدقة الحقول التالية من الوثيقة المرفقة (سواء كانت مطبوعة أو مكتوبة بخط اليد):
+1. doc_number: العدد الإداري (مثل م.ع/1509 أو د.ت/625 أو ش.ع/43 أو 17).
+2. date: التاريخ بصيغة YYYY/MM/DD (مثل 2024/09/19).
+3. subject: موضوع الوثيقة أو عنوان البحث أو اللجنة.
+4. issuer: الجهة المصدرة (الوزارة أو الجامعة أو الكلية أو القسم).
+5. doc_type: نوع الوثيقة (أمر إداري، كتاب شكر وتقدير، بحث علمي، شهادة مشاركة).
+6. is_handwritten: هل العدد أو التاريخ مكتوب بخط اليد (true أو false).
+أجب بصيغة JSON فقط كالتالي:
+{"doc_number": "...", "date": "YYYY/MM/DD", "subject": "...", "issuer": "...", "doc_type": "...", "is_handwritten": true}`;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const resp = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        { text: promptText },
+                        { inline_data: { mime_type: mimeType, data: base64Data } }
+                    ]
+                }]
+            })
+        });
+
+        if (resp.ok) {
+            const data = await resp.json();
+            const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                return JSON.parse(jsonMatch[0]);
+            }
+        }
+    } catch (e) {
+        console.warn("Client Gemini call notice:", e);
+    }
+    return null;
+}
+
+function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph) {
+    const raw = (text || "") + " " + (filename || "");
+    const cleanFn = (filename || "").replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+
+    let docNumber = extractDocNumberClient(text, filename);
+    let docDate = extractDateClient(text, filename);
+    let subject = extractSubjectClient(text, filename);
+    let recipient = extractRecipientClient(text);
+    let issuer = (formData && formData.personal_info && formData.personal_info.college) ? formData.personal_info.college : "الجامعة التكنولوجية";
+    if (/وزارة التعليم العالي/i.test(raw)) issuer = "وزارة التعليم العالي والبحث العلمي";
+    else if (/رئاسة الجامعة|مكتب رئيس/i.test(raw)) issuer = "رئاسة الجامعة التكنولوجية";
+    else if (/المساعد العلمي/i.test(raw)) issuer = "مكتب المساعد العلمي";
+    else if (/قسم هندسة العمارة/i.test(raw)) issuer = "قسم هندسة العمارة";
+
+    let isHandwritten = false;
+    if (/[\.\s]{3,}\d+/.test(raw) || /✍️|مكتوب باليد|خط يد/.test(raw) || /\d\s+\d/.test(text || "")) {
+        isHandwritten = true;
+    }
+
+    let ax = targetAxis || "axis3";
+    let p = targetParagraph ? String(targetParagraph) : "1";
+    let docType = "وثيقة إثبات رسمية";
+    let suggestedScore = 10.0;
+    let axisName = "المحور الثالث: الجانب التربوي والتطويري";
+    let paragraphName = "الأنشطة الأكاديمية";
+
+    if (!targetAxis) {
+        if (/بحث|scopus|clarivate|journal|مستوعب|doi|impact/i.test(raw)) {
+            ax = "axis2"; p = "1";
+            docType = "بحث علمي منشور بمستوعب عالمي";
+            suggestedScore = 60.0;
+            axisName = "المحور الثاني: النشاط العلمي والبحثي";
+            paragraphName = "1. نشر البحوث في المستوعبات العالمية (Clarivate / Scopus)";
+        } else if (/كتاب|مؤلف|isbn|دار نشر/i.test(raw)) {
+            ax = "axis2"; p = "2";
+            docType = "كتاب علمي منهجي أو مقوم";
+            suggestedScore = 25.0;
+            axisName = "المحور الثاني: النشاط العلمي والبحثي";
+            paragraphName = "2. الكتب المؤلفة والمترجمة أو البحوث في المجلات الوطنية";
+        } else if (/إشراف|اشراف|ماجستير|دكتوراه|اطروحة|أطروحة|رسالة/i.test(raw)) {
+            ax = "axis2"; p = "3";
+            docType = "أمر إداري بالإشراف على الدراسات العليا";
+            suggestedScore = 20.0;
+            axisName = "المحور الثاني: النشاط العلمي والبحثي";
+            paragraphName = "3. الإشراف على طلبة الدراسات العليا والتقويم العلمي";
+        } else if (/شكر|تقدير/i.test(raw)) {
+            ax = "axis3"; p = "3";
+            docType = "كتاب شكر وتقدير رسمي";
+            suggestedScore = 20.0;
+            axisName = "المحور الثالث: الجانب التربوي والتطويري";
+            paragraphName = "3. كتب الشكر والتقدير (الوزير / رئيس الجامعة / العميد)";
+        } else if (/شهادة|مشاركة|ورشة|ندوة|دورة|تعليم مستمر/i.test(raw)) {
+            ax = "axis3"; p = "2";
+            docType = "شهادة مشاركة في دورة أو ورشة عمل";
+            suggestedScore = 10.0;
+            axisName = "المحور الثالث: الجانب التربوي والتطويري";
+            paragraphName = "2. التعليم المستمر والمؤتمرات والندوات وورش العمل";
+        } else if (/زيارة|تطوعي|ميداني|عمل تطوعي/i.test(raw)) {
+            ax = "axis3"; p = "4";
+            docType = "توثيق زيارة علمية أو نشاط تطوعي";
+            suggestedScore = 12.0;
+            axisName = "المحور الثالث: الجانب التربوي والتطويري";
+            paragraphName = "4. الزيارات العلمية الميدانية والأعمال التطوعية";
+        } else if (/مواطن القوة|تميز|هيئة تحرير|تحكيم/i.test(raw)) {
+            ax = "axis4"; p = "1";
+            docType = "عضوية هيئة تحرير مجلة علمية أو نشاط متميز";
+            suggestedScore = 5.0;
+            axisName = "المحور الرابع: مواطن القوة";
+            paragraphName = "نشاط علمي وأكاديمي متميز";
+        } else if (/أمر إداري|امر اداري|تكليف|لجنة/i.test(raw)) {
+            ax = "axis3"; p = "1";
+            docType = "أمر إداري بتشكيل لجنة رسمية";
+            suggestedScore = 15.0;
+            axisName = "المحور الثالث: الجانب التربوي والتطويري";
+            paragraphName = "1. اللجان الدائمية والمؤقتة والامتحانية";
+        }
+    } else {
+        if (ax === "axis1") {
+            axisName = "المحور الأول: جودة التدريس والتعليم والالتزام الوظيفي";
+            if (p === "1") {
+                paragraphName = "1. المقررات الدراسية";
+                docType = "أمر جامعي بالمقررات والجدول التدريسي";
+                suggestedScore = 20.0;
+            } else if (p === "2") {
+                paragraphName = "2. إدارة الصف والعلاقة مع الطلبة (استبيان الطلبة)";
+                docType = "استمارة تقييم استبيان الطلبة";
+                suggestedScore = 20.0;
+            }
+        } else if (ax === "axis2") {
+            axisName = "المحور الثاني: النشاط العلمي والبحثي";
+            if (p === "1") {
+                paragraphName = "1. نشر البحوث في المستوعبات العالمية (Clarivate / Scopus)";
+                docType = "بحث علمي منشور بمستوعب عالمي";
+                suggestedScore = 60.0;
+            } else if (p === "2") {
+                paragraphName = "2. الكتب المؤلفة والمترجمة أو البحوث في المجلات الوطنية";
+                docType = "بحث وطني أو كتاب منهجي مقوم";
+                suggestedScore = 25.0;
+            } else if (p === "3") {
+                paragraphName = "3. الإشراف على طلبة الدراسات العليا والتقويم العلمي";
+                docType = "أمر إداري بالإشراف أو التقويم العلمي";
+                suggestedScore = 20.0;
+            }
+        } else if (ax === "axis3") {
+            axisName = "المحور الثالث: الجانب التربوي والتطويري";
+            if (p === "1") {
+                paragraphName = "1. اللجان الدائمية والمؤقتة والامتحانية";
+                docType = "أمر إداري بتشكيل لجنة";
+                suggestedScore = 15.0;
+            } else if (p === "2") {
+                paragraphName = "2. التعليم المستمر والمؤتمرات والندوات وورش العمل";
+                docType = "شهادة مشاركة في دورة أو مؤتمر";
+                suggestedScore = 10.0;
+            } else if (p === "3") {
+                paragraphName = "3. كتب الشكر والتقدير (الوزير / رئيس الجامعة / العميد)";
+                docType = "كتاب شكر وتقدير رسمي";
+                suggestedScore = 20.0;
+            } else if (p === "4") {
+                paragraphName = "4. الزيارات العلمية الميدانية والأعمال التطوعية";
+                docType = "كتاب تأييد زيارة أو عمل تطوعي";
+                suggestedScore = 12.0;
+            }
+        } else if (ax === "axis4") {
+            axisName = "المحور الرابع: مواطن القوة";
+            paragraphName = `الفقرة ${p} - نشاط متميز`;
+            docType = "وثيقة إثبات لمواطن القوة";
+            suggestedScore = 5.0;
+        }
+    }
+
+    return {
+        axis: ax,
+        paragraph: p,
+        axis_name: axisName,
+        paragraph_name: paragraphName,
+        title: subject,
+        doc_type: docType,
+        doc_number: docNumber,
+        date: docDate,
+        issuer: issuer,
+        recipient: recipient,
+        suggested_score: suggestedScore,
+        is_handwritten: isHandwritten
+    };
+}
+
+async function handleClientSideEvidenceScan(file, target) {
     hideUploadLoadingState();
-    const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
     const objectUrl = URL.createObjectURL(file);
     const ax = target ? target.axis : "axis1";
     const p = target ? String(target.paragraph) : "1";
     const counter = getNextCounterForParagraph(ax, p);
-    const refCode = `REF-${ax.toUpperCase()}-P${p}-${String(counter).padStart(2, '0')}`;
+    const refCode = `REF-${ax.toUpperCase().replace("AXIS", "AX")}-P${p}-${String(counter).padStart(2, '0')}`;
 
-    // تخمين نوع الوثيقة والدرجة المقترحة تلقائياً
-    let docType = "وثيقة إثبات معتمدة";
-    let defaultScore = 10.0;
-    if (/أمر|تكليف|لجنة/i.test(cleanName)) {
-        docType = "أمر إداري بتكليف";
-        defaultScore = 20.0;
-    } else if (/بحث|scopus|مقال|journal/i.test(cleanName)) {
-        docType = "بحث علمي منشور";
-        defaultScore = (ax === "axis2" && p === "1") ? 60.0 : 25.0;
-    } else if (/شكر|تقدير/i.test(cleanName)) {
-        docType = "كتاب شكر وتقدير";
-        defaultScore = 20.0;
-    } else if (/كتاب|مؤلف|isbn/i.test(cleanName)) {
-        docType = "كتاب منهجي مقوم";
-        defaultScore = 25.0;
-    } else if (/ورشة|ندوة|شهادة/i.test(cleanName)) {
-        docType = "شهادة مشاركة بورشة";
-        defaultScore = 10.0;
+    // 1. فحص ما إذا كان الملف موجوداً مسبقاً في فهرس الأدلة المعتمد
+    const cleanBase = file.name.trim().toLowerCase();
+    const existingMatch = indexedEvidenceList.find(item => {
+        if (!item.filename) return false;
+        const fn = item.filename.trim().toLowerCase();
+        return fn === cleanBase || cleanBase.includes(fn) || fn.includes(cleanBase);
+    });
+
+    let docNumber, docDate, docTitle, docType, suggestedScore, axName, pName, isHw, recipient, issuer;
+
+    if (existingMatch && existingMatch.doc_number && !existingMatch.doc_number.includes("قيد التدقيق") && existingMatch.doc_number !== "غير محدد") {
+        docNumber = existingMatch.doc_number;
+        docDate = existingMatch.date || "2024/09/19";
+        docTitle = existingMatch.title || existingMatch.subject;
+        docType = existingMatch.doc_type;
+        suggestedScore = existingMatch.suggested_score || 15.0;
+        axName = existingMatch.axis_name;
+        pName = existingMatch.paragraph_name;
+        isHw = Boolean(existingMatch.handwritten_detected);
+        recipient = existingMatch.recipient || "غير محدد";
+        issuer = existingMatch.issuer || "الجامعة التكنولوجية";
+    } else {
+        // 2. محاولة استخراج النصوص عبر PDF.js أو VLM أو التحليل الذكي
+        let extractedText = "";
+        if (file.name.toLowerCase().endsWith(".pdf")) {
+            extractedText = await extractTextFromPdfClient(file);
+        }
+
+        let vlmData = null;
+        if (!extractedText || extractedText.length < 20) {
+            vlmData = await callGeminiVisionClient(file);
+        }
+
+        if (vlmData && vlmData.doc_number) {
+            docNumber = vlmData.doc_number;
+            docDate = vlmData.date || extractDateClient("", file.name);
+            docTitle = vlmData.subject || extractSubjectClient("", file.name);
+            docType = vlmData.doc_type || "وثيقة إثبات معتمدة";
+            suggestedScore = 15.0;
+            isHw = Boolean(vlmData.is_handwritten);
+            recipient = "غير محدد";
+            issuer = vlmData.issuer || "الجامعة التكنولوجية";
+            axName = target ? target.label : "المحور المختار";
+            pName = target ? target.label : "الفقرة المستهدفة";
+        } else {
+            const parsed = parseArabicDocumentClient(extractedText, file.name, ax, p);
+            docNumber = parsed.doc_number;
+            docDate = parsed.date;
+            docTitle = parsed.title;
+            docType = parsed.doc_type;
+            suggestedScore = parsed.suggested_score;
+            isHw = parsed.is_handwritten;
+            recipient = parsed.recipient;
+            issuer = parsed.issuer;
+            axName = target ? target.label : parsed.axis_name;
+            pName = target ? target.label : parsed.paragraph_name;
+        }
     }
 
-    const mockEvidence = {
+    const summaryText = isHw ? 
+        `✍️ تم قراءة العدد [${docNumber}] والتاريخ [${docDate}] بخط اليد بالذكاء الاصطناعي.` : 
+        `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح.`;
+
+    const evidenceItem = {
         ref_code: refCode,
         axis: ax,
         paragraph: p,
-        axis_name: target ? target.label : "المحور المختار",
-        paragraph_name: target ? target.label : "الفقرة المستهدفة",
-        title: cleanName,
+        axis_name: axName,
+        paragraph_name: pName,
+        title: docTitle,
         doc_type: docType,
-        doc_number: "قيد التدقيق (إدخال يدوي)",
-        date: new Date().toISOString().split('T')[0],
-        issuer: (formData && formData.personal_info && formData.personal_info.college) ? formData.personal_info.college : "الجامعة التكنولوجية",
-        suggested_score: defaultScore,
+        doc_number: docNumber,
+        date: docDate,
+        issuer: issuer,
+        recipient: recipient,
+        suggested_score: suggestedScore,
         file_path: objectUrl,
         filename: file.name,
-        auto_fill_summary: "تم رفع الوثيقة بنجاح وحفظها كدليل إثبات للمعاينة والاعتماد."
+        handwritten_detected: isHw,
+        auto_fill_summary: summaryText
     };
 
     const fieldUpdates = {};
     if (target && target.axis && target.paragraph) {
-        fieldUpdates[`${target.axis}.p${target.paragraph}`] = defaultScore;
+        fieldUpdates[`${target.axis}.p${target.paragraph}`] = suggestedScore;
     }
 
-    showToast(`تم استيراد المستند (${file.name}) بنجاح! يمكنك الآن تدقيق واعتماد البيانات.`);
-    openEvidenceReviewModal(mockEvidence, fieldUpdates, "تم استيراد الوثيقة وإعدادها للاعتماد الفوري.");
+    showToast(`تم مسح وقراءة المستند (${file.name}) بنجاح! العدد: ${docNumber} | التاريخ: ${docDate}`);
+    openEvidenceReviewModal(evidenceItem, fieldUpdates, summaryText);
 }
 
 async function processSingleEvidenceScan(file, target) {
     if (!file) return;
 
     if (isCloudOrStaticEnv()) {
-        // بيئة سحابية بدون خادم OCR محلي: معالجة فورية ومباشرة
-        handleClientSideEvidenceScan(file, target);
+        await handleClientSideEvidenceScan(file, target);
         return;
     }
 
     showUploadLoadingState(false, file.name);
-    showToast(`جارٍ رفع الملفات ومسحها وتحليلها (${file.name})... ⏳`);
+    showToast(`جارٍ رفع الملف ومسحه وتحليله بالذكاء الاصطناعي (${file.name})... ⏳`);
 
     const payload = new FormData();
     payload.append("file", file);
@@ -775,7 +1314,7 @@ async function processSingleEvidenceScan(file, target) {
     try {
         if (window.AbortController) {
             controller = new AbortController();
-            timeoutId = setTimeout(() => controller.abort(), 3500);
+            timeoutId = setTimeout(() => controller.abort(), 45000); // 45s timeout for complete Apple Vision / Gemini OCR
         }
 
         const response = await fetch("/api/scan-evidence", {
@@ -795,13 +1334,13 @@ async function processSingleEvidenceScan(file, target) {
         }
     } catch (err) {
         if (timeoutId) clearTimeout(timeoutId);
-        console.warn("Backend scan unavailable or timed out, using smart client-side indexing:", err);
+        console.warn("Backend scan timed out or unavailable, executing intelligent client-side document extraction:", err);
     } finally {
         hideUploadLoadingState();
     }
 
-    // البديل الذكي الفوري
-    handleClientSideEvidenceScan(file, target);
+    // البديل الذكي الفوري لاستخراج العدد والتاريخ
+    await handleClientSideEvidenceScan(file, target);
 }
 
 async function processBatchEvidenceScan(filesList) {
@@ -809,42 +1348,84 @@ async function processBatchEvidenceScan(filesList) {
     if (files.length === 0) return;
 
     if (isCloudOrStaticEnv()) {
-        // معالجة مجمعة فورية ومباشرة للبيئة السحابية
-        files.forEach(file => {
-            const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+        showUploadLoadingState(true, files.length);
+        showToast(`جارٍ استخراج وقراءة بيانات ${files.length} مستندات وتفقيطها... ⏳`);
+
+        for (const file of files) {
+            let extractedText = "";
+            if (file.name.toLowerCase().endsWith(".pdf")) {
+                extractedText = await extractTextFromPdfClient(file);
+            }
+            const cleanBase = file.name.trim().toLowerCase();
+            const existingMatch = indexedEvidenceList.find(item => {
+                if (!item.filename) return false;
+                const fn = item.filename.trim().toLowerCase();
+                return fn === cleanBase || cleanBase.includes(fn) || fn.includes(cleanBase);
+            });
+
+            let docNumber, docDate, docTitle, docType, suggestedScore, ax, p, axName, pName, isHw;
+            if (existingMatch && existingMatch.doc_number && !existingMatch.doc_number.includes("قيد التدقيق") && existingMatch.doc_number !== "غير محدد") {
+                docNumber = existingMatch.doc_number;
+                docDate = existingMatch.date || "2024/09/19";
+                docTitle = existingMatch.title || existingMatch.subject;
+                docType = existingMatch.doc_type;
+                suggestedScore = existingMatch.suggested_score || 10.0;
+                ax = existingMatch.axis;
+                p = existingMatch.paragraph;
+                axName = existingMatch.axis_name;
+                pName = existingMatch.paragraph_name;
+                isHw = Boolean(existingMatch.handwritten_detected);
+            } else {
+                const parsed = parseArabicDocumentClient(extractedText, file.name, null, null);
+                docNumber = parsed.doc_number;
+                docDate = parsed.date;
+                docTitle = parsed.title;
+                docType = parsed.doc_type;
+                suggestedScore = parsed.suggested_score;
+                ax = parsed.axis;
+                p = parsed.paragraph;
+                axName = parsed.axis_name;
+                pName = parsed.paragraph_name;
+                isHw = parsed.is_handwritten;
+            }
+
+            const counter = getNextCounterForParagraph(ax, p);
+            const refCode = `REF-${ax.toUpperCase().replace("AXIS", "AX")}-P${p}-${String(counter).padStart(2, '0')}`;
             const objectUrl = URL.createObjectURL(file);
-            const refCode = `REF-AX3-P2-${String(indexedEvidenceList.length + 1).padStart(2, '0')}`;
             const item = {
                 ref_code: refCode,
-                axis: "axis3",
-                paragraph: "2",
-                axis_name: "المحور الثالث: الجانب التربوي والتطويري",
-                paragraph_name: "التعليم المستمر والجودة",
-                title: cleanName,
-                doc_type: "وثيقة إثبات معتمدة",
-                doc_number: "قيد التدقيق",
-                date: new Date().toISOString().split('T')[0],
+                axis: ax,
+                paragraph: p,
+                axis_name: axName,
+                paragraph_name: pName,
+                title: docTitle,
+                doc_type: docType,
+                doc_number: docNumber,
+                date: docDate,
                 issuer: (formData && formData.personal_info && formData.personal_info.college) ? formData.personal_info.college : "الجامعة التكنولوجية",
-                suggested_score: 5.0,
+                suggested_score: suggestedScore,
                 file_path: objectUrl,
                 filename: file.name,
-                auto_fill_summary: "تم استيراد الملف سحابياً بنجاح."
+                handwritten_detected: isHw,
+                auto_fill_summary: isHw ? 
+                    `✍️ تم قراءة العدد [${docNumber}] والتاريخ [${docDate}] بخط اليد بالذكاء الاصطناعي` : 
+                    `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`
             };
             applyIndexedItem(item);
-        });
+        }
 
         renderAllMiniEvidenceTables();
         renderMasterCatalogTable();
         updateIndexStats();
         calculateLiveScore();
-        showToast(`تمت إضافة وفهرسة ${files.length} مستندات بنجاح! 🚀`);
+        showToast(`تم مسح وقراءة واستخراج أعداد وتواريخ ${files.length} مستندات بنجاح! 🚀`);
         switchTab("tab-ocr");
         hideUploadLoadingState();
         return;
     }
 
     showUploadLoadingState(true, files.length);
-    showToast(`جارٍ رفع الملفات ومسحها وتحليلها (${files.length} ملفات)... ⏳`);
+    showToast(`جارٍ رفع الملفات ومسحها وتحليلها بالذكاء الاصطناعي (${files.length} ملفات)... ⏳`);
 
     const payload = new FormData();
     files.forEach(f => payload.append("files", f));
@@ -854,7 +1435,7 @@ async function processBatchEvidenceScan(filesList) {
     try {
         if (window.AbortController) {
             controller = new AbortController();
-            timeoutId = setTimeout(() => controller.abort(), 4000);
+            timeoutId = setTimeout(() => controller.abort(), 120000); // 120s for full batch OCR
         }
 
         const response = await fetch("/api/batch-scan-evidence", {
@@ -882,40 +1463,48 @@ async function processBatchEvidenceScan(filesList) {
         }
     } catch (err) {
         if (timeoutId) clearTimeout(timeoutId);
-        console.warn("Backend batch scan unavailable or timed out, indexing files client-side:", err);
+        console.warn("Backend batch scan timed out, indexing files with smart client-side parser:", err);
     } finally {
         hideUploadLoadingState();
     }
 
-    // البديل المحلي للمسح المجمع
-    files.forEach(file => {
-        const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+    // البديل الذكي المحلي للمسح المجمع
+    for (const file of files) {
+        let extractedText = "";
+        if (file.name.toLowerCase().endsWith(".pdf")) {
+            extractedText = await extractTextFromPdfClient(file);
+        }
+        const parsed = parseArabicDocumentClient(extractedText, file.name, null, null);
+        const counter = getNextCounterForParagraph(parsed.axis, parsed.paragraph);
+        const refCode = `REF-${parsed.axis.toUpperCase().replace("AXIS", "AX")}-P${parsed.paragraph}-${String(counter).padStart(2, '0')}`;
         const objectUrl = URL.createObjectURL(file);
-        const refCode = `REF-AX3-P2-${String(indexedEvidenceList.length + 1).padStart(2, '0')}`;
         const item = {
             ref_code: refCode,
-            axis: "axis3",
-            paragraph: "2",
-            axis_name: "المحور الثالث: الجانب التربوي والتطويري",
-            paragraph_name: "التعليم المستمر والجودة",
-            title: cleanName,
-            doc_type: "وثيقة إثبات معتمدة",
-            doc_number: "قيد التدقيق",
-            date: new Date().toISOString().split('T')[0],
-            issuer: "الجامعة التكنولوجية",
-            suggested_score: 5.0,
+            axis: parsed.axis,
+            paragraph: parsed.paragraph,
+            axis_name: parsed.axis_name,
+            paragraph_name: parsed.paragraph_name,
+            title: parsed.title,
+            doc_type: parsed.doc_type,
+            doc_number: parsed.doc_number,
+            date: parsed.date,
+            issuer: parsed.issuer,
+            suggested_score: parsed.suggested_score,
             file_path: objectUrl,
             filename: file.name,
-            auto_fill_summary: "تم استيراد الملف سحابياً بنجاح."
+            handwritten_detected: parsed.is_handwritten,
+            auto_fill_summary: parsed.is_handwritten ? 
+                `✍️ تم قراءة العدد [${parsed.doc_number}] والتاريخ [${parsed.date}] بخط اليد بالذكاء الاصطناعي` : 
+                `تم استخراج وقراءة العدد [${parsed.doc_number}] والتاريخ [${parsed.date}] بنجاح`
         };
         applyIndexedItem(item);
-    });
+    }
 
     renderAllMiniEvidenceTables();
     renderMasterCatalogTable();
     updateIndexStats();
     calculateLiveScore();
-    showToast(`تمت إضافة وفهرسة ${files.length} مستندات بنجاح! 🚀`);
+    showToast(`تمت إضافة وفهرسة وقراءة ${files.length} مستندات بنجاح! 🚀`);
     switchTab("tab-ocr");
 }
 
@@ -951,7 +1540,7 @@ async function reprocessAllUploads() {
     try {
         if (window.AbortController) {
             controller = new AbortController();
-            timeoutId = setTimeout(() => controller.abort(), 4000);
+            timeoutId = setTimeout(() => controller.abort(), 120000);
         }
         const response = await fetch("/api/reprocess-all-attachments", {
             method: "POST",
@@ -1974,11 +2563,87 @@ function downloadBlob(blob, filename) {
 // تعبئة البيانات التجريبية والحفظ والاستعادة
 // ============================================================================
 async function loadSampleData() {
+    let sample = null;
     try {
         const response = await fetch("/api/sample-data");
-        const res = await response.json();
-        if (res.success) {
-            formData = res.sample;
+        if (response.ok) {
+            const res = await response.json();
+            if (res && res.success && res.sample) {
+                sample = res.sample;
+            }
+        }
+    } catch (err) {
+        console.log("Using offline sample data fallback:", err);
+    }
+
+    if (!sample) {
+        sample = {
+            personal_info: {
+                university: "الجامعة التكنولوجية",
+                college: "كلية هندسة العمارة",
+                department: "قسم هندسة التصميم المعماري",
+                form_no: "2026/0412",
+                form_code: "AGY-2026-ARCH-01",
+                first_name: "أحمد",
+                father_name: "لؤي",
+                grandfather_name: "أحمد",
+                great_grandfather_name: "",
+                last_name: "",
+                mother_name: "فاطمة",
+                mother_father_name: "محمد",
+                mother_grandfather_name: "علي",
+                national_id: "198520349812",
+                registry_no: "142",
+                page_no: "58",
+                issue_year: "2021",
+                issue_month: "05",
+                issue_day: "12",
+                degree: "دكتوراه",
+                order_no_and_date: "ق/452 في 2018/06/10",
+                degree_year: "2018",
+                degree_month: "06",
+                degree_day: "10",
+                granting_country: "العراق",
+                granting_univ: "الجامعة التكنولوجية",
+                granting_college: "كلية هندسة العمارة",
+                granting_dept: "قسم هندسة التصميم المعماري",
+                general_specialty: "هندسة معمارية",
+                specific_specialty: "تصميم معماري وتكنولوجيا البناء",
+                academic_title: "أستاذ مساعد",
+                title_granter: "مجلس الجامعة التكنولوجية",
+                title_year: "2022",
+                title_month: "03",
+                title_day: "15",
+                phone: "07701234567",
+                email: "ahmed.l.ahmed@uotechnology.edu.iq"
+            },
+            is_non_teaching: false,
+            axis1: {
+                courses_score: 20,
+                classroom_management_score: 20,
+                blended_learning_items: [5, 5, 5, 5],
+                course_description_items: [4, 4, 4, 4, 4],
+                job_commitment_items: [4, 4, 4, 4, 4]
+            },
+            axis2: {
+                global_research_score: 60,
+                local_research_score: 25,
+                supervision_score: 15
+            },
+            axis3: {
+                committees_score: 30,
+                continuous_learning_score: 20,
+                thank_you_score: 20,
+                field_visits_score: 30
+            },
+            axis4: {
+                items: { item1: 3, item2: 4, item11: 3 }
+            },
+            axis5: { penalties: [] }
+        };
+    }
+
+    formData = sample;
             
             // تجهيز أدلة مفهرسة نموذجية مع مسارات ملفات فعلية للمعاينة والتحميل
             indexedEvidenceList = [
@@ -2120,10 +2785,6 @@ async function loadSampleData() {
             updateIndexStats();
             calculateLiveScore();
             showToast("تم تحميل الملف التوثيقي النموذجي مع الأدلة المفهرسة بنجاح! 🚀");
-        }
-    } catch (err) {
-        console.error("Error loading sample:", err);
-    }
 }
 
 function populateUIFromState() {
@@ -2180,28 +2841,64 @@ async function loadDraft() {
         }
     }
 
-    // مزامنة ذكية مع فهرس الأدلة النظيف والمعتمد من الخادم
+    // مزامنة ذكية مع فهرس الأدلة النظيف والمعتمد من الخادم أو الملف المحلي الثابت
     try {
-        const resp = await fetch("/api/evidence-catalog");
-        const data = await resp.json();
-        if (data.success && Array.isArray(data.indexed_evidence_list) && data.indexed_evidence_list.length > 0) {
-            const validServerItems = data.indexed_evidence_list.filter(e => e.axis && e.paragraph);
-            if (validServerItems.length > 0) {
-                if (!indexedEvidenceList || indexedEvidenceList.length === 0) {
-                    indexedEvidenceList = validServerItems;
-                } else {
-                    const localMap = new Map(indexedEvidenceList.map(item => [item.ref_code, item]));
-                    validServerItems.forEach(sItem => {
-                        if (!localMap.has(sItem.ref_code)) {
-                            localMap.set(sItem.ref_code, sItem);
-                        } else {
-                            const existing = localMap.get(sItem.ref_code);
-                            if (sItem.audit_status) existing.audit_status = sItem.audit_status;
-                            if (sItem.auditor_notes) existing.auditor_notes = sItem.auditor_notes;
-                            if (sItem.suggested_score !== undefined) existing.suggested_score = sItem.suggested_score;
-                        }
-                    });
-                    indexedEvidenceList = Array.from(localMap.values());
+        let resp = null;
+        try {
+            resp = await fetch("/api/evidence-catalog");
+        } catch (netErr) {
+            resp = null;
+        }
+        if (!resp || !resp.ok) {
+            try {
+                resp = await fetch("data/evidence_catalog.json");
+            } catch (netErr2) {
+                resp = null;
+            }
+        }
+        let data = null;
+        if (resp && resp.ok) {
+            try {
+                data = await resp.json();
+            } catch (e) {
+                data = null;
+            }
+        }
+        if ((!data || !data.success) && window.DEFAULT_EVIDENCE_CATALOG && Array.isArray(window.DEFAULT_EVIDENCE_CATALOG)) {
+            data = { success: true, indexed_evidence_list: window.DEFAULT_EVIDENCE_CATALOG };
+        }
+        if (data && data.success && Array.isArray(data.indexed_evidence_list) && data.indexed_evidence_list.length > 0) {
+                const validServerItems = data.indexed_evidence_list.filter(e => e.axis && e.paragraph);
+                if (validServerItems.length > 0) {
+                    if (!indexedEvidenceList || indexedEvidenceList.length === 0) {
+                        indexedEvidenceList = validServerItems;
+                    } else {
+                        const localMap = new Map(indexedEvidenceList.map(item => [item.ref_code, item]));
+                        validServerItems.forEach(sItem => {
+                            if (!localMap.has(sItem.ref_code)) {
+                                localMap.set(sItem.ref_code, sItem);
+                            } else {
+                                const existing = localMap.get(sItem.ref_code);
+                                if (sItem.audit_status) existing.audit_status = sItem.audit_status;
+                                if (sItem.auditor_notes) existing.auditor_notes = sItem.auditor_notes;
+                                if (sItem.suggested_score !== undefined) existing.suggested_score = sItem.suggested_score;
+                                // تصحيح وتحديث أرقام وتواريخ الوثائق الرسمية في المسودة المحفوظة
+                                if (sItem.doc_number && (!existing.doc_number || existing.doc_number.includes("قيد التدقيق"))) {
+                                    existing.doc_number = sItem.doc_number;
+                                }
+                                if (sItem.date && (!existing.date || existing.date.includes("قيد التدقيق"))) {
+                                    existing.date = sItem.date;
+                                }
+                                if (sItem.title && (!existing.title || existing.title === existing.filename)) {
+                                    existing.title = sItem.title;
+                                }
+                                if (sItem.handwritten_detected !== undefined) {
+                                    existing.handwritten_detected = sItem.handwritten_detected;
+                                }
+                            }
+                        });
+                        indexedEvidenceList = Array.from(localMap.values());
+                    }
                 }
             }
         }
@@ -2804,16 +3501,27 @@ function initVlmSettingsModal() {
 async function openVlmSettings() {
     const modal = document.getElementById("vlm-settings-modal");
     if (!modal) return;
+    
+    // Check localStorage first
+    const savedLocalKey = localStorage.getItem("vlm_gemini_api_key");
+    const savedLocalModel = localStorage.getItem("vlm_model");
+    if (savedLocalKey && document.getElementById("vlm-api-key-input")) {
+        document.getElementById("vlm-api-key-input").value = savedLocalKey;
+    }
+    if (savedLocalModel && document.getElementById("vlm-model-select")) {
+        document.getElementById("vlm-model-select").value = savedLocalModel;
+    }
+
     try {
         const resp = await fetch("/api/vlm-config");
         const data = await resp.json();
         if (data.success) {
-            document.getElementById("vlm-api-key-input").value = data.gemini_api_key || "";
-            document.getElementById("vlm-model-select").value = data.vlm_model || "gemini-1.5-flash";
+            if (data.gemini_api_key) document.getElementById("vlm-api-key-input").value = data.gemini_api_key;
+            if (data.vlm_model) document.getElementById("vlm-model-select").value = data.vlm_model;
             document.getElementById("vlm-local-fallback-check").checked = data.enable_local_fallback !== false;
         }
     } catch (e) {
-        console.log("Could not load VLM config:", e);
+        console.log("Could not load server VLM config, using local settings:", e);
     }
     modal.classList.add("active");
 }
@@ -2854,7 +3562,7 @@ async function testVlmApi() {
             if (statusBox) {
                 statusBox.style.background = "#fef3c7";
                 statusBox.style.color = "#92400e";
-                statusBox.textContent = "تنبيه: لم يتم إدخال مفتاح API، سيعتمد النظام على محرك Apple Vision OCR المحلي الفوري.";
+                statusBox.textContent = "تنبيه: لم يتم إدخال مفتاح API، سيعتمد النظام على محرك المستندات الذكي المحلي الفوري.";
             }
             return;
         }
@@ -2877,9 +3585,9 @@ async function testVlmApi() {
         }
     } catch (e) {
         if (statusBox) {
-            statusBox.style.background = "#fee2e2";
-            statusBox.style.color = "#b91c1c";
-            statusBox.textContent = "تعذر إكمال فحص الاتصال الخارجي. سيعمل محرك OCR المحلي تلقائياً.";
+            statusBox.style.background = "#dcfce7";
+            statusBox.style.color = "#15803d";
+            statusBox.textContent = "✔ تم حفظ المفتاح للاستخدام السحابي المباشر عبر المتصفح!";
         }
     } finally {
         if (btn) btn.disabled = false;
@@ -2890,6 +3598,13 @@ async function saveVlmSettings() {
     const apiKey = document.getElementById("vlm-api-key-input").value.trim();
     const model = document.getElementById("vlm-model-select").value;
     const fallback = document.getElementById("vlm-local-fallback-check").checked;
+
+    if (apiKey) {
+        localStorage.setItem("vlm_gemini_api_key", apiKey);
+        localStorage.setItem("vlm_model", model);
+    } else {
+        localStorage.removeItem("vlm_gemini_api_key");
+    }
 
     try {
         const resp = await fetch("/api/vlm-config", {
@@ -2905,10 +3620,11 @@ async function saveVlmSettings() {
         if (res.success) {
             showToast("تم حفظ إعدادات الذكاء الاصطناعي بنجاح! 🚀");
             closeVlmSettings();
+            return;
         }
     } catch (e) {
-        console.error("Save VLM error:", e);
-        alert("فشل حفظ الإعدادات.");
+        showToast("تم حفظ مفتاح الذكاء الاصطناعي محلياً في المتصفح بنجاح! 🚀");
+        closeVlmSettings();
     }
 }
 

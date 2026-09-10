@@ -252,9 +252,22 @@ async def get_evidence_catalog():
     if os.path.exists(cache_file):
         try:
             with open(cache_file, "r", encoding="utf-8") as cf:
-                return JSONResponse(json.load(cf))
+                data = json.load(cf)
+                items = data.get("indexed_evidence_list", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+                if len(items) > 0:
+                    return JSONResponse(data if isinstance(data, dict) else {"success": True, "count": len(items), "indexed_evidence_list": items})
         except Exception:
             pass
+
+    static_catalog = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "data", "evidence_catalog.json")
+    if os.path.exists(static_catalog):
+        try:
+            with open(static_catalog, "r", encoding="utf-8") as scf:
+                sdata = json.load(scf)
+                return JSONResponse(sdata)
+        except Exception:
+            pass
+
     return await reprocess_all_attachments()
 
 

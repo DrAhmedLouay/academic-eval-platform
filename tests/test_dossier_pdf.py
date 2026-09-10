@@ -1,4 +1,5 @@
 import unittest
+import os
 from fastapi.testclient import TestClient
 from app import app
 
@@ -64,26 +65,43 @@ class TestDossierPdf(unittest.TestCase):
         self.assertGreater(len(res.content), 1000)
 
     def test_delete_evidence_isolation(self):
-        # Sync test items
-        test_items = [
-            {"ref_code": "TEST-ISO-AX2-01", "axis": "axis2", "paragraph": "1", "title": "Paper 1"},
-            {"ref_code": "TEST-ISO-AX2-02", "axis": "axis2", "paragraph": "2", "title": "Paper 2"},
-            {"ref_code": "TEST-ISO-AX1-01", "axis": "axis1", "paragraph": "1", "title": "Course Doc"}
-        ]
-        sync_res = self.client.post("/api/sync-evidence-catalog", json={"indexed_evidence_list": test_items})
-        self.assertEqual(sync_res.status_code, 200)
+        cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "indexed_results_cache.json")
+        backup_content = None
+        if os.path.exists(cache_file):
+            try:
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    backup_content = f.read()
+            except Exception:
+                backup_content = None
 
-        # Delete only TEST-ISO-AX2-01
-        del_res = self.client.delete("/api/delete-evidence/TEST-ISO-AX2-01")
-        self.assertEqual(del_res.status_code, 200)
+        try:
+            # Sync test items
+            test_items = [
+                {"ref_code": "TEST-ISO-AX2-01", "axis": "axis2", "paragraph": "1", "title": "Paper 1"},
+                {"ref_code": "TEST-ISO-AX2-02", "axis": "axis2", "paragraph": "2", "title": "Paper 2"},
+                {"ref_code": "TEST-ISO-AX1-01", "axis": "axis1", "paragraph": "1", "title": "Course Doc"}
+            ]
+            sync_res = self.client.post("/api/sync-evidence-catalog", json={"indexed_evidence_list": test_items})
+            self.assertEqual(sync_res.status_code, 200)
 
-        # Verify catalog preserves TEST-ISO-AX2-02 and TEST-ISO-AX1-01
-        cat_res = self.client.get("/api/evidence-catalog")
-        current_list = cat_res.json().get("indexed_evidence_list", [])
-        ref_codes = [i.get("ref_code") for i in current_list]
-        self.assertNotIn("TEST-ISO-AX2-01", ref_codes)
-        self.assertIn("TEST-ISO-AX2-02", ref_codes)
-        self.assertIn("TEST-ISO-AX1-01", ref_codes)
+            # Delete only TEST-ISO-AX2-01
+            del_res = self.client.delete("/api/delete-evidence/TEST-ISO-AX2-01")
+            self.assertEqual(del_res.status_code, 200)
+
+            # Verify catalog preserves TEST-ISO-AX2-02 and TEST-ISO-AX1-01
+            cat_res = self.client.get("/api/evidence-catalog")
+            current_list = cat_res.json().get("indexed_evidence_list", [])
+            ref_codes = [i.get("ref_code") for i in current_list]
+            self.assertNotIn("TEST-ISO-AX2-01", ref_codes)
+            self.assertIn("TEST-ISO-AX2-02", ref_codes)
+            self.assertIn("TEST-ISO-AX1-01", ref_codes)
+        finally:
+            if backup_content is not None:
+                try:
+                    with open(cache_file, "w", encoding="utf-8") as f:
+                        f.write(backup_content)
+                except Exception:
+                    pass
 
 if __name__ == "__main__":
     unittest.main()

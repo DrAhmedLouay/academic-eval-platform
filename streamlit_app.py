@@ -129,7 +129,19 @@ def get_bundled_html():
         </div>
     </div>
     """
-    html_content = re.sub(r'<div id="gh-pages-banner".*?</div>\s*</div>', streamlit_banner, html_content, flags=re.DOTALL)
+    catalog_path = os.path.join(base_dir, "docs", "data", "evidence_catalog.json")
+    if not os.path.exists(catalog_path):
+        catalog_path = os.path.join(base_dir, "static", "data", "evidence_catalog.json")
+    if os.path.exists(catalog_path):
+        try:
+            with open(catalog_path, "r", encoding="utf-8") as cf:
+                cat_text = cf.read().strip()
+                html_content = html_content.replace(
+                    "</body>",
+                    f"<script>window.DEFAULT_EVIDENCE_CATALOG = ({cat_text}).indexed_evidence_list;</script>\n</body>"
+                )
+        except Exception as e:
+            pass
 
     return html_content
 

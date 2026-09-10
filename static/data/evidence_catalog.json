@@ -1,4 +1,6 @@
 {
+  "success": true,
+  "count": 55,
   "indexed_evidence_list": [
     {
       "ref_code": "REF-AX4-P2-01",
@@ -3945,18 +3947,6 @@
       "filename": "tempImageTFM5YS.jpg",
       "file_path": "/uploads/ff6f4e86-11ad-4ea2-97f2-c279c88beae1_tempImageTFM5YS.jpg",
       "ocr_success": true
-    },
-    {
-      "ref_code": "REF-AX1-P1-01",
-      "axis": "axis1",
-      "paragraph": "1",
-      "axis_name": "المحور 1",
-      "paragraph_name": "الفقرة 1",
-      "doc_type": "وثيقة رسمية معتمدة",
-      "title": "وثيقة إثبات [REF-AX1-P1-01]",
-      "audit_status": "approved",
-      "auditor_notes": "تم تدقيق الأمر الإداري ومطابقته رسمياً مع سجلات الكلية.",
-      "suggested_score": 20.0
     }
   ]
 }
