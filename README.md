@@ -19,7 +19,7 @@
 ## 🚀 أولاً: خطوات النشر على GitHub و GitHub Pages
 
 ### 1. رفع المشروع إلى حسابك على GitHub
-افتح موجه الأوامر (Terminal) في مجلد المشروع وقم بتنفيذ الآتي (مع استبدال `YOUR_USERNAME` باسم حسابك على GitHub):
+افتح موجه الأوامر (Terminal) في مجلد المشروع وقم بتنفيذ الآتي:
 
 ```bash
 # 1. تهيئة المستودع وإضافة الملفات
@@ -31,7 +31,7 @@ git commit -m "feat: release academic evaluation platform with Streamlit & GitHu
 git branch -M main
 
 # 3. ربط المستودع بحسابك على GitHub (بعد إنشاء مستودع جديد باسم academic-eval-platform)
-git remote add origin https://github.com/YOUR_USERNAME/academic-eval-platform.git
+git remote add origin https://github.com/DrAhmedLouay/academic-eval-platform.git
 
 # 4. رفع الملفات
 git push -u origin main
@@ -47,7 +47,7 @@ git push -u origin main
    - انقر على **Save**.
 5. أو يمكنك اختيار `GitHub Actions` وسيقوم ملف العمل المدمج [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) بنشر الموقع آلياً.
 6. سيظهر لك رابط الموقع المباشر:
-   `https://YOUR_USERNAME.github.io/academic-eval-platform/`
+   `https://drahmedlouay.github.io/academic-eval-platform/`
 
 ---
 
@@ -56,7 +56,7 @@ git push -u origin main
 1. توجه إلى منصة **[Streamlit Community Cloud](https://share.streamlit.io)** وسجّل الدخول بحسابك في GitHub.
 2. انقر على زر **"New app"**.
 3. املأ بيانات التطبيق كالآتي:
-   - **Repository:** اختر مستودعك `YOUR_USERNAME/academic-eval-platform`
+   - **Repository:** اختر مستودعك `DrAhmedLouay/academic-eval-platform`
    - **Branch:** `main`
    - **Main file path:** اكتب `streamlit_app.py`
 4. انقر على زر **Deploy!** 🚀
