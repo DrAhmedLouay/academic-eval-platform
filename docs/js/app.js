@@ -2901,7 +2901,6 @@ async function loadDraft() {
                     }
                 }
             }
-        }
     } catch (err) {
         console.log("Could not auto-fetch evidence catalog:", err);
     }
