@@ -112,5 +112,13 @@ class TestExportGenerators(unittest.TestCase):
         with open("static/js/app.js", "r", encoding="utf-8") as f1, open("docs/js/app.js", "r", encoding="utf-8") as f2:
             self.assertEqual(f1.read(), f2.read(), "static/js/app.js and docs/js/app.js must be identical")
 
+    def test_streamlit_app_syntax_and_imports(self):
+        import ast
+        with open("streamlit_app.py", "r", encoding="utf-8") as f:
+            code = f.read()
+        self.assertIn("import json", code, "streamlit_app.py must import json")
+        tree = ast.parse(code)
+        self.assertIsNotNone(tree)
+
 if __name__ == "__main__":
     unittest.main()
