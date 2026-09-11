@@ -3272,6 +3272,587 @@ function initDropzones() {
 // ============================================================================
 // عمليات التصدير (Word & PDF) مع المرفقات المفهرسة
 // ============================================================================
+function escapeHtml(str) {
+    if (str === null || str === undefined) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function renderStrengthsList(axis4) {
+    const items = (axis4 && axis4.items) || {};
+    const list = [];
+    if (items.h_index) list.push("معامل هيرش (H-index &ge; 3)");
+    if (items.reviewing_papers) list.push("تقييم بحوث علمية بمستوعبات Scopus / Clarivate");
+    if (items.patents) list.push("براءات اختراع مسجلة وممنوحة رسمياً");
+    if (items.women_empowerment) list.push("لجان أو أنشطة دعم وتمكين المرأة");
+    if (items.human_rights) list.push("لجان أو أنشطة حقوق الإنسان والخدمة المجتمعية");
+    if (list.length === 0) return "<span style='color:#64748b;'>لا توجد نقاط قوة مضافة.</span>";
+    return "<ul style='margin:2pt 0; padding-right:15pt;'>" + list.map(item => `<li>${item}</li>`).join("") + "</ul>";
+}
+
+function renderPenaltiesList(axis5) {
+    const penalties = (axis5 && Array.isArray(axis5.penalties)) ? axis5.penalties : [];
+    if (penalties.length === 0) return "<span style='color:#16a34a;'>لا توجد عقوبات انضباطية مسجلة (سجل ناصع).</span>";
+    return "<ul style='margin:2pt 0; padding-right:15pt; color:#b91c1c;'>" + penalties.map(p => `<li>عقوبة انضباطية مسجلة: خصم ${p} درجة</li>`).join("") + "</ul>";
+}
+
+function generateAndDownloadClientWordDoc(fd, attachments) {
+    fd = fd || formData;
+    attachments = attachments || indexedEvidenceList || [];
+    const p = fd.personal_info || {};
+    const evalRes = (typeof calculateEvaluationClient === "function") 
+        ? calculateEvaluationClient(fd) 
+        : { axis1: {}, axis2: {}, axis3: {}, axis4: {}, axis5: {}, final_score: 0, rating: "غير محدد" };
+
+    const finalScore = evalRes.final_score || 0;
+    const rating = evalRes.rating || "ضعيف";
+    const scoreInWords = (typeof numberToArabicWords === "function") ? numberToArabicWords(finalScore) : "";
+
+    const teacherName = [p.first_name, p.father_name, p.grandfather_name, p.last_name].filter(Boolean).join(" ") || "تدريسي";
+    const safeFilename = `استمارة_تقييم_الأداء_${(p.last_name || p.first_name || "2026").replace(/[\s\/\\:*?"<>|]+/g, '_')}.doc`;
+
+    let html = `<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset='utf-8'>
+<title>استمارة رقم (21): تقييم أداء أعضاء الهيئة التدريسية للعام الدراسي 2025-2026</title>
+<!--[if gte mso 9]>
+<xml>
+  <w:WordDocument>
+    <w:View>Print</w:View>
+    <w:Zoom>100</w:Zoom>
+    <w:DoNotOptimizeForBrowser/>
+  </w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+@page {
+    size: A4 portrait;
+    margin: 1.2cm 1.2cm 1.2cm 1.2cm;
+    mso-page-orientation: portrait;
+}
+body {
+    direction: rtl;
+    font-family: 'Arial', 'Traditional Arabic', Tahoma, sans-serif;
+    font-size: 10pt;
+    line-height: 1.25;
+    color: #000;
+}
+table {
+    direction: rtl;
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 8pt;
+}
+th, td {
+    border: 1pt solid #000;
+    padding: 4pt 5pt;
+    font-size: 9pt;
+    text-align: center;
+    vertical-align: middle;
+}
+.bg-yellow, th {
+    background-color: #fef08a;
+    font-weight: bold;
+}
+.bg-light-yellow {
+    background-color: #fef9c3;
+}
+.text-right {
+    text-align: right;
+}
+.text-center {
+    text-align: center;
+}
+.bold {
+    font-weight: bold;
+}
+.title-box {
+    border: 1.5pt solid #1e3a8a;
+    background-color: #fef9c3;
+    padding: 6pt 10pt;
+    text-align: center;
+    font-size: 12pt;
+    font-weight: bold;
+    margin-bottom: 8pt;
+}
+.section-banner {
+    background-color: #e2e8f0;
+    border: 1pt solid #cbd5e1;
+    font-weight: bold;
+    font-size: 10pt;
+    padding: 4pt 8pt;
+    margin-top: 8pt;
+    margin-bottom: 4pt;
+    text-align: right;
+}
+.page-break {
+    page-break-before: always;
+    clear: both;
+    mso-break-type: section-break;
+}
+.ref-badge {
+    background-color: #fef08a;
+    font-weight: bold;
+    color: #1e3a8a;
+    padding: 2pt 4pt;
+    border: 1pt solid #facc15;
+    border-radius: 3pt;
+    display: inline-block;
+    font-family: monospace, Arial;
+}
+</style>
+</head>
+<body dir="rtl">
+
+<!-- الترويسة الرسمية -->
+<table style="border: none; margin-bottom: 6pt;">
+  <tr style="border: none;">
+    <td style="border: none; text-align: right; width: 45%; vertical-align: top; font-size: 9.5pt; line-height: 1.3;">
+      <b>جمهورية العراق</b><br>
+      <b>وزارة التعليم العالي والبحث العلمي</b><br>
+      <b>جهاز الإشراف والتقويم العلمي</b><br>
+      <b>دائرة ضمان الجودة والاعتماد الأكاديمي</b><br>
+      قسم تقويم الأداء المؤسسي
+    </td>
+    <td style="border: none; text-align: left; width: 55%; vertical-align: top; font-size: 9.5pt; line-height: 1.4;">
+      <b>رقم الاستمارة:</b> ${escapeHtml(p.form_no || '2026/....')}<br>
+      <b>ترميز الاستمارة:</b> ${escapeHtml(p.form_code || 'AGY-2026-....')}
+    </td>
+  </tr>
+</table>
+
+<!-- عنوان الاستمارة الإطاري -->
+<div class="title-box">
+استمارة رقم (21): تقييم أداء أعضاء الهيئة التدريسية للعام الدراسي 2025-2026
+</div>
+
+<!-- البيانات التنظيمية -->
+<div style="font-size: 9.5pt; margin-bottom: 6pt; font-weight: bold;">
+الجامعة: ${escapeHtml(p.university || '..................')} &nbsp;&nbsp;&nbsp;&nbsp;
+الكلية: ${escapeHtml(p.college || '..................')} &nbsp;&nbsp;&nbsp;&nbsp;
+القسم / الفرع: ${escapeHtml(p.department || '..................')}
+</div>
+
+<!-- جدول البيانات الشخصية والأكاديمية -->
+<div class="section-banner">البيانات الشخصية والأكاديمية للتدريسي</div>
+<table>
+  <tr>
+    <th style="width: 20%;">اللقب</th>
+    <th style="width: 20%;">اسم جد الأب</th>
+    <th style="width: 20%;">اسم الجد</th>
+    <th style="width: 20%;">اسم الأب</th>
+    <th style="width: 20%;">الاسم</th>
+  </tr>
+  <tr>
+    <td>${escapeHtml(p.last_name || '-')}</td>
+    <td>${escapeHtml(p.great_grandfather_name || '-')}</td>
+    <td>${escapeHtml(p.grandfather_name || '-')}</td>
+    <td>${escapeHtml(p.father_name || '-')}</td>
+    <td><b>${escapeHtml(p.first_name || '-')}</b></td>
+  </tr>
+  <tr>
+    <th colspan="2">اسم جد الأم</th>
+    <th colspan="2">اسم والد الأم</th>
+    <th>اسم الأم</th>
+  </tr>
+  <tr>
+    <td colspan="2">${escapeHtml(p.mother_grandfather_name || '-')}</td>
+    <td colspan="2">${escapeHtml(p.mother_father_name || '-')}</td>
+    <td>${escapeHtml(p.mother_name || '-')}</td>
+  </tr>
+  <tr>
+    <th style="width: 20%;">الصحيفة</th>
+    <th style="width: 20%;">السجل</th>
+    <th colspan="3">رقم الجنسية أو البطاقة الوطنية الموحدة</th>
+  </tr>
+  <tr>
+    <td>${escapeHtml(p.page_no || '-')}</td>
+    <td>${escapeHtml(p.registry_no || '-')}</td>
+    <td colspan="3"><b>${escapeHtml(p.national_id || '-')}</b></td>
+  </tr>
+  <tr>
+    <th colspan="2">يوم الإصدار</th>
+    <th>شهر الإصدار</th>
+    <th colspan="2">سنة الإصدار</th>
+  </tr>
+  <tr>
+    <td colspan="2">${escapeHtml(p.issue_day || '-')}</td>
+    <td>${escapeHtml(p.issue_month || '-')}</td>
+    <td colspan="2">${escapeHtml(p.issue_year || '-')}</td>
+  </tr>
+  <tr>
+    <th>يوم منح الشهادة</th>
+    <th>شهر منح الشهادة</th>
+    <th colspan="2">رقم وتاريخ الأمر الوزاري / الجامعي</th>
+    <th>الشهادة</th>
+  </tr>
+  <tr>
+    <td>${escapeHtml(p.degree_day || '-')}</td>
+    <td>${escapeHtml(p.degree_month || '-')}</td>
+    <td colspan="2">${escapeHtml(p.order_no_and_date || '-')}</td>
+    <td><b>${escapeHtml(p.degree || '-')}</b></td>
+  </tr>
+  <tr>
+    <th colspan="2">القسم</th>
+    <th>الكلية</th>
+    <th>الجامعة</th>
+    <th>البلد المانح</th>
+  </tr>
+  <tr>
+    <td colspan="2">${escapeHtml(p.granting_dept || '-')}</td>
+    <td>${escapeHtml(p.granting_college || '-')}</td>
+    <td>${escapeHtml(p.granting_univ || '-')}</td>
+    <td>${escapeHtml(p.granting_country || '-')}</td>
+  </tr>
+  <tr>
+    <th colspan="3">التخصص الدقيق</th>
+    <th colspan="2">التخصص العام</th>
+  </tr>
+  <tr>
+    <td colspan="3">${escapeHtml(p.specific_specialty || '-')}</td>
+    <td colspan="2">${escapeHtml(p.general_specialty || '-')}</td>
+  </tr>
+  <tr>
+    <th>يوم الحصول عليه</th>
+    <th>شهر</th>
+    <th>سنة</th>
+    <th>جهة المنح</th>
+    <th>اللقب العلمي</th>
+  </tr>
+  <tr>
+    <td>${escapeHtml(p.title_day || '-')}</td>
+    <td>${escapeHtml(p.title_month || '-')}</td>
+    <td>${escapeHtml(p.title_year || '-')}</td>
+    <td>${escapeHtml(p.title_granter || '-')}</td>
+    <td><b>${escapeHtml(p.academic_title || '-')}</b></td>
+  </tr>
+  <tr>
+    <th colspan="2">رقم الهاتف</th>
+    <th colspan="3">البريد الإلكتروني الرسمي الجامعي</th>
+  </tr>
+  <tr>
+    <td colspan="2" dir="ltr">${escapeHtml(p.phone || '-')}</td>
+    <td colspan="3" dir="ltr"><b>${escapeHtml(p.email || '-')}</b></td>
+  </tr>
+</table>
+
+<!-- المحور الأول: جودة التدريس والتعليم (50%) -->
+<div class="section-banner">المحور الأول: جودة التدريس والتعليم (الوزن: 50%) ${fd.is_non_teaching ? ' - [تدريسي غير مكلف بمهام تدريسية]' : ''}</div>
+<table>
+  <tr>
+    <th style="width: 8%;">الفقرة</th>
+    <th style="width: 52%;">بيان النشاط / المعيار</th>
+    <th style="width: 15%;">الحد الأعلى</th>
+    <th style="width: 15%;">الدرجة المستحقة</th>
+    <th style="width: 10%;">الحالة</th>
+  </tr>`;
+
+    if (fd.is_non_teaching) {
+        const jItems = (fd.axis1 && fd.axis1.job_commitment_items) || [0,0,0,0,0];
+        const jSum = jItems.reduce((a,b)=>a+(Number(b)||0), 0);
+        html += `
+  <tr>
+    <td>5</td>
+    <td class="text-right">الالتزام الوظيفي والأكاديمي (تحتسب 100% وتوزن بنسبة 50% لغير المكلفين)</td>
+    <td>20</td>
+    <td><b>${jSum}</b></td>
+    <td>مكلف إدارياً</td>
+  </tr>`;
+    } else {
+        const a1 = fd.axis1 || {};
+        const bSum = ((a1.blended_learning_items) || [0,0,0,0]).reduce((a,b)=>a+(Number(b)||0), 0);
+        const cSum = ((a1.course_description_items) || [0,0,0,0,0]).reduce((a,b)=>a+(Number(b)||0), 0);
+        const jSum = ((a1.job_commitment_items) || [0,0,0,0,0]).reduce((a,b)=>a+(Number(b)||0), 0);
+        html += `
+  <tr>
+    <td>1</td>
+    <td class="text-right">المقررات الدراسية (الخطة التدريسية والساعات المعتمدة)</td>
+    <td>20</td>
+    <td><b>${Number(a1.courses_score) || 0}</b></td>
+    <td>معتمد</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td class="text-right">إدارة الصف الدراسي وتوثيق حضور وغياب الطلبة</td>
+    <td>20</td>
+    <td><b>${Number(a1.classroom_management_score) || 0}</b></td>
+    <td>معتمد</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td class="text-right">التعليم المدمج واستخدام المنصات الرقمية والأنشطة التفاعلية</td>
+    <td>20</td>
+    <td><b>${bSum}</b></td>
+    <td>معتمد</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td class="text-right">وصف المقرر الدراسي وتحديث المفردات والتقويم الدوري</td>
+    <td>20</td>
+    <td><b>${cSum}</b></td>
+    <td>معتمد</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td class="text-right">الالتزام الوظيفي والجامعي وحضور مجالس القسم واللجان</td>
+    <td>20</td>
+    <td><b>${jSum}</b></td>
+    <td>معتمد</td>
+  </tr>`;
+    }
+
+    const ax1Raw = (evalRes.axis1 && evalRes.axis1.raw_score) || 0;
+    const ax1Weighted = (evalRes.axis1 && evalRes.axis1.weighted_score) || 0;
+    html += `
+  <tr class="bg-light-yellow">
+    <td colspan="2" class="bold text-right">مجموع درجات المحور الأول (الخام: 100)</td>
+    <td class="bold">100</td>
+    <td class="bold">${ax1Raw}</td>
+    <td class="bold">الموزون: ${ax1Weighted}%</td>
+  </tr>
+</table>
+
+<!-- المحور الثاني: النشاط العلمي والبحثي (30%) -->
+<div class="section-banner">المحور الثاني: النشاط العلمي والبحثي (الوزن: 30%)</div>
+<table>
+  <tr>
+    <th style="width: 8%;">الفقرة</th>
+    <th style="width: 52%;">بيان النشاط العلمي</th>
+    <th style="width: 15%;">الحد الأعلى</th>
+    <th style="width: 15%;">الدرجة المستحقة</th>
+    <th style="width: 10%;">ملاحظات</th>
+  </tr>`;
+
+    const a2 = fd.axis2 || {};
+    html += `
+  <tr>
+    <td>1</td>
+    <td class="text-right">بحوث المستوعبات العالمية الرصينة (Scopus / Clarivate)</td>
+    <td>60</td>
+    <td><b>${Number(a2.global_research_score) || 0}</b></td>
+    <td>${(Number(a2.global_research_score) > 0) ? 'مستوفٍ' : 'صفر (قيد السقف 75%)'}</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td class="text-right">البحوث المحلية والمؤتمرات والكتب العلمية المقومة</td>
+    <td>25</td>
+    <td><b>${Number(a2.local_research_score) || 0}</b></td>
+    <td>معتمد</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td class="text-right">الإشراف على الدراسات العليا ومشاريع تخرج الصفوف المنتهية</td>
+    <td>15</td>
+    <td><b>${Number(a2.supervision_score) || 0}</b></td>
+    <td>معتمد</td>
+  </tr>`;
+
+    const ax2Raw = (evalRes.axis2 && evalRes.axis2.raw_score) || 0;
+    const ax2Weighted = (evalRes.axis2 && evalRes.axis2.weighted_score) || 0;
+    html += `
+  <tr class="bg-light-yellow">
+    <td colspan="2" class="bold text-right">مجموع درجات المحور الثاني (الخام: 100)</td>
+    <td class="bold">100</td>
+    <td class="bold">${ax2Raw}</td>
+    <td class="bold">الموزون: ${ax2Weighted}%</td>
+  </tr>
+</table>`;
+
+    if (evalRes.scopus_zero_rule_triggered || (Number(a2.global_research_score) === 0 && finalScore >= 75)) {
+        html += `<div style="color: #b91c1c; font-size: 8.5pt; font-weight: bold; margin-bottom: 6pt;">⚠️ تنبيه وزاري إلزامي: تم تطبيق سقف التقييم (75%) لعدم وجود بحوث في مستوعبات Scopus/Clarivate.</div>`;
+    }
+
+    // المحور الثالث: الجانب التربوي والتطويري (20%)
+    const a3 = fd.axis3 || {};
+    const ax3Raw = (evalRes.axis3 && evalRes.axis3.raw_score) || 0;
+    const ax3Weighted = (evalRes.axis3 && evalRes.axis3.weighted_score) || 0;
+    html += `
+<div class="section-banner">المحور الثالث: الجانب التربوي والتطويري (الوزن: 20%)</div>
+<table>
+  <tr>
+    <th style="width: 8%;">الفقرة</th>
+    <th style="width: 52%;">بيان النشاط</th>
+    <th style="width: 15%;">الحد الأعلى</th>
+    <th style="width: 15%;">الدرجة المستحقة</th>
+    <th style="width: 10%;">الحالة</th>
+  </tr>
+  <tr>
+    <td>1</td>
+    <td class="text-right">اللجان الدائمية والمؤقتة والمكلف بها رسمياً بأوامر إدارية</td>
+    <td>30</td>
+    <td><b>${Number(a3.committees_score) || 0}</b></td>
+    <td>معتمد</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td class="text-right">التعليم المستمر والندوات وحلقات النقاش وورش العمل</td>
+    <td>20</td>
+    <td><b>${Number(a3.continuous_learning_score) || 0}</b></td>
+    <td>معتمد</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td class="text-right">كتب الشكر والتقدير والجوائز وشهادات التكريم الأكاديمية</td>
+    <td>20</td>
+    <td><b>${Number(a3.thank_you_score) || 0}</b></td>
+    <td>معتمد</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td class="text-right">الزيارات الميدانية والإرشاد التربوي والأنشطة اللاصفية وخدمة المجتمع</td>
+    <td>30</td>
+    <td><b>${Number(a3.field_visits_score) || 0}</b></td>
+    <td>معتمد</td>
+  </tr>
+  <tr class="bg-light-yellow">
+    <td colspan="2" class="bold text-right">مجموع درجات المحور الثالث (الخام: 100)</td>
+    <td class="bold">100</td>
+    <td class="bold">${ax3Raw}</td>
+    <td class="bold">الموزون: ${ax3Weighted}%</td>
+  </tr>
+</table>
+
+<!-- نقاط القوة والعقوبات -->
+<table style="margin-top: 6pt;">
+  <tr>
+    <th style="width: 50%;">نقاط القوة الإضافية (بحد أقصى 5 درجات)</th>
+    <th style="width: 50%;">العقوبات الانضباطية والخصومات المترتبة</th>
+  </tr>
+  <tr>
+    <td class="text-right" style="vertical-align: top;">
+      ${renderStrengthsList(fd.axis4)}
+      <div style="margin-top: 4pt; font-weight: bold;">مجموع نقاط القوة الممنوحة: ${(evalRes.axis4 && evalRes.axis4.awarded_score) || 0} درجات</div>
+    </td>
+    <td class="text-right" style="vertical-align: top;">
+      ${renderPenaltiesList(fd.axis5)}
+      <div style="margin-top: 4pt; font-weight: bold; color: #b91c1c;">إجمالي الخصم المترتب: -${(evalRes.axis5 && evalRes.axis5.total_deduction) || 0} درجة</div>
+    </td>
+  </tr>
+</table>
+
+<!-- ملخص النتيجة النهائية والتفقيط -->
+<div class="section-banner" style="background-color: #fef9c3; border-color: #fde047;">النتيجة الإجمالية والتقييم النهائي المعتمد</div>
+<table>
+  <tr>
+    <th style="width: 25%;">المحور الأول (50%)</th>
+    <th style="width: 25%;">المحور الثاني (30%)</th>
+    <th style="width: 25%;">المحور الثالث (20%)</th>
+    <th style="width: 25%;">نقاط القوة / العقوبات</th>
+  </tr>
+  <tr>
+    <td><b>${ax1Weighted}%</b></td>
+    <td><b>${ax2Weighted}%</b></td>
+    <td><b>${ax3Weighted}%</b></td>
+    <td>+${(evalRes.axis4 && evalRes.axis4.awarded_score) || 0} / -${(evalRes.axis5 && evalRes.axis5.total_deduction) || 0}</td>
+  </tr>
+  <tr class="bg-yellow">
+    <th colspan="2">الدرجة النهائية المستحقة الموزونة</th>
+    <th colspan="2">التقدير اللفظي المعتمد</th>
+  </tr>
+  <tr>
+    <td colspan="2" style="font-size: 14pt; font-weight: bold; color: #1e3a8a;">${finalScore}%</td>
+    <td colspan="2" style="font-size: 13pt; font-weight: bold;">${rating}</td>
+  </tr>
+  <tr>
+    <td colspan="4" class="text-right" style="padding: 6pt 10pt; font-size: 10pt; background-color: #fafaf9;">
+      <b>الدرجة كتابةً (تفقيط رسمي):</b> ${scoreInWords || (typeof numberToArabicWords === "function" ? numberToArabicWords(finalScore) : "")}
+    </td>
+  </tr>
+</table>
+
+<!-- المصادقات والتواقيع الرسمية -->
+<table style="margin-top: 10pt; margin-bottom: 12pt;">
+  <tr>
+    <th style="width: 25%;">توقيع التدريسي المعني</th>
+    <th style="width: 25%;">توقيع مقرر القسم</th>
+    <th style="width: 25%;">توقيع رئيس القسم / الفرع</th>
+    <th style="width: 25%;">مصادقة السيد عميد الكلية</th>
+  </tr>
+  <tr style="height: 60pt;">
+    <td style="vertical-align: bottom;">التوقيع: .....................<br>التاريخ: &nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp; / 2026</td>
+    <td style="vertical-align: bottom;">التوقيع: .....................<br>التاريخ: &nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp; / 2026</td>
+    <td style="vertical-align: bottom;">التوقيع: .....................<br>التاريخ: &nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp; / 2026</td>
+    <td style="vertical-align: bottom;">التوقيع: .....................<br>التاريخ: &nbsp;&nbsp;&nbsp;&nbsp; / &nbsp;&nbsp;&nbsp;&nbsp; / 2026</td>
+  </tr>
+</table>
+
+<!-- فاصل صفحة قبل الفهرس الشامل للأدلة والمرفقات -->
+<br class="page-break" style="page-break-before:always; clear:both; mso-break-type:section-break">
+
+<!-- الفهرس الشامل للمرفقات والملف التوثيقي -->
+<div class="title-box" style="background-color: #fef08a; border-color: #ca8a04; margin-top: 10pt;">
+الفهرس الشامل للوثائق والمرفقات المعتمدة (الملف التوثيقي الرسمي)
+</div>
+<div style="font-size: 9pt; margin-bottom: 6pt;">
+<b>التدريسي:</b> ${escapeHtml(teacherName)} &nbsp;&nbsp;|&nbsp;&nbsp;
+<b>القسم:</b> ${escapeHtml(p.department || '-')} &nbsp;&nbsp;|&nbsp;&nbsp;
+<b>إجمالي المرفقات المعتمدة:</b> ${attachments.length} وثيقة رسمية
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width: 4%;">ت</th>
+      <th style="width: 15%;">رمز الإشارة المرجعي</th>
+      <th style="width: 16%;">المحور والفقرة</th>
+      <th style="width: 25%;">عنوان الوثيقة / الأمر الإداري</th>
+      <th style="width: 14%;">نوع الوثيقة</th>
+      <th style="width: 11%;">العدد</th>
+      <th style="width: 10%;">التاريخ</th>
+      <th style="width: 5%;">الدرجة</th>
+    </tr>
+  </thead>
+  <tbody>`;
+
+    if (attachments.length === 0) {
+        html += `
+    <tr>
+      <td colspan="8" style="padding: 15pt; color: #64748b; font-style: italic;">
+        لا توجد مرفقات مفهرسة مضافة حالياً.
+      </td>
+    </tr>`;
+    } else {
+        attachments.forEach((att, idx) => {
+            const refCode = att.ref_code || `REF-${idx+1}`;
+            const axisName = att.axis_name || (att.axis ? (att.axis.replace('axis','المحور ') + ' - ف' + (att.paragraph||'')) : '-');
+            const title = att.title || att.filename || '-';
+            const docType = att.doc_type || '-';
+            const docNum = att.doc_number || '-';
+            const date = att.date || '-';
+            const score = att.suggested_score !== undefined ? att.suggested_score : '-';
+
+            html += `
+    <tr>
+      <td>${idx + 1}</td>
+      <td style="background-color: #fef9c3;"><span class="ref-badge">${escapeHtml(refCode)}</span></td>
+      <td class="text-right" style="font-size: 8.5pt;">${escapeHtml(axisName)}</td>
+      <td class="text-right" style="font-size: 8.5pt;"><b>${escapeHtml(title)}</b></td>
+      <td style="font-size: 8.5pt;">${escapeHtml(docType)}</td>
+      <td style="font-weight: bold; font-size: 8.5pt; color: #1e3a8a;">${escapeHtml(docNum)}</td>
+      <td style="font-size: 8.5pt;">${escapeHtml(date)}</td>
+      <td style="font-weight: bold;">${score}</td>
+    </tr>`;
+        });
+    }
+
+    html += `
+  </tbody>
+</table>
+
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: "application/msword;charset=utf-8" });
+    downloadBlob(blob, safeFilename);
+}
+
 async function exportDocx() {
     const btn = document.getElementById("btn-export-docx");
     btn.disabled = true;
@@ -3286,19 +3867,26 @@ async function exportDocx() {
 
         if (response.ok) {
             const blob = await response.blob();
-            downloadBlob(blob, `استمارة_تقييم_الأداء_${formData.personal_info.last_name || '2026'}.docx`);
-            showToast("تم تصدير استمارة Word الرسمية مع فهرس الأدلة بنجاح!");
+            const teacherName = [formData.personal_info.last_name, formData.personal_info.first_name].filter(Boolean).join('_') || '2026';
+            downloadBlob(blob, `استمارة_تقييم_الأداء_${teacherName}.docx`);
+            showToast("تم تصدير استمارة Word الرسمية مع فهرس الأدلة بنجاح! 📄");
             return;
         }
     } catch (err) {
-        console.warn("Backend Word export unavailable:", err);
+        console.warn("Backend Word export unavailable, generating client-side Word document:", err);
     } finally {
         btn.disabled = false;
         btn.innerHTML = `<i class="fa-solid fa-file-word"></i> تحميل Word (.docx)`;
     }
 
-    showToast("تنبيه: لتنزيل ملف Word (.docx) الرسمي، يمكنك فتح الشريط الجانبي في المنصة أو استخدام زر 'طباعة' لحفظ نسخة PDF.");
-    alert("تنبيه التصدير:\nلتنزيل ملف Word (.docx) الرسمي المولد بنظام Python، يرجى فتح الشريط الجانبي (>) في المنصة السحابية والضغط على 'تحميل ملف Word (.docx)'، أو استخدام زر 'طباعة' لحفظ نسخة PDF فورية.");
+    // بديل فوري وتلقائي دون أي نوافذ تنبيه: توليد ملف Word المتكامل وتنزيله مباشرة
+    try {
+        generateAndDownloadClientWordDoc(formData, indexedEvidenceList);
+        showToast("تم إنشاء وتنزيل استمارة Word الرسمية بنجاح! 📄");
+    } catch (clientErr) {
+        console.error("Client-side Word generation failed:", clientErr);
+        showToast("تعذر إنشاء ملف Word تلقائياً، يرجى استخدام زر 'طباعة' لحفظ نسخة PDF.");
+    }
 }
 
 async function exportPdf() {
@@ -3320,8 +3908,9 @@ async function exportPdf() {
 
         if (response.ok) {
             const blob = await response.blob();
-            downloadBlob(blob, `استمارة_تقييم_الأداء_${formData.personal_info.last_name || '2026'}.pdf`);
-            showToast("تم تصدير استمارة PDF الرسمية مع فهرس الأدلة والتواقيع بنجاح!");
+            const teacherName = [formData.personal_info.last_name, formData.personal_info.first_name].filter(Boolean).join('_') || '2026';
+            downloadBlob(blob, `استمارة_تقييم_الأداء_${teacherName}.pdf`);
+            showToast("تم تصدير استمارة PDF الرسمية مع فهرس الأدلة والتواقيع بنجاح! 📑");
             return;
         }
     } catch (err) {
@@ -3356,19 +3945,21 @@ async function exportDossierPdf() {
 
         if (response.ok) {
             const blob = await response.blob();
-            downloadBlob(blob, `المصبار_التوثيقي_المدمج_${formData.personal_info.last_name || '2026'}.pdf`);
+            const teacherName = [formData.personal_info.last_name, formData.personal_info.first_name].filter(Boolean).join('_') || '2026';
+            downloadBlob(blob, `المصبار_التوثيقي_المدمج_${teacherName}.pdf`);
             showToast("تم إنشاء وتنزيل المصبار التوثيقي المدمج (Dossier PDF) مع الفهرس التفاعلي بنجاح! 📚");
             return;
         }
     } catch (err) {
-        console.warn("Backend dossier export unavailable:", err);
+        console.warn("Backend dossier export unavailable, falling back to print:", err);
     } finally {
         btn.disabled = false;
         btn.innerHTML = `<i class="fa-solid fa-book-bookmark"></i> المصبار المدمج (PDF)`;
     }
 
-    showToast("تنبيه: المصبار التوثيقي المدمج متاح للتحميل عبر الشريط الجانبي في المنصة السحابية.");
-    alert("تنبيه التصدير:\nلتحميل المصبار التوثيقي الشامل (Dossier PDF) المدمج مع وثائق الإثبات، يرجى فتح الشريط الجانبي (>) في المنصة السحابية والنقر على 'تحميل الملف التوثيقي الشامل (Dossier)'.");
+    // بديل فوري وفعال دون أي نوافذ تنبيه: فتح نافذة الطباعة والحفظ كـ PDF للمصبار الشامل
+    showToast("جارٍ فتح نافذة الطباعة والحفظ بصيغة PDF للمصبار التوثيقي الشامل... 📚");
+    window.print();
 }
 
 function downloadBlob(blob, filename) {

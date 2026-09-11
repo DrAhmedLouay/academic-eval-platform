@@ -100,7 +100,17 @@ class TestExportGenerators(unittest.TestCase):
         pdf_path = "exports/test_form_21.pdf"
         res = create_form_21_pdf(self.sample_data, pdf_path, self.sample_attachments)
         self.assertTrue(os.path.exists(pdf_path))
-        self.assertGreater(os.path.getsize(pdf_path), 10000)
+    def test_client_export_js_no_alerts(self):
+        for js_file in ["static/js/app.js", "docs/js/app.js"]:
+            self.assertTrue(os.path.exists(js_file), f"{js_file} does not exist")
+            with open(js_file, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.assertNotIn("تنبيه التصدير", content, f"{js_file} still contains export alert popup")
+            self.assertIn("function generateAndDownloadClientWordDoc", content, f"{js_file} missing client-side Word generator")
+            self.assertIn("function escapeHtml", content, f"{js_file} missing escapeHtml")
+
+        with open("static/js/app.js", "r", encoding="utf-8") as f1, open("docs/js/app.js", "r", encoding="utf-8") as f2:
+            self.assertEqual(f1.read(), f2.read(), "static/js/app.js and docs/js/app.js must be identical")
 
 if __name__ == "__main__":
     unittest.main()

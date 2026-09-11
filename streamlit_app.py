@@ -28,7 +28,7 @@ st.set_page_config(
     page_title="منصة تقييم أداء أعضاء الهيئة التدريسية - استمارة 21 (2025-2026)",
     page_icon="🏛️",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"
 )
 
 # ==============================================================================
@@ -76,7 +76,7 @@ st.markdown("""
 # ==============================================================================
 # 3. تجميع وحقن الواجهة الأصلية بالكامل (HTML + CSS + JS)
 # ==============================================================================
-APP_BUNDLE_VERSION = "2026.09.11.v12"
+APP_BUNDLE_VERSION = "2026.09.11.v13"
 
 def get_bundled_html():
     base_dir = os.path.dirname(os.path.abspath(__file__))
