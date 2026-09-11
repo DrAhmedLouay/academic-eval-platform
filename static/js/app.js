@@ -77,6 +77,9 @@ let pendingOcrAttachment = null;
 let currentEvaluation = null;
 let activeScanTarget = null; // { axis, paragraph, label }
 let activeFilterAxis = "all";
+let filterFacultyOnly = false;
+let uploadSafetyTimer = null;
+let inlineEditingRefCode = null;
 let auditorModeActive = false;
 let collegeStampDataUrl = "";
 let activePreviewItem = null;
@@ -730,8 +733,6 @@ function isCloudOrStaticEnv() {
            window.location.protocol === "file:" ||
            (!window.location.port && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1");
 }
-
-let uploadSafetyTimer = null;
 
 function showUploadLoadingState(isBatch, fileInfo) {
     if (uploadSafetyTimer) clearTimeout(uploadSafetyTimer);
@@ -2346,6 +2347,147 @@ function closeModal() {
     activeScanTarget = null;
 }
 
+// ============================================================================
+// محرك تعديل وعرض العدد والتاريخ المباشر داخل نافذة المعاينة (بدون إغلاقها)
+// ============================================================================
+function renderPreviewMetaNumberDate(item, isEditing = false) {
+    const metaNumDate = document.getElementById("preview-meta-number-date");
+    if (!metaNumDate || !item) return;
+
+    const numCol = document.getElementById("preview-meta-numdate-col");
+    if (numCol) {
+        if (isEditing) {
+            numCol.classList.add("editing-active");
+        } else {
+            numCol.classList.remove("editing-active");
+        }
+    }
+
+    if (!isEditing) {
+        const docNumDisplay = (item.doc_number && item.doc_number !== 'غير محدد') ? item.doc_number : (item.document_number || '-');
+        const docDateDisplay = (item.date && item.date !== 'غير محدد') ? item.date : '-';
+
+        let numDateHtml = `<span id="preview-display-numdate-text"><strong>${escapeHtml(docNumDisplay)}</strong> بتاريخ <span style="color:#475569;">${escapeHtml(docDateDisplay)}</span></span>`;
+        if (item.handwritten_detected) {
+            numDateHtml += ` <span class="badge-handwritten" style="margin-right: 4px;" title="تم التعرف على خط اليد بالذكاء الاصطناعي"><i class="fa-solid fa-pen-nib"></i> خط يد</span>`;
+        }
+        if (item.audit_status === 'modified') {
+            numDateHtml += ` <span class="badge" style="background:#dcfce7; color:#166534; font-size:0.72rem; border:1px solid #86efac; margin-right:4px;">✏ معدل</span>`;
+        }
+        numDateHtml += ` <button type="button" class="btn-quick-edit-numdate" id="btn-preview-edit-numdate" style="margin-right: 8px;" onclick="startPreviewDocNumberDateEdit('${item.ref_code}')" title="تعديل العدد والتاريخ مباشرة في نافذة المعاينة دون إغلاقها"><i class="fa-solid fa-pen-to-square"></i> تعديل</button>`;
+        metaNumDate.innerHTML = numDateHtml;
+    } else {
+        const curNum = (item.doc_number && item.doc_number !== 'غير محدد' && !item.doc_number.includes('قيد التدقيق')) ? item.doc_number : (item.document_number || '');
+        const curDate = (item.date && item.date !== 'غير محدد') ? item.date : '';
+
+        metaNumDate.innerHTML = `
+            <div id="preview-numdate-inline-form" class="preview-numdate-inline-form">
+                <div style="display: inline-flex; align-items: center; gap: 3px;">
+                    <span style="font-size: 0.74rem; color: #0369a1; font-weight: 700;">العدد:</span>
+                    <input type="text" id="preview-edit-num-input" value="${escapeHtml(curNum)}" class="form-control" style="font-size: 0.78rem; padding: 2px 6px; height: 26px; width: 130px; font-weight: 700; border: 1px solid #7dd3fc;" placeholder="العدد / رقم الأمر" onkeydown="handlePreviewNumDateKey(event, '${item.ref_code}')">
+                </div>
+                <div style="display: inline-flex; align-items: center; gap: 3px;">
+                    <span style="font-size: 0.74rem; color: #0369a1; font-weight: 700;">التاريخ:</span>
+                    <input type="text" id="preview-edit-date-input" value="${escapeHtml(curDate)}" class="form-control" style="font-size: 0.78rem; padding: 2px 6px; height: 26px; width: 110px; font-weight: 600; border: 1px solid #7dd3fc;" placeholder="YYYY/MM/DD" onkeydown="handlePreviewNumDateKey(event, '${item.ref_code}')">
+                </div>
+                <div style="display: inline-flex; align-items: center; gap: 4px;">
+                    <button type="button" class="btn btn-sm btn-success" id="btn-preview-save-numdate" onclick="savePreviewDocNumberDate('${item.ref_code}')" style="padding: 2px 9px; font-size: 0.74rem; font-weight: 700;" title="حفظ التعديل">
+                        <i class="fa-solid fa-check"></i> حفظ
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline" id="btn-preview-cancel-numdate" onclick="cancelPreviewDocNumberDate('${item.ref_code}')" style="padding: 2px 8px; font-size: 0.74rem; color: #64748b; background: white;" title="إلغاء التعديل">
+                        <i class="fa-solid fa-xmark"></i> إلغاء
+                    </button>
+                </div>
+            </div>
+        `;
+        setTimeout(() => {
+            const numInp = document.getElementById("preview-edit-num-input");
+            if (numInp) {
+                numInp.focus();
+                numInp.select();
+            }
+        }, 50);
+    }
+}
+window.renderPreviewMetaNumberDate = renderPreviewMetaNumberDate;
+
+function startPreviewDocNumberDateEdit(refCode) {
+    let item = activePreviewItem;
+    if (!item || item.ref_code !== refCode) {
+        item = indexedEvidenceList.find(e => e.ref_code === refCode);
+    }
+    if (!item) return;
+    renderPreviewMetaNumberDate(item, true);
+}
+window.startPreviewDocNumberDateEdit = startPreviewDocNumberDateEdit;
+
+function cancelPreviewDocNumberDate(refCode) {
+    let item = activePreviewItem;
+    if (!item || item.ref_code !== refCode) {
+        item = indexedEvidenceList.find(e => e.ref_code === refCode);
+    }
+    if (!item) return;
+    renderPreviewMetaNumberDate(item, false);
+}
+window.cancelPreviewDocNumberDate = cancelPreviewDocNumberDate;
+
+async function savePreviewDocNumberDate(refCode) {
+    let item = activePreviewItem;
+    if (!item || item.ref_code !== refCode) {
+        item = indexedEvidenceList.find(e => e.ref_code === refCode);
+    }
+    if (!item) return;
+
+    const numInp = document.getElementById("preview-edit-num-input");
+    const dateInp = document.getElementById("preview-edit-date-input");
+    if (!numInp || !dateInp) return;
+
+    const newNum = numInp.value.trim();
+    const newDate = dateInp.value.trim();
+
+    item.doc_number = newNum;
+    item.document_number = newNum;
+    item.date = newDate;
+    item.audit_status = 'modified';
+
+    saveDraft();
+
+    try {
+        await fetch("/api/update-evidence-meta", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                ref_code: refCode,
+                doc_number: newNum,
+                date: newDate
+            })
+        });
+    } catch (err) {
+        console.warn("Backend update-evidence-meta notice:", err);
+    }
+
+    renderMasterCatalogTable();
+    renderAllMiniEvidenceTables();
+    updateIndexStats();
+
+    renderPreviewMetaNumberDate(item, false);
+
+    showToast(`تم حفظ العدد (${newNum || 'بدون'}) والتاريخ (${newDate || 'بدون'}) للوثيقة [${refCode}] بنجاح! ✔`);
+}
+window.savePreviewDocNumberDate = savePreviewDocNumberDate;
+
+function handlePreviewNumDateKey(event, refCode) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        savePreviewDocNumberDate(refCode);
+    } else if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        cancelPreviewDocNumberDate(refCode);
+    }
+}
+window.handlePreviewNumDateKey = handlePreviewNumDateKey;
+
 function openDocumentPreview(refCodeOrItem) {
     let item = null;
     if (typeof refCodeOrItem === "string") {
@@ -2393,15 +2535,7 @@ function openDocumentPreview(refCodeOrItem) {
     const metaType = document.getElementById("preview-meta-type");
     if (metaType) metaType.textContent = item.doc_type || item.type_arabic || "وثيقة إدارية";
 
-    const metaNumDate = document.getElementById("preview-meta-number-date");
-    if (metaNumDate) {
-        let numDateHtml = `<strong>${item.doc_number || item.document_number || '-'}</strong> بتاريخ <span style="color:#475569;">${item.date || '-'}</span>`;
-        if (item.handwritten_detected) {
-            numDateHtml += ` <span class="badge-handwritten" style="margin-right: 4px;"><i class="fa-solid fa-pen-nib"></i> خط يد</span>`;
-        }
-        numDateHtml += ` <button type="button" class="btn-quick-edit-numdate" style="margin-right: 8px;" onclick="closeDocumentPreview(); startEditDocNumberDate('${item.ref_code}');" title="تعديل العدد والتاريخ مباشرة"><i class="fa-solid fa-pen-to-square"></i> تعديل</button>`;
-        metaNumDate.innerHTML = numDateHtml;
-    }
+    renderPreviewMetaNumberDate(item, false);
 
     const metaAxis = document.getElementById("preview-meta-axis");
     if (metaAxis) metaAxis.textContent = `${item.axis_name || item.axis || 'المحور'} - فقرة ${item.paragraph || item.suggested_paragraph || '1'}`;
@@ -2510,7 +2644,6 @@ function openDocumentPreview(refCodeOrItem) {
     const btnPrevReclassify = document.getElementById("btn-preview-reclassify");
     if (btnPrevReclassify) {
         btnPrevReclassify.onclick = () => {
-            closeDocumentPreview();
             openReclassifyModal(item.ref_code);
         };
     }
@@ -2527,6 +2660,10 @@ function closeDocumentPreview() {
     if (img) img.src = "";
     cancelCropper();
     clearBoundingBoxes();
+    const numCol = document.getElementById("preview-meta-numdate-col");
+    if (numCol) {
+        numCol.classList.remove("editing-active");
+    }
     activePreviewItem = null;
 }
 
@@ -2982,8 +3119,6 @@ function getRefBadgeClass(refCode) {
 }
 window.getRefBadgeClass = getRefBadgeClass;
 
-let inlineEditingRefCode = null;
-
 function startEditDocNumberDate(refCode) {
     inlineEditingRefCode = refCode;
     renderMasterCatalogTable();
@@ -3042,6 +3177,12 @@ async function saveInlineDocNumberDate(refCode) {
     renderMasterCatalogTable();
     renderAllMiniEvidenceTables();
     updateIndexStats();
+
+    // إذا كانت نافذة المعاينة مفتوحة لنفس الوثيقة نحدثها
+    if (activePreviewItem && activePreviewItem.ref_code === refCode) {
+        renderPreviewMetaNumberDate(activePreviewItem, false);
+    }
+
     showToast(`تم حفظ العدد (${newNum || 'بدون'}) والتاريخ (${newDate || 'بدون'}) للوثيقة [${refCode}] بنجاح! ✔`);
 }
 window.saveInlineDocNumberDate = saveInlineDocNumberDate;
@@ -3169,8 +3310,6 @@ function renderMiniEvidenceTable(axis, paragraph) {
 // ============================================================================
 // عرض الفهرس الشامل للأدلة والملف التوثيقي (Master Catalog Table)
 // ============================================================================
-let filterFacultyOnly = false;
-
 function toggleFacultyOnlyFilter() {
     filterFacultyOnly = !filterFacultyOnly;
     const btn = document.getElementById("btn-filter-faculty");
@@ -4944,10 +5083,10 @@ function applySnippetNumber() {
     const num = document.getElementById("snippet-detected-num").value.trim();
     if (!num || !activePreviewItem) return;
     activePreviewItem.doc_number = num;
-    const metaNum = document.getElementById("preview-meta-number-date");
-    if (metaNum) {
-        metaNum.innerHTML = `<strong>${num}</strong> بتاريخ <span style="color:#475569;">${activePreviewItem.date || '-'}</span>`;
-    }
+    activePreviewItem.document_number = num;
+    activePreviewItem.audit_status = 'modified';
+    saveDraft();
+    renderPreviewMetaNumberDate(activePreviewItem, false);
     renderAllMiniEvidenceTables();
     renderMasterCatalogTable();
     showToast(`تم تعيين العدد بنجاح: ${num}`);
@@ -4957,10 +5096,9 @@ function applySnippetDate() {
     const d = document.getElementById("snippet-detected-date").value.trim();
     if (!d || !activePreviewItem) return;
     activePreviewItem.date = d;
-    const metaNum = document.getElementById("preview-meta-number-date");
-    if (metaNum) {
-        metaNum.innerHTML = `<strong>${activePreviewItem.doc_number || '-'}</strong> بتاريخ <span style="color:#475569;">${d}</span>`;
-    }
+    activePreviewItem.audit_status = 'modified';
+    saveDraft();
+    renderPreviewMetaNumberDate(activePreviewItem, false);
     renderAllMiniEvidenceTables();
     renderMasterCatalogTable();
     showToast(`تم تعيين التاريخ بنجاح: ${d}`);

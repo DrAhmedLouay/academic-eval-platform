@@ -142,5 +142,23 @@ class TestExportGenerators(unittest.TestCase):
                 res = subprocess.run([jsc_bin, test_path], capture_output=True, text=True)
                 self.assertEqual(res.returncode, 0, f"Script block {idx} failed in jsc: {res.stderr or res.stdout}")
 
+    def test_preview_modal_inline_edit_numdate(self):
+        for js_file in ["static/js/app.js", "docs/js/app.js"]:
+            with open(js_file, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.assertIn("function renderPreviewMetaNumberDate", content, f"{js_file} missing renderPreviewMetaNumberDate")
+            self.assertIn("function startPreviewDocNumberDateEdit", content, f"{js_file} missing startPreviewDocNumberDateEdit")
+            self.assertIn("function cancelPreviewDocNumberDate", content, f"{js_file} missing cancelPreviewDocNumberDate")
+            self.assertIn("function savePreviewDocNumberDate", content, f"{js_file} missing savePreviewDocNumberDate")
+            self.assertIn("function handlePreviewNumDateKey", content, f"{js_file} missing handlePreviewNumDateKey")
+            # Verify that editing from preview does not close document preview
+            self.assertNotIn("closeDocumentPreview(); startEditDocNumberDate", content, f"{js_file} still closes preview when editing number/date")
+
+        for html_file in ["static/index.html", "docs/index.html"]:
+            with open(html_file, "r", encoding="utf-8") as f:
+                html = f.read()
+            self.assertIn('id="preview-meta-numdate-col"', html, f"{html_file} missing preview-meta-numdate-col")
+            self.assertIn('id="preview-meta-number-date"', html, f"{html_file} missing preview-meta-number-date")
+
 if __name__ == "__main__":
     unittest.main()

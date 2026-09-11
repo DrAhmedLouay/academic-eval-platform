@@ -1391,5 +1391,39 @@ body.auditor-active .evidence-table td.auditor-col {
     font-weight: 900;
 }
 
+/* تعديل العدد والتاريخ المباشر داخل نافذة المعاينة التفاعلية */
+#reclassify-modal {
+    z-index: 120;
+}
 
+#snippet-result-modal {
+    z-index: 130;
+}
 
+#preview-meta-numdate-col.editing-active {
+    grid-column: span 2;
+}
+
+.preview-numdate-inline-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    background: #ffffff;
+    border: 1.5px solid #0284c7;
+    border-radius: 6px;
+    padding: 3px 8px;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.15);
+    animation: fadeInPreviewEdit 0.18s ease-out;
+}
+
+.preview-numdate-inline-form input:focus {
+    outline: none;
+    border-color: #0284c7 !important;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+}
+
+@keyframes fadeInPreviewEdit {
+    from { opacity: 0; transform: translateY(-2px); }
+    to { opacity: 1; transform: translateY(0); }
+}
