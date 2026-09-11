@@ -92,7 +92,8 @@ async def scan_evidence(
     file: UploadFile = File(...),
     target_axis: Optional[str] = Form(None),
     target_paragraph: Optional[str] = Form(None),
-    counter: int = Form(1)
+    counter: int = Form(1),
+    faculty_name: str = Form("أحمد لؤي أحمد")
 ):
     """
     مسح المرفق بالذكاء الاصطناعي وقراءته وفهرسته كدليل مسند لفقرة محددة، واستخراج بياناتها وملء حقولها
@@ -117,7 +118,8 @@ async def scan_evidence(
             filename=file.filename,
             target_axis=target_axis if target_axis and target_axis != "auto" else None,
             target_paragraph=target_paragraph if target_paragraph and target_paragraph != "auto" else None,
-            counter=counter
+            counter=counter,
+            faculty_name=faculty_name
         )
 
         indexed_item["file_id"] = file_id
@@ -136,7 +138,10 @@ async def scan_evidence(
 
 
 @app.post("/api/batch-scan-evidence")
-async def batch_scan_evidence(files: List[UploadFile] = File(...)):
+async def batch_scan_evidence(
+    files: List[UploadFile] = File(...),
+    faculty_name: str = Form("أحمد لؤي أحمد")
+):
     """
     المسح الشامل المجمع لملفات متعددة وفهرستها بالذكاء الاصطناعي وتوزيعها آلياً على فقرات الاستمارة
     """
@@ -162,7 +167,8 @@ async def batch_scan_evidence(files: List[UploadFile] = File(...)):
                 filename=file.filename,
                 target_axis=None,
                 target_paragraph=None,
-                counter=idx
+                counter=idx,
+                faculty_name=faculty_name
             )
             indexed_item["file_id"] = file_id
             indexed_item["filename"] = file.filename
@@ -180,10 +186,11 @@ async def batch_scan_evidence(files: List[UploadFile] = File(...)):
 
 
 @app.post("/api/reprocess-all-attachments")
-async def reprocess_all_attachments():
+async def reprocess_all_attachments(faculty_name: Optional[str] = Form(None)):
     """
     إعادة مسح ومعالجة وفهرسة كافة المرفقات بالذكاء الاصطناعي الأكثر حرية ومرونة
     مع استخراج (إلى / الجهة المعنون إليها) و (م / موضوع الوثيقة) وقراءة خط اليد للأعداد والتواريخ
+    وتمييز اسم التدريسي في الجداول والأوامر الإدارية.
     """
     try:
         if not os.path.exists(UPLOADS_DIR):
@@ -193,6 +200,7 @@ async def reprocess_all_attachments():
         results = []
         seen_orig_names = set()
         counter = 1
+        target_faculty = faculty_name or "أحمد لؤي أحمد"
 
         for fn in files:
             ext = os.path.splitext(fn)[1].lower()
@@ -215,7 +223,8 @@ async def reprocess_all_attachments():
                     filename=orig_filename,
                     target_axis=None,
                     target_paragraph=None,
-                    counter=counter
+                    counter=counter,
+                    faculty_name=target_faculty
                 )
                 indexed_item["file_id"] = fn.split("_")[0] if "_" in fn else fn
                 indexed_item["filename"] = orig_filename

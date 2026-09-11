@@ -1368,12 +1368,25 @@ def deep_scan_and_index_document(
         note = f"✍️ تم قراءة {' و'.join(hw_desc)} بخط اليد عبر الذكاء الاصطناعي" if hw_desc else "✍️ تم التعرف على بيانات بخط اليد"
         auto_fill_summary.insert(0, note)
 
-    # حساب صناديق التظليل البصري (Bounding Boxes)
+    # حساب صناديق التظليل البصري (Bounding Boxes) وفحص اسم التدريسي في الجداول
     from core.vlm_engine import calculate_local_bounding_boxes, extract_faculty_role_in_order
     from core.scopus_crossref import extract_doi, match_offline_journal
     
+    # مطابقة اسم التدريسي في الأوامر والجداول واللجان
+    matched_role_info = extract_faculty_role_in_order(text, faculty_name)
+    if matched_role_info:
+        # إذا كانت الوثيقة لجنة وتحدد دور التدريسي، نعدل الدرجة المستحقة فورياً
+        if axis == "axis3" and str(paragraph) == "1":
+            score_delta = matched_role_info["suggested_score"]
+            if "score_value" in field_updates:
+                field_updates["score_value"] = score_delta
+            if "item" in field_updates and isinstance(field_updates["item"], dict):
+                field_updates["item"]["score"] = score_delta
+                field_updates["item"]["role"] = matched_role_info["role"]
+        auto_fill_summary.insert(0, f"🎯 تم تمييز اسم التدريسي ({matched_role_info['matched_name']}) في قائمة/جدول الوثيقة بصفة [{matched_role_info['role']}].")
+
     primary_dt_str = str(dates[0]) if dates else "2025/2026"
-    bboxes = calculate_local_bounding_boxes(text, str(doc_number), primary_dt_str, subject_title)
+    bboxes = calculate_local_bounding_boxes(text, str(doc_number), primary_dt_str, subject_title, matched_role_info)
     
     # فحص معرف الـ DOI ومطابقة سكوباس
     detected_doi = extract_doi(text)
@@ -1390,9 +1403,6 @@ def deep_scan_and_index_document(
                 duplicate_of = ex.get("ref_code")
                 auto_fill_summary.append(f"⚠️ تنبيه: تم رصد هذا العدد سابقاً في الوثيقة [{duplicate_of}].")
                 break
-
-    # مطابقة اسم التدريسي في الأوامر الجماعية
-    matched_role_info = extract_faculty_role_in_order(text, faculty_name)
 
     return {
         "ref_code": ref_code,

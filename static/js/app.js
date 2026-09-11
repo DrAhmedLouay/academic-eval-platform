@@ -1364,7 +1364,147 @@ async function callGeminiVisionClient(file) {
     return null;
 }
 
-function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph) {
+function normalizeArabicName(name) {
+    if (!name) return "";
+    let text = String(name).trim();
+    text = text.replace(/[\u064B-\u065F\u0640]/g, '');
+    text = text.replace(/(?:أ\.د\.|أ\.م\.د\.|م\.د\.|م\.م\.|د\.|\bدكتور|\bأستاذ|\bمدرس|\bمساعد|\bالمهندس|\bالمعماري|\bالسيد|\bالسيدة)\b/g, ' ');
+    text = text.replace(/[أإآٱ]/g, 'ا');
+    text = text.replace(/[ىئ]/g, 'ي');
+    text = text.replace(/ؤ/g, 'و');
+    text = text.replace(/ة/g, 'ه');
+    text = text.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()\[\]|]/g, ' ');
+    return text.replace(/\s+/g, ' ').trim();
+}
+
+function getCurrentFacultyName() {
+    let name = "";
+    try {
+        const fn = document.querySelector('[data-bind="personal_info.first_name"]');
+        const fan = document.querySelector('[data-bind="personal_info.father_name"]');
+        const gn = document.querySelector('[data-bind="personal_info.grandfather_name"]');
+        const ln = document.querySelector('[data-bind="personal_info.last_name"]');
+        if (fn && fn.value) {
+            name = [fn.value, fan ? fan.value : "", gn ? gn.value : "", ln ? ln.value : ""].filter(Boolean).join(" ").trim();
+        }
+    } catch(e) {}
+    if (!name && typeof formData !== "undefined" && formData && formData.personal_info && formData.personal_info.first_name) {
+        name = [
+            formData.personal_info.first_name,
+            formData.personal_info.father_name,
+            formData.personal_info.grandfather_name,
+            formData.personal_info.last_name
+        ].filter(Boolean).join(" ").trim();
+    }
+    return name || "أحمد لؤي أحمد";
+}
+
+function extractFacultyRoleInDocument(text, facultyName) {
+    if (!text) return null;
+    const targetName = facultyName || getCurrentFacultyName();
+    const normTarget = normalizeArabicName(targetName);
+    const targetTokens = normTarget.split(/\s+/).filter(t => t.length >= 2);
+    if (!targetTokens.length) return null;
+
+    const minMatches = targetTokens.length >= 2 ? Math.min(targetTokens.length, 2) : 1;
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const totalLines = lines.length;
+
+    for (let idx = 0; idx < lines.length; idx++) {
+        const line = lines[idx];
+        const normLine = normalizeArabicName(line);
+        const matches = targetTokens.filter(tok => normLine.includes(tok)).length;
+
+        if (matches >= minMatches) {
+            let orderIndex = null;
+            const seqMatch = line.match(/^(?:\|\s*)?(\d+)[\.\-\)\s\|]/) || line.match(/ت\s*[:\.]?\s*(\d+)/);
+            if (seqMatch) orderIndex = seqMatch[1];
+
+            let academicRank = "تدريسي";
+            if (/أ\.د\.|أستاذ دكتور|\bأستاذ\b/.test(line)) academicRank = "أستاذ";
+            else if (/أ\.م\.د\.|أستاذ مساعد/.test(line)) academicRank = "أستاذ مساعد";
+            else if (/م\.د\.|مدرس دكتور|\bمدرس\b/.test(line)) academicRank = "مدرس";
+            else if (/م\.م\.|مدرس مساعد/.test(line)) academicRank = "مدرس مساعد";
+            else if (/\bدكتور\b|د\./.test(line)) academicRank = "دكتور";
+
+            const contextWindow = lines.slice(Math.max(0, idx - 1), Math.min(totalLines, idx + 2)).join(" ");
+            const targetStr = /رئيساً|رئيسا|عضواً|عضو|مقرراً|مقرر|مشرفاً|مشرف|محاضراً|شكر|مشارك/.test(line) ? line : contextWindow;
+
+            let role = "عضو لجنة";
+            let score = 20.0;
+            let pTarget = "1";
+
+            if (/رئيساً|رئيس اللجنة|رئيس لجنة|رئيسا|رئيس الفريق/.test(targetStr)) {
+                role = "رئيس لجنة";
+                score = 30.0;
+                pTarget = "1";
+            } else if (/عضو ومقرر|عضواً ومقرراً|عضوا ومقررا|مقرر اللجنة|مقرراً|مقررا/.test(targetStr)) {
+                role = "عضو ومقرر";
+                score = 25.0;
+                pTarget = "1";
+            } else if (/لجنة امتحانية|امتحانية|الامتحانية/.test(targetStr)) {
+                role = "عضو لجنة امتحانية";
+                score = 30.0;
+                pTarget = "1";
+            } else if (/مشاريع تخرج|مشروع تخرج|مناقشة مشاريع/.test(targetStr)) {
+                role = "عضو لجنة مناقشة مشاريع التخرج";
+                score = 30.0;
+                pTarget = "1";
+            } else if (/مشرفاً|مشرف|إشراف|اشراف|أطروحة|رسالة/.test(targetStr)) {
+                role = "مشرف على دراسات عليا";
+                score = 15.0;
+                pTarget = "3";
+            } else if (/محاضراً|محاضر|إلقاء محاضرة|القاء محاضرة|مدرب/.test(targetStr)) {
+                role = "محاضر في دورة تعليم مستمر";
+                score = 10.0;
+                pTarget = "2";
+            } else if (/شكر وتقدير|شكرنا وتقديرنا|توجيه الشكر|نوجه شكرنا/.test(targetStr)) {
+                role = "مكرم بكتاب شكر وتقدير";
+                score = 15.0;
+                pTarget = "3";
+            } else if (/شهادة مشاركة|حضور|مشارك|مشاركة/.test(targetStr)) {
+                role = "مشارك في مؤتمر أو ورشة";
+                score = 5.0;
+                pTarget = "2";
+            } else if (/عضواً|عضو|أعضاء|عضوية/.test(targetStr)) {
+                role = "عضو لجنة";
+                score = 20.0;
+                pTarget = "1";
+            }
+
+            let highlightedLine = line;
+            const targetParts = targetName.split(/\s+/).filter(p => p.length >= 3);
+            let marked = false;
+            for (const tp of targetParts) {
+                if (highlightedLine.includes(tp)) {
+                    highlightedLine = highlightedLine.replace(tp, `<mark class="faculty-name-highlight">${tp}</mark>`);
+                    marked = true;
+                    break;
+                }
+            }
+            if (!marked) {
+                highlightedLine = `<mark class="faculty-name-highlight">${line}</mark>`;
+            }
+
+            const approxTop = Math.min(85.0, Math.max(25.0, 30.0 + (idx / Math.max(totalLines, 1)) * 50.0));
+
+            return {
+                matched_name: targetName,
+                detected_line: line,
+                highlighted_line: highlightedLine,
+                role: role,
+                academic_rank: academicRank,
+                order_index: orderIndex,
+                suggested_score: score,
+                suggested_paragraph: pTarget,
+                approx_top_pct: approxTop
+            };
+        }
+    }
+    return null;
+}
+
+function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph, facultyName) {
     const raw = (text || "") + " " + (filename || "");
     const cleanFn = (filename || "").replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
 
@@ -1391,22 +1531,28 @@ function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph) 
     else if (/قسم الدراسات والتخطيط/i.test(raw)) issuer = "قسم الدراسات والتخطيط";
     else if (/قسم الشؤون العلمية/i.test(raw)) issuer = "قسم الشؤون العلمية";
 
+    // مطابقة وتمييز اسم التدريسي في نصوص وجداول الوثيقة
+    const facMatch = extractFacultyRoleInDocument(text, facultyName);
+
     let autoFillSummary = "";
+    if (facMatch) {
+        autoFillSummary += `🎯 تم تمييز اسم التدريسي (${facMatch.matched_name}) في الوثيقة بصفة [${facMatch.role}]. `;
+    }
     if (isHandwritten) {
         const hwDesc = [];
         if (hwFields.includes("doc_number")) hwDesc.push(`العدد [${docNumber}]`);
         if (hwFields.includes("date")) hwDesc.push(`التاريخ [${docDate}]`);
-        autoFillSummary = hwDesc.length ? 
+        autoFillSummary += hwDesc.length ? 
             `✍️ تم قراءة ${hwDesc.join(" و")} بخط اليد بالذكاء الاصطناعي` : 
             `✍️ تم التعرف على بيانات بخط اليد بالذكاء الاصطناعي`;
     } else {
-        autoFillSummary = `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`;
+        autoFillSummary += `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`;
     }
 
-    let ax = targetAxis || "axis3";
-    let p = targetParagraph ? String(targetParagraph) : "1";
+    let ax = targetAxis || (facMatch && facMatch.role && facMatch.role.includes("مشرف") ? "axis2" : "axis3");
+    let p = targetParagraph ? String(targetParagraph) : (facMatch ? facMatch.suggested_paragraph : "1");
     let docType = "وثيقة إثبات رسمية";
-    let suggestedScore = 10.0;
+    let suggestedScore = facMatch ? facMatch.suggested_score : 10.0;
     let axisName = "المحور الثالث: الجانب التربوي والتطويري";
     let paragraphName = "الأنشطة الأكاديمية";
 
@@ -1529,7 +1675,8 @@ function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph) 
         handwritten_detected: isHandwritten,
         handwritten_fields: hwFields,
         is_handwritten: isHandwritten,
-        auto_fill_summary: autoFillSummary
+        auto_fill_summary: autoFillSummary,
+        matched_faculty_info: facMatch
     };
 }
 
@@ -1614,6 +1761,10 @@ async function handleClientSideEvidenceScan(file, target) {
         }
     }
 
+    let matchedFacInfo = (existingMatch && existingMatch.matched_faculty_info) || 
+                         (typeof parsed !== "undefined" && parsed && parsed.matched_faculty_info) || 
+                         extractFacultyRoleInDocument((typeof extractedText !== "undefined" ? extractedText : "") + " " + file.name);
+
     const evidenceItem = {
         ref_code: refCode,
         axis: ax,
@@ -1631,7 +1782,8 @@ async function handleClientSideEvidenceScan(file, target) {
         filename: file.name,
         handwritten_detected: isHw,
         handwritten_fields: hwFields,
-        auto_fill_summary: autoFillSummary
+        auto_fill_summary: autoFillSummary,
+        matched_faculty_info: matchedFacInfo
     };
 
     const fieldUpdates = {};
@@ -1656,6 +1808,7 @@ async function processSingleEvidenceScan(file, target) {
 
     const payload = new FormData();
     payload.append("file", file);
+    payload.append("faculty_name", getCurrentFacultyName());
     if (target) {
         payload.append("target_axis", target.axis);
         payload.append("target_paragraph", target.paragraph);
@@ -1855,7 +2008,8 @@ async function processBatchEvidenceScan(filesList) {
             filename: file.name,
             handwritten_detected: parsed.handwritten_detected,
             handwritten_fields: parsed.handwritten_fields,
-            auto_fill_summary: parsed.auto_fill_summary
+            auto_fill_summary: parsed.auto_fill_summary,
+            matched_faculty_info: parsed.matched_faculty_info
         };
         applyIndexedItem(item);
     }
@@ -1902,8 +2056,11 @@ async function reprocessAllUploads() {
             controller = new AbortController();
             timeoutId = setTimeout(() => controller.abort(), 120000);
         }
+        const reprocessPayload = new FormData();
+        reprocessPayload.append("faculty_name", getCurrentFacultyName());
         const response = await fetch("/api/reprocess-all-attachments", {
             method: "POST",
+            body: reprocessPayload,
             signal: controller ? controller.signal : undefined
         });
         if (timeoutId) clearTimeout(timeoutId);
@@ -2003,6 +2160,35 @@ function openEvidenceReviewModal(indexedEvidence, fieldUpdates, autoFillSummary)
         }
     }
 
+    // تمييز اسم التدريسي في نافذة المراجعة
+    const facultyMatchBox = document.getElementById("modal-faculty-match-box");
+    const facultyMatchName = document.getElementById("modal-faculty-match-name");
+    const facultyMatchRole = document.getElementById("modal-faculty-match-role");
+    const facultyMatchLine = document.getElementById("modal-faculty-match-line");
+    
+    const facMatch = indexedEvidence.matched_faculty_info || extractFacultyRoleInDocument(pendingOcrAttachment.raw_text);
+    if (facMatch) {
+        if (facultyMatchBox) facultyMatchBox.style.display = "block";
+        if (facultyMatchName) facultyMatchName.textContent = facMatch.matched_name || getCurrentFacultyName();
+        if (facultyMatchRole) facultyMatchRole.textContent = facMatch.role || "عضو لجنة";
+        if (facultyMatchLine) facultyMatchLine.innerHTML = facMatch.highlighted_line || facMatch.detected_line || "";
+        
+        // تظليل اسم التدريسي في مربع النص المستخرج
+        const rawTextEl = document.getElementById("modal-extracted-text");
+        if (rawTextEl && pendingOcrAttachment.raw_text) {
+            let highlightedRaw = pendingOcrAttachment.raw_text;
+            const targetParts = (facMatch.matched_name || getCurrentFacultyName()).split(/\s+/).filter(p => p.length >= 3);
+            for (const tp of targetParts) {
+                if (highlightedRaw.includes(tp)) {
+                    highlightedRaw = highlightedRaw.split(tp).join(`<mark class="faculty-name-highlight">${tp}</mark>`);
+                }
+            }
+            rawTextEl.innerHTML = highlightedRaw;
+        }
+    } else {
+        if (facultyMatchBox) facultyMatchBox.style.display = "none";
+    }
+
     modal.classList.add("active");
 }
 
@@ -2073,6 +2259,29 @@ function openDocumentPreview(refCodeOrItem) {
 
     const metaTitle = document.getElementById("preview-meta-title");
     if (metaTitle) metaTitle.textContent = `${item.title || item.filename} ${item.issuer ? `(${item.issuer})` : ''}`;
+
+    // بطاقة تمييز اسم التدريسي في نافذة المعاينة
+    const prevFacCard = document.getElementById("preview-faculty-match-card");
+    const prevFacName = document.getElementById("preview-faculty-name");
+    const prevFacRole = document.getElementById("preview-faculty-role-badge");
+    const prevFacLine = document.getElementById("preview-faculty-detected-line");
+
+    const prevMatch = item.matched_faculty_info || extractFacultyRoleInDocument(item.raw_text_snippet || item.title || "");
+    if (prevMatch) {
+        if (prevFacCard) prevFacCard.style.display = "block";
+        if (prevFacName) prevFacName.textContent = prevMatch.matched_name || getCurrentFacultyName();
+        if (prevFacRole) {
+            prevFacRole.textContent = prevMatch.role || "عضو لجنة";
+            if (prevMatch.role && prevMatch.role.includes("رئيس")) {
+                prevFacRole.style.background = "#d97706";
+            } else {
+                prevFacRole.style.background = "#059669";
+            }
+        }
+        if (prevFacLine) prevFacLine.innerHTML = prevMatch.highlighted_line || prevMatch.detected_line || "";
+    } else {
+        if (prevFacCard) prevFacCard.style.display = "none";
+    }
 
     // إعداد حاوية العرض بحسب نوع الملف
     const frame = document.getElementById("preview-frame");
@@ -2677,6 +2886,13 @@ function renderMiniEvidenceTable(axis, paragraph) {
                             </div>
                             ${item.subject ? `<div style="margin-top:2px;"><span class="badge-tag-subject"><i class="fa-solid fa-file-signature"></i> م/ ${item.subject}</span></div>` : ''}
                             ${item.recipient ? `<div style="margin-top:2px;"><span class="badge-tag-recipient"><i class="fa-solid fa-paper-plane"></i> إلى/ ${item.recipient}</span></div>` : ''}
+                            ${item.matched_faculty_info ? `
+                                <div style="margin-top: 2px;">
+                                    <span class="badge-faculty-tag ${item.matched_faculty_info.role && item.matched_faculty_info.role.includes('رئيس') ? 'head' : ''}" title="تم تمييز اسم التدريسي في قائمة الوثيقة: ${item.matched_faculty_info.detected_line || ''}">
+                                        <i class="fa-solid fa-user-check"></i> ${item.matched_faculty_info.matched_name || 'التدريسي'} (${item.matched_faculty_info.role || 'عضو'})
+                                    </span>
+                                </div>
+                            ` : ''}
                             <div style="font-size: 0.75rem; color: #475569; margin-top:2px;">${item.auto_fill_summary || ''}</div>
                         </td>
                         <td style="text-align: center;"><span class="badge-score-add">+${item.suggested_score}</span></td>
@@ -2709,10 +2925,35 @@ function renderMiniEvidenceTable(axis, paragraph) {
 // ============================================================================
 // عرض الفهرس الشامل للأدلة والملف التوثيقي (Master Catalog Table)
 // ============================================================================
+let filterFacultyOnly = false;
+
+function toggleFacultyOnlyFilter() {
+    filterFacultyOnly = !filterFacultyOnly;
+    const btn = document.getElementById("btn-filter-faculty");
+    if (btn) {
+        if (filterFacultyOnly) {
+            btn.style.background = "#059669";
+            btn.style.color = "#ffffff";
+            btn.style.borderColor = "#047857";
+        } else {
+            btn.style.background = "#ecfdf5";
+            btn.style.color = "#047857";
+            btn.style.borderColor = "#6ee7b7";
+        }
+    }
+    renderMasterCatalogTable();
+}
+window.toggleFacultyOnlyFilter = toggleFacultyOnlyFilter;
+
 function renderMasterCatalogTable() {
     const tbody = document.getElementById("master-catalog-body");
     const countBadge = document.getElementById("attachments-count");
     if (countBadge) countBadge.textContent = indexedEvidenceList.length;
+
+    const facultyCountBadge = document.getElementById("faculty-matches-count");
+    if (facultyCountBadge) {
+        facultyCountBadge.textContent = indexedEvidenceList.filter(e => Boolean(e.matched_faculty_info)).length;
+    }
 
     if (!tbody) return;
 
@@ -2720,11 +2961,14 @@ function renderMasterCatalogTable() {
     if (activeFilterAxis !== "all") {
         filtered = indexedEvidenceList.filter(e => e.axis === activeFilterAxis);
     }
+    if (filterFacultyOnly) {
+        filtered = filtered.filter(e => Boolean(e.matched_faculty_info));
+    }
 
     if (filtered.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #94a3b8; padding: 2.5rem;">
             <i class="fa-regular fa-folder-open fa-3x" style="margin-bottom: 0.75rem; display: block; opacity: 0.4;"></i>
-            لم يتم تسجيل أي وثائق مفهرسة في هذا التصنيف بعد. يمكنك مسح المرفقات مجمعة أو لكل فقرة أعلاه.
+            ${filterFacultyOnly ? 'لم يتم العثور على وثائق تم تمييز اسم التدريسي فيها ضمن هذا التصنيف.' : 'لم يتم تسجيل أي وثائق مفهرسة في هذا التصنيف بعد. يمكنك مسح المرفقات مجمعة أو لكل فقرة أعلاه.'}
         </td></tr>`;
         return;
     }
@@ -2766,6 +3010,13 @@ function renderMasterCatalogTable() {
                 </div>
                 ${item.subject && item.subject !== item.title ? `<div style="margin-top: 3px;"><span class="badge-tag-subject"><i class="fa-solid fa-file-signature"></i> م/ ${item.subject}</span></div>` : ''}
                 ${item.recipient && item.recipient !== 'غير محدد' ? `<div style="margin-top: 3px;"><span class="badge-tag-recipient"><i class="fa-solid fa-paper-plane"></i> إلى/ ${item.recipient}</span></div>` : ''}
+                ${item.matched_faculty_info ? `
+                    <div style="margin-top: 3px;">
+                        <span class="badge-faculty-tag ${item.matched_faculty_info.role && item.matched_faculty_info.role.includes('رئيس') ? 'head' : ''}" title="تم تمييز اسم التدريسي في قائمة/جدول الوثيقة: ${item.matched_faculty_info.detected_line || ''}">
+                            <i class="fa-solid fa-user-check"></i> ${item.matched_faculty_info.matched_name || 'التدريسي'} (${item.matched_faculty_info.role || 'عضو'})
+                        </span>
+                    </div>
+                ` : ''}
             </td>
             <td style="text-align: center;">
                 <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
@@ -3598,9 +3849,28 @@ function renderBoundingBoxes(item) {
     const layer = document.getElementById("bbox-overlay-layer");
     if (!layer) return;
 
-    let boxes = item.bounding_boxes;
-    if (!boxes || !Array.isArray(boxes) || boxes.length === 0) {
-        boxes = [];
+    let boxes = [];
+    if (item.bounding_boxes) {
+        if (Array.isArray(item.bounding_boxes)) {
+            boxes = [...item.bounding_boxes];
+        } else if (typeof item.bounding_boxes === "object") {
+            Object.keys(item.bounding_boxes).forEach(k => {
+                const b = item.bounding_boxes[k];
+                if (b && typeof b === "object") {
+                    boxes.push({
+                        field: k === "doc_number" ? "number" : k,
+                        top: b.top,
+                        left: b.left,
+                        width: b.width,
+                        height: b.height,
+                        text: b.label || b.text
+                    });
+                }
+            });
+        }
+    }
+
+    if (boxes.length === 0) {
         if (item.doc_number) {
             boxes.push({ field: "number", top: 12, left: 62, width: 28, height: 6, text: `العدد: ${item.doc_number}` });
         }
@@ -3613,11 +3883,23 @@ function renderBoundingBoxes(item) {
         boxes.push({ field: "stamp", top: 80, left: 15, width: 25, height: 14, text: "المصادقة / الختم الرسمي" });
     }
 
+    if (item.matched_faculty_info && !boxes.some(b => b.field === 'faculty')) {
+        boxes.push({
+            field: "faculty",
+            top: item.matched_faculty_info.approx_top_pct || 55,
+            left: 15,
+            width: 70,
+            height: 6,
+            text: `التدريسي: ${item.matched_faculty_info.matched_name} (${item.matched_faculty_info.role})`
+        });
+    }
+
     const fieldLabels = {
         number: "العدد",
         date: "التاريخ",
         subject: "الموضوع (م/ )",
-        stamp: "الختم / التوقيع"
+        stamp: "الختم / التوقيع",
+        faculty: "اسم التدريسي"
     };
 
     boxes.forEach(box => {

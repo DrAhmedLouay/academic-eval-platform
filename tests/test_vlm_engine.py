@@ -55,6 +55,48 @@ class TestVlmEngine(unittest.TestCase):
         self.assertEqual(role_info["role"], "عضو لجنة")
         self.assertEqual(role_info["suggested_score"], 20.0)
 
+    def test_extract_faculty_role_in_table_format(self):
+        table_text = """
+        وزارة التعليم العالي والبحث العلمي - الجامعة التكنولوجية
+        أمر إداري بتشكيل لجنة تدقيقية:
+        | ت | الاسم الثلاثي واللقب | اللقب العلمي | الدور في اللجنة |
+        | 1 | أ.د. صباح حسن كاظم | أستاذ | رئيساً |
+        | 2 | م.د. أحمد لؤي أحمد | مدرس | عضواً ومقرراً |
+        | 3 | م.م. زينب عادل هادي | مدرس مساعد | عضواً |
+        """
+        role_info = extract_faculty_role_in_order(table_text, faculty_name="د. احمد لؤي احمد")
+        self.assertIsNotNone(role_info)
+        self.assertEqual(role_info["role"], "عضو ومقرر")
+        self.assertEqual(role_info["suggested_score"], 25.0)
+        self.assertEqual(role_info["order_index"], "2")
+        self.assertEqual(role_info["academic_rank"], "مدرس")
+        self.assertIn("faculty-name-highlight", role_info["highlighted_line"])
+
+    def test_extract_faculty_role_in_appreciation_and_workshop(self):
+        appreciation_text = """
+        جامعة بغداد - كلية الهندسة
+        كتاب شكر وتقدير
+        نظراً لجهودكم المتميزة والمبذولة في إنجاز المهام الموكلة إليكم، يسرنا توجيه الشكر والتقدير إلى:
+        (المهندس المعماري د. أحمد لؤي أحمد)
+        متمنين لكم مزيداً من العطاء خدمة لبلدنا العزيز.
+        """
+        role_info = extract_faculty_role_in_order(appreciation_text, faculty_name="احمد لوي")
+        self.assertIsNotNone(role_info)
+        self.assertEqual(role_info["role"], "مكرم بكتاب شكر وتقدير")
+        self.assertEqual(role_info["suggested_score"], 15.0)
+
+    def test_bounding_boxes_with_faculty_match(self):
+        matched_info = {
+            "matched_name": "أحمد لؤي أحمد",
+            "role": "رئيس لجنة",
+            "approx_top_pct": 52.0
+        }
+        boxes = calculate_local_bounding_boxes("نص", "1509", "2024/10/29", "أمر تشكيل لجنة", matched_info)
+        self.assertIn("faculty", boxes)
+        self.assertEqual(boxes["faculty"]["color"], "#059669")
+        self.assertIn("رئيس لجنة", boxes["faculty"]["label"])
+
+
     def test_vlm_config_api(self):
         # GET config
         get_res = self.client.get("/api/vlm-config")
