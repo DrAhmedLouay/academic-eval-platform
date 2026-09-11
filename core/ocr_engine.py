@@ -259,41 +259,52 @@ def extract_text_from_pdf(file_path: str) -> Dict[str, Any]:
 
         ocr = get_ocr_engine() if RAPID_OCR_AVAILABLE else None
 
-        # إذا كانت الطبقة النصية مفقودة أو مشوهة، نقوم بمسح صور الصفحات عبر RapidOCR
-        if (not has_digital_text or is_scrambled) and len(reader.pages) > 0 and ocr:
-            ocr_all_pages_text = []
-            for p_idx in range(min(3, len(reader.pages))):
-                page = reader.pages[p_idx]
-                page_img = get_best_page_image(page)
-                if page_img is not None:
-                    # مسح الترويسة وخط اليد
-                    hw_res = extract_handwritten_header_metadata(page_img)
-                    if hw_res.get("lines"):
-                        hw_lines.extend(hw_res["lines"])
-                        hw_detected = True
-                    
-                    # مسح كامل الصفحة
-                    res, _ = ocr(page_img)
-                    p_lines = [normalize_arabic_text(r[1]) for r in (res or [])]
-                    ocr_all_pages_text.append("\n".join(p_lines))
-            
-            if ocr_all_pages_text:
-                combined = hw_lines + ocr_all_pages_text
-                normalized = normalize_arabic_text("\n".join(combined))
-                has_digital_text = len(normalized.strip()) > 10
-                method = "pdf_scanned_ocr_and_handwriting"
+        # إذا كانت الطبقة النصية مفقودة أو مشوهة، نقوم بمسح صور الصفحات عبر Apple Vision أولاً ثم RapidOCR
+        if (not has_digital_text or is_scrambled) and len(reader.pages) > 0:
+            if APPLE_VISION_AVAILABLE:
+                vis_res = extract_text_with_apple_vision(file_path, max_pages=min(3, len(reader.pages)))
+                if vis_res.get("success") and vis_res.get("has_text"):
+                    return vis_res
+
+            if ocr:
+                ocr_all_pages_text = []
+                for p_idx in range(min(3, len(reader.pages))):
+                    page = reader.pages[p_idx]
+                    page_img = get_best_page_image(page)
+                    if page_img is not None:
+                        hw_res = extract_handwritten_header_metadata(page_img)
+                        if hw_res.get("lines"):
+                            hw_lines.extend(hw_res["lines"])
+                            hw_detected = True
+                        res, _ = ocr(page_img)
+                        p_lines = [normalize_arabic_text(r[1]) for r in (res or [])]
+                        ocr_all_pages_text.append("\n".join(p_lines))
+                
+                if ocr_all_pages_text:
+                    combined = hw_lines + ocr_all_pages_text
+                    normalized = normalize_arabic_text("\n".join(combined))
+                    has_digital_text = len(normalized.strip()) > 10
+                    method = "pdf_scanned_ocr_and_handwriting"
 
         # في حال وجود نص رقمي مطبوع ولكن الوثيقة مختومة أو مرقمة باليد في الترويسة
-        elif has_digital_text and len(reader.pages) > 0 and ocr:
-            first_page_img = get_best_page_image(reader.pages[0])
-            if first_page_img is not None:
-                hw_res = extract_handwritten_header_metadata(first_page_img)
-                if hw_res.get("lines"):
-                    hw_lines = hw_res["lines"]
-                    hw_detected = True
-                    # دمج نصوص الترويسة المكتوبة باليد في أعلى النص
-                    normalized = normalize_arabic_text("\n".join(hw_lines) + "\n\n" + normalized)
-                    method = "pdf_hybrid_digital_and_handwriting"
+        elif has_digital_text and len(reader.pages) > 0:
+            if APPLE_VISION_AVAILABLE:
+                vis_res = extract_text_with_apple_vision(file_path, max_pages=1)
+                if vis_res.get("success") and vis_res.get("has_text"):
+                    vis_lines = vis_res.get("lines", [])
+                    vis_header = [l for l in vis_lines[:15] if any(c in l for c in ["العدد", "سد", "Ref", "د.ت", "م.ع", "هـ.ع", "أ.م", "م و", "م.ر", "م.ج", "التاريخ"])]
+                    if vis_header:
+                        normalized = normalize_arabic_text("\n".join(vis_header) + "\n\n" + normalized)
+                        hw_detected = True
+            elif ocr:
+                first_page_img = get_best_page_image(reader.pages[0])
+                if first_page_img is not None:
+                    hw_res = extract_handwritten_header_metadata(first_page_img)
+                    if hw_res.get("lines"):
+                        hw_lines = hw_res["lines"]
+                        hw_detected = True
+                        normalized = normalize_arabic_text("\n".join(hw_lines) + "\n\n" + normalized)
+                        method = "pdf_hybrid_digital_and_handwriting"
 
         return {
             "success": True,
@@ -317,6 +328,12 @@ def extract_text_from_pdf(file_path: str) -> Dict[str, Any]:
 
 def extract_text_from_image(file_path: str) -> Dict[str, Any]:
     """استخراج النص من صورة ممسوحة ضوئياً مع المعالجة البصرية المتقدمة لخط اليد والأرقام المحررة بالقلم"""
+    # 1. إذا كان محرك Apple Vision متاحاً (نظام macOS) فهو الخيار الأسرع وفائق الدقة للخط اليدوي والعربي
+    if APPLE_VISION_AVAILABLE:
+        vis_res = extract_text_with_apple_vision(file_path, max_pages=1)
+        if vis_res.get("success") and vis_res.get("has_text"):
+            return vis_res
+
     ocr = get_ocr_engine()
     if ocr is None:
         return {
