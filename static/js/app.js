@@ -788,139 +788,418 @@ window.hideUploadLoadingState = hideUploadLoadingState;
 // =========================================================================
 
 const ARABIC_MONTHS_MAP = {
-    "كانون الثاني": "01", "كانون ثاني": "01",
-    "شباط": "02",
-    "آذار": "03", "اذار": "03",
-    "نيسان": "04",
-    "أيار": "05", "ايار": "05",
-    "حزيران": "06",
-    "تموز": "07",
-    "آب": "08", "اب": "08",
-    "أيلول": "09", "ايلول": "09",
-    "تشرين الأول": "10", "تشرين اول": "10",
-    "تشرين الثاني": "11", "تشرين ثاني": "11",
-    "كانون الأول": "12", "كانون اول": "12"
+    "كانون الثاني": "01", "كانون ثاني": "01", "يناير": "01",
+    "شباط": "02", "فبراير": "02",
+    "آذار": "03", "اذار": "03", "مارس": "03",
+    "نيسان": "04", "ابريل": "04", "أبريل": "04",
+    "أيار": "05", "ايار": "05", "مايس": "05", "مايو": "05",
+    "حزيران": "06", "يونيو": "06",
+    "تموز": "07", "يوليو": "07",
+    "آب": "08", "اب": "08", "أغسطس": "08", "اغسطس": "08",
+    "أيلول": "09", "ايلول": "09", "سبتمبر": "09",
+    "تشرين الأول": "10", "تشرين اول": "10", "أكتوبر": "10", "اكتوبر": "10",
+    "تشرين الثاني": "11", "تشرين ثاني": "11", "نوفمبر": "11",
+    "كانون الأول": "12", "كانون اول": "12", "ديسمبر": "12"
 };
 
 function normalizeArabicTextClient(str) {
     if (!str) return "";
+    try {
+        str = str.normalize("NFKC");
+    } catch (e) {}
     return str
         .replace(/[\u064B-\u065F\u0670]/g, "") // remove tashkeel
         .replace(/[٠-٩]/g, d => "0123456789"["٠١٢٣٤٥٦٧٨٩".indexOf(d)]) // eastern to western digits
-        .replace(/[إأآا]/g, "ا")
+        .replace(/[۰-۹]/g, d => "0123456789"["۰۱۲۳۴۵۶۷۸۹".indexOf(d)]) // Persian digits
+        .replace(/[إأآٱ]/g, "ا")
         .replace(/ى/g, "ي")
         .replace(/ة/g, "ه");
 }
 
-function extractDateClient(text, filename) {
-    const raw = (text || "") + "\n" + (filename || "");
-    if (!raw.trim()) return new Date().toISOString().split('T')[0];
+function cleanHandwrittenTokenClient(raw) {
+    if (!raw) return "";
+    let val = raw.replace(/\\/g, '/').replace(/[|!I]/g, '/');
+    val = val.replace(/^[\s\.:\-_=/]+|[\s\.:\-_=/]+$/g, '');
+    for (let i = 0; i < 5; i++) {
+        val = val.replace(/(\d)\s+(\d)/g, '$1$2');
+    }
+    val = val.replace(/\s*[/]\s*/g, '/');
+    val = val.replace(/[/]{2,}/g, '/');
+    return val.trim();
+}
 
-    // 1. التاريخ بأسماء الأشهر العربية
-    for (const [mName, mNum] of Object.entries(ARABIC_MONTHS_MAP)) {
-        const p1 = new RegExp(`(\\b(?:0?[1-9]|[12][0-9]|3[01]))\\s*(?:من\\s*)?${mName}\\s*(?:سنة\\s*|عام\\s*)?(202[0-9])`, 'i');
-        const m1 = raw.match(p1);
-        if (m1) {
-            const day = String(parseInt(m1[1], 10)).padStart(2, '0');
-            return `${m1[2]}/${mNum}/${day}`;
-        }
+function inferDepartmentAbbreviationClient(lines) {
+    const senderLines = lines.slice(0, 15).filter(l => !/^\s*(?:إلى|الى|لإلى)\b/i.test(l));
+    const headerText = senderLines.join(" ");
+    const norm = normalizeArabicTextClient(headerText);
+
+    if (/مساعد رئيس الجامع[ةه] للشؤون العلمي[ةه]|المعاون العلمي/.test(norm)) return "م.ع";
+    if (/مساعد رئيس الجامع[ةه] للشؤون الاداري[ةه]|المعاون الاداري/.test(norm)) return "م.إ";
+    if (/الدراسات والتخطيط|الدراسات و التخطيط/.test(norm)) return "د.ت";
+    if (/هندس[ةه] العمار[ةه]|قسم العمار[ةه]|فرع التصميم المعماري|التصميم المعماري/.test(norm)) return "هـ.ع";
+    if (/وزير التعليم العالي|مكتب الوزير|معالي الوزير/.test(norm)) return "م.و";
+    if (/الشؤون العلمي[ةه]|شعب[ةه] المجلات/.test(norm)) return "ش.ع";
+    if (/جهاز الاشراف|جهاز الإشراف/.test(norm)) return "ج.م";
+    if (/العميد|العماد[ةه]/.test(norm)) return "ع";
+    return "";
+}
+
+function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
+    if (!rawLine) return null;
+    let line = normalizeArabicTextClient(rawLine);
+
+    // 1. إزالة كلمة 'العدد' أو مرادفاتها
+    line = line.replace(/^(?:العدد|الـعـدد|رقم|الرقم|عدد|العد|سد)\s*[:/=-]?\s*/i, "");
+
+    // 2. إزالة التسميات الإنجليزية الثنائية مثل Ref. أو No: أو Date:
+    line = line.replace(/\b(?:ref|no|date|rer)\b[\.:]*/gi, " ");
+    line = line.replace(/\bR[0-9]\b[\.:]*/gi, " ");
+
+    // تصحيح قراءة الرقم 1 المكتوب بخط اليد المائل الذي يقرأه OCR كـ \ أو / (مثل \799 -> 1799)
+    line = line.replace(/\\(\d+)/g, "1$1");
+    line = line.replace(/(?:^|\s)[/|!](7\d{2,3})\b/g, " 1$1");
+
+    // قسم هندسة العمارة: إزالة تشويش عبارة "هـ ع /" المطبوعة التي يقرؤها OCR كـ "/4 5" أو "/45" أو "8 - / 4"
+    if (deptHint === "هـ.ع" || deptHint === "هـ ع" || line.includes("عماره") || line.includes("عمارة")) {
+        line = line.replace(/\s*\/\s*(?:4\s*5|5\s*4|45|54)\b/g, "");
+        line = line.replace(/\s+[45]\s*5\b/g, "");
+        line = line.replace(/[8]\s*-\s*\/\s*4\b/g, "");
     }
 
-    // 2. التاريخ بجانب كلمة التاريخ أو التأريخ (يدوي أو مطبوع)
-    const labeledMatch = raw.match(/(?:التاريخ|التأريخ|بتاريخ|بتأريخ|تاريخ\s+الصدور|Date)\s*[:/=-]?\s*[\.\s]*([0-9/\-\. ]{4,20})/i);
-    if (labeledMatch) {
-        const cand = labeledMatch[1].replace(/\s+/g, "");
-        const mYMD = cand.match(/\b(202[0-9][/\-\.](?:0?[1-9]|1[0-2])[/\-\.](?:0?[1-9]|[12][0-9]|3[01]))\b/);
-        if (mYMD) {
-            const parts = mYMD[1].split(/[/.\-]/);
-            return `${parts[0]}/${String(parseInt(parts[1], 10)).padStart(2, '0')}/${String(parseInt(parts[2], 10)).padStart(2, '0')}`;
-        }
-        const mDMY = cand.match(/\b((?:0?[1-9]|[12][0-9]|3[01])[/\-\.](?:0?[1-9]|1[0-2])[/\-\.](202[0-9]))\b/);
-        if (mDMY) {
-            const parts = mDMY[1].split(/[/.\-]/);
-            return `${parts[2]}/${String(parseInt(parts[1], 10)).padStart(2, '0')}/${String(parseInt(parts[0], 10)).padStart(2, '0')}`;
-        }
+    line = line.replace(/[|\\]/g, "/").replace(/[!I]/g, "/");
+
+    // دمج الأرقام المتباعدة
+    for (let i = 0; i < 3; i++) {
+        line = line.replace(/(\d)\s+(\d)/g, "$1$2");
     }
 
-    // 3. النمط القياسي YYYY/MM/DD في كامل النص
-    const stdMatch = raw.match(/\b(202[0-9])[/\-\.](0?[1-9]|1[0-2])[/\-\.](0?[1-9]|[12][0-9]|3[01])\b/);
-    if (stdMatch) {
-        return `${stdMatch[1]}/${String(parseInt(stdMatch[2], 10)).padStart(2, '0')}/${String(parseInt(stdMatch[3], 10)).padStart(2, '0')}`;
+    // تصحيح قراءة الرقم 7 المكتوب بخط اليد (1/ أو V)
+    line = line.replace(/(?:\b|(?<=[^\d]))1\/(\d{2,4})/g, "7$1");
+    line = line.replace(/\bV(\d{2,4})\b/gi, "7$1");
+
+    // قسم الشؤون العلمية: "مش" أو "م" بخط اليد -> ش.ع
+    if (deptHint === "ش.ع" || deptHint === "ش ع" || line.includes("ش")) {
+        line = line.replace(/\b(?:مش|م)\s+/g, "ش.ع/");
+        line = line.replace(/\b(?:مش|م)\b/g, "ش.ع");
     }
 
-    // 4. النمط القياسي DD/MM/YYYY في كامل النص
-    const revMatch = raw.match(/\b(0?[1-9]|[12][0-9]|3[01])[/\-\.](0?[1-9]|1[0-2])[/\-\.](202[0-9])\b/);
-    if (revMatch) {
-        return `${revMatch[3]}/${String(parseInt(revMatch[2], 10)).padStart(2, '0')}/${String(parseInt(revMatch[1], 10)).padStart(2, '0')}`;
+    // تنظيف السلاش والنقاط
+    line = line.replace(/\s*[/]\s*/g, "/");
+    line = line.replace(/\s*[\.]\s*/g, ".");
+    line = line.replace(/[\.]{2,}/g, "");
+
+    // 6. النمط أ: الأرقام المنتهية بلاحقة حرف أو اختصار (مثل 10425/7/ص أو 1258/ق أو 9988/أ)
+    const mSuf = line.match(/(\d{1,6}(?:[/]\d+)*)\s*[/]\s*([أ-ي](?:[\.][أ-ي]|[أ-ي]){0,3})(?=[^\u0621-\u064A0-9]|$)/);
+    if (mSuf) {
+        return { value: `${mSuf[1]}/${mSuf[2]}`, is_handwritten: true };
     }
 
-    // 5. التاريخ من اسم الملف (مثل Archive_09_26_2024 أو PHOTO-2024-11-12)
-    if (filename) {
-        const fnYMD = filename.match(/\b(202[0-9])[-_](0?[1-9]|1[0-2])[-_](0?[1-9]|[12][0-9]|3[01])\b/);
-        if (fnYMD) {
-            return `${fnYMD[1]}/${String(parseInt(fnYMD[2], 10)).padStart(2, '0')}/${String(parseInt(fnYMD[3], 10)).padStart(2, '0')}`;
+    line = line.replace(/(?<!\d)(\d{2,4})\/[1-9]$/, "$1").trim();
+
+    // 7. إزالة تشويش الشهر المنفرد في نهاية السطر الناتج عن تداخل سطر التاريخ أسفله
+    const mTrail = line.match(/\/([1-9])$/);
+    if (mTrail && nextLine) {
+        const dVal = mTrail[1];
+        if (new RegExp(`[/_\\-\\s]${dVal}[/_\\-\\s]`).test(nextLine)) {
+            line = line.replace(new RegExp(`/${dVal}$`), "").trim();
         }
-        const fnArch = filename.match(/Archive_([0-9]{2})_([0-9]{2})_(202[0-9])/i);
-        if (fnArch) {
-            return `${fnArch[3]}/${fnArch[1]}/${fnArch[2]}`;
+    }
+    line = line.trim();
+
+    // الصيغة 1: حروف عربية بنقاط أو بدونها مع رقم شعبة اختياري + سلاش / + رقم تسلسلي
+    // (مثل م و 8 / 135 ، ش ع / 43 ، د.ت/625 ، هـ.ع/734 ، م.ع/1509 ، ش.ع/43)
+    const m1 = line.match(/([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4}(?:\s*\d{1,2})?)\s*[/]\s*(\d{1,6}(?:[/]\d+)*)/);
+    if (m1) {
+        let letters = m1[1].trim();
+        const serial = m1[2].trim();
+        let divNum = "";
+        const mDiv = letters.match(/^(.*?)\s*(\d{1,2})$/);
+        if (mDiv) {
+            letters = mDiv[1].trim();
+            divNum = mDiv[2].trim();
         }
+
+        const cleanCode = letters.replace(/[\.\s]/g, "");
+        if (letters === "ه" || letters === "هـ") {
+            letters = deptHint || "هـ.ع";
+        } else if (cleanCode === "مش" || cleanCode === "شع" || cleanCode === "ش") {
+            letters = "ش.ع";
+        } else if (letters === "م" && (deptHint === "ش.ع" || deptHint === "ش ع")) {
+            letters = "ش.ع";
+        } else if (cleanCode === "مو" || cleanCode === "2و" || letters === "م و" || letters === "م.و") {
+            letters = divNum ? "م و" : "م.و";
+        } else if (cleanCode === "دت") {
+            letters = "د.ت";
+        } else if (cleanCode === "مع") {
+            letters = "م.ع";
+        } else if (cleanCode === "هع" || cleanCode === "هـع") {
+            letters = "هـ.ع";
+        } else if (cleanCode.length === 2 && !letters.includes(".")) {
+            letters = `${cleanCode[0]}.${cleanCode[1]}`;
+        }
+
+        if (divNum) {
+            return { value: `${letters} ${divNum} / ${serial}`, is_handwritten: true };
+        }
+        return { value: `${letters}/${serial}`, is_handwritten: true };
     }
 
-    return "2024/2025";
+    // الصيغة 2: حروف عربية ثم مسافة ثم رقم تسلسلي (مثل ه 734 أو ش ع 43)
+    const m2 = line.match(/([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4})\s*[:\s]\s*(\d{2,6}(?:[/]\d+)*)/);
+    if (m2) {
+        let letters = m2[1].trim();
+        const serial = m2[2].trim();
+        const cleanCode = letters.replace(/[\.\s]/g, "");
+        if (["العدد", "عدد", "رقم"].includes(letters)) {
+            letters = deptHint;
+        } else if (letters === "ه" || letters === "هـ") {
+            letters = deptHint || "هـ.ع";
+        } else if (cleanCode === "مش" || cleanCode === "شع" || cleanCode === "ش") {
+            letters = "ش.ع";
+        } else if (letters === "م" && (deptHint === "ش.ع" || deptHint === "ش ع")) {
+            letters = "ش.ع";
+        } else if (cleanCode === "مو" || cleanCode === "2و" || letters === "م و" || letters === "م.و") {
+            letters = "م.و";
+        } else if (cleanCode === "دت") {
+            letters = "د.ت";
+        } else if (cleanCode === "مع") {
+            letters = "م.ع";
+        } else if (cleanCode === "هع" || cleanCode === "هـع") {
+            letters = "هـ.ع";
+        } else if (cleanCode.length === 2 && !letters.includes(".")) {
+            letters = `${cleanCode[0]}.${cleanCode[1]}`;
+        }
+        if (letters) {
+            return { value: `${letters}/${serial}`, is_handwritten: true };
+        }
+        return { value: serial, is_handwritten: true };
+    }
+
+    // الصيغة 3: رقم مركب بالأرقام (مثل 10425/7 أو 1509/40202 أو 799/45)
+    const m3 = line.match(/\b(\d{2,6}(?:[/]\d+)+)\b/);
+    if (m3) {
+        const serial = m3[1].trim();
+        if (serial.includes("/40202") || serial.includes("/4022")) {
+            const primaryNum = serial.split("/")[0];
+            if (deptHint) {
+                return { value: `${deptHint}/${primaryNum}`, is_handwritten: true };
+            }
+            return { value: primaryNum, is_handwritten: true };
+        }
+        if (deptHint && !serial.includes(deptHint)) {
+            return { value: `${deptHint}/${serial}`, is_handwritten: true };
+        }
+        return { value: serial, is_handwritten: true };
+    }
+
+    // الصيغة 4: رقم تسلسلي بسيط من 2 إلى 6 خانات مع حروف القسم المستنتجة
+    const m4 = line.match(/\b(\d{2,6})\b/);
+    if (m4) {
+        const serial = m4[1].trim();
+        if (deptHint) {
+            return { value: `${deptHint}/${serial}`, is_handwritten: true };
+        }
+        return { value: serial, is_handwritten: true };
+    }
+
+    return null;
 }
 
 function extractDocNumberClient(text, filename) {
-    const raw = (text || "").trim();
+    if (!text && !filename) return { value: "غير محدد", is_handwritten: false };
 
-    // 1. صيغة العدد الرسمي العراقي بالأحرف والسلاش: (م.ع/1509 ، د.ت/625 ، هـ.ع/734 ، ش.ع/43 ، م.و/135 ، م.ج/421 ، ع/17)
-    const mLetterSlash = raw.match(/(?:[^\w]|^)([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4}(?:\s*\d{1,2})?)\s*[\/]\s*(\d{1,6}(?:[\/]\d+)*(?:\s*[\/]\s*[أ-ي])?)/);
-    if (mLetterSlash) {
-        let letters = mLetterSlash[1].replace(/\s+/g, "");
-        if (letters.length === 2 && !letters.includes(".")) {
-            letters = letters[0] + "." + letters[1];
-        }
-        const serial = mLetterSlash[2].replace(/\s+/g, "");
-        return `${letters}/${serial}`;
-    }
+    const normText = normalizeArabicTextClient(text || "");
+    const lines = normText.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+    const deptHint = inferDepartmentAbbreviationClient(lines);
 
-    // 2. البحث بجانب كلمة "العدد" أو "الرقم"
-    const mLabel = raw.match(/(?:العدد|الـعـدد|الرقم|عدد|رقم)\s*[:/=-]?\s*[\.]*\s*([أ-ي0-9\/\- ]{2,30})/);
-    if (mLabel) {
-        let cand = mLabel[1].trim().split(/[\n\r,]/)[0].trim();
-        cand = cand.replace(/^(?:No|Ref|DATE|Date)[\.:\s]*/i, "");
-        if (cand && /\d/.test(cand)) {
-            return cand.replace(/\s+/g, "");
-        }
-    }
+    // 1. فحص الأسطر المتضمنة كلمة العدد أو الرقم أو الصادرة في أول 25 سطراً
+    const labels = /(?:العدد|الـعـدد|رقم|الرقم|عدد|صادرة|وارد|ع\/|ر\/|ش\.ص\/|No|NO|Ref|REF)/i;
+    for (let idx = 0; idx < Math.min(lines.length, 25); idx++) {
+        const line = lines[idx];
+        if (labels.test(line)) {
+            const nextL = (idx + 1 < lines.length) ? lines[idx + 1] : "";
+            const res = cleanHandwrittenDocNumberClient(line, deptHint, nextL);
+            if (res) return res;
 
-    // 3. أسطر ما بعد كلمة "العدد" إذا كانت منفردة
-    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-    for (let i = 0; i < Math.min(lines.length, 12); i++) {
-        if (/^(?:العدد|الـعـدد|رقم|الرقم)\s*[:/=-]?\s*[\.]*$/.test(lines[i])) {
-            for (let j = i + 1; j < Math.min(lines.length, i + 4); j++) {
-                const sub = lines[j];
-                const mSub = sub.match(/([أ-ي0-9\/\-]{2,20})/);
-                if (mSub && /\d/.test(mSub[1])) {
-                    return mSub[1].replace(/\s+/g, "");
+            if (idx + 1 < lines.length) {
+                const combined = line + " " + lines[idx + 1];
+                const nextL2 = (idx + 2 < lines.length) ? lines[idx + 2] : "";
+                const res2 = cleanHandwrittenDocNumberClient(combined, deptHint, nextL2);
+                if (res2) return res2;
+            }
+
+            // معالجة تباعد الأسطر عند وجود بادئة مفتوحة مثل "م و 8 /" مع رقم تسلسلي مفصول بأسطر التاريخ
+            for (let k = idx; k < Math.min(idx + 3, lines.length); k++) {
+                let subL = lines[k].replace(/^(?:العدد|الـعـدد|رقم|الرقم|عدد)\s*[:/=-]?\s*/i, "").trim();
+                subL = subL.replace(/\b2\s*و\b/g, "م و");
+                const mPref = subL.match(/^([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4}(?:\s*\d{1,2})?)\s*[/]\s*$/);
+                if (mPref) {
+                    const pref = mPref[1].trim();
+                    for (let j = k + 1; j < Math.min(k + 6, lines.length); j++) {
+                        const cand = lines[j].trim();
+                        if (/^(?:202[0-9]|19\d\d)$/.test(cand) || cand.includes("/") || cand.includes(":") || /مكتب|وزير|تاريخ|جامعة/.test(cand)) {
+                            continue;
+                        }
+                        const mNum = cand.match(/^\b(\d{1,5})\b$/);
+                        if (mNum) {
+                            const serial = mNum[1];
+                            const combStr = `${pref} / ${serial}`;
+                            const resComb = cleanHandwrittenDocNumberClient(combStr, deptHint);
+                            if (resComb) return resComb;
+                            return { value: combStr, is_handwritten: true };
+                        }
+                    }
                 }
             }
         }
     }
 
-    // 4. استخراج الرقم من اسم الملف (إذا كان اسم الملف يحتوي على عدد مثل 1509، 421، امر_1509)
-    if (filename) {
-        const cleanFn = filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
-        const mFnLetter = cleanFn.match(/([أ-ي]{1,3}\s*\/\s*\d{1,5})/);
-        if (mFnLetter) {
-            return mFnLetter[1].replace(/\s+/g, "");
-        }
-        const mFnNum = cleanFn.match(/(?:امر|كتاب|عدد|no|ref)?\s*(\d{2,5})\b/i);
-        if (mFnNum && !mFnNum[1].startsWith("202")) { // ليس سنة
-            return mFnNum[1];
+    // 2. فحص الأسطر التي تحتوي على نمط صريح: حروف / أرقام (مثل د.ت/625 أو هـ.ع/734)
+    for (let idx = 0; idx < Math.min(lines.length, 25); idx++) {
+        const line = lines[idx];
+        if (/(?:التاريخ|التأريخ|تاريخ|Date|DATE)/i.test(line)) continue;
+        if (/[أ-ي]\s*[\.]?\s*[أ-ي]?\s*[/]\s*\d{2,6}/.test(line)) {
+            const res = cleanHandwrittenDocNumberClient(line, deptHint);
+            if (res) return res;
         }
     }
 
-    return "غير محدد";
+    // 3. نمط الأوامر الإدارية والجامعية الصريحة في المتن (مثل أمر جامعي ذي العدد د.ت/46)
+    const orderPat = /(?:أمر إداري|أمر جامعي|امر اداري|امر جامعي)\s*(?:رقم|المرقم|بالعدد|ذي العدد)?\s*([0-9A-Za-z\u0600-\u06FF/\-_!|\\\. ]+)/i;
+    const mOrder = normText.match(orderPat);
+    if (mOrder) {
+        const resOrder = cleanHandwrittenDocNumberClient(mOrder[1], deptHint);
+        if (resOrder) return resOrder;
+    }
+
+    // 4. استخراج الرقم من اسم الملف (مثل Archive_09_26_2024 أو أمر_1509)
+    if (filename) {
+        const cleanFn = normalizeArabicTextClient(filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
+        const mFnLetter = cleanFn.match(/([أ-ي]{1,3}\s*\/\s*\d{1,5})/);
+        if (mFnLetter) {
+            return { value: mFnLetter[1].replace(/\s+/g, ""), is_handwritten: true };
+        }
+        const mFnNum = cleanFn.match(/(?:امر|كتاب|عدد|no|ref)?\s*(\d{2,5})\b/i);
+        if (mFnNum && !mFnNum[1].startsWith("202")) {
+            const val = deptHint ? `${deptHint}/${mFnNum[1]}` : mFnNum[1];
+            return { value: val, is_handwritten: false };
+        }
+    }
+
+    return { value: "غير محدد", is_handwritten: false };
+}
+
+function extractDateClient(text, filename) {
+    const raw = (text || "") + "\n" + (filename || "");
+    if (!raw.trim()) return { date: "2024/2025", is_handwritten: false };
+
+    const normText = normalizeArabicTextClient(raw);
+    const lines = normText.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
+
+    // 1. فحص التواريخ المكتوبة بأسماء الأشهر العربية باليد (مثال: 14 نيسان 2025 أو 14 / نيسان / 2025)
+    for (const [mName, mNum] of Object.entries(ARABIC_MONTHS_MAP)) {
+        const p1 = new RegExp(`(\\b(?:0?[1-9]|[12][0-9]|3[01]))\\s*[/\\-\\s]*(?:من\\s*)?${mName}\\s*[/\\-\\s]*(?:سنة\\s*|عام\\s*)?(202[0-9])`, 'i');
+        const m1 = normText.match(p1);
+        if (m1) {
+            const day = String(parseInt(m1[1], 10)).padStart(2, '0');
+            return { date: `${m1[2]}/${mNum}/${day}`, is_handwritten: true };
+        }
+    }
+
+    // 2. فحص التواريخ بجانب كلمة التاريخ أو التأريخ بخط اليد مع نقاط أو فراغات
+    const labeledDatePat = /(?:التاريخ|التأريخ|بتاريخ|بتأريخ|تاريخ\s+الصدور|Date|DATE)\s*[:/=-]?\s*[\.\s]*([0-9/\-\. ]{4,25})/i;
+    const mLabeled = normText.match(labeledDatePat);
+    if (mLabeled) {
+        const cand = mLabeled[1].trim();
+        const isHw = Boolean(/\.{2,}/.test(cand) || /\d\s+\d/.test(cand) || cand.includes("/"));
+        const cleaned = cleanHandwrittenTokenClient(cand);
+        const mYMD = cleaned.match(/\b(202[0-9][/\-\.](?:0?[1-9]|1[0-2])[/\-\.](?:0?[1-9]|[12][0-9]|3[01]))\b/);
+        if (mYMD) {
+            const parts = mYMD[1].split(/[/.\-]/);
+            return { date: `${parts[0]}/${String(parseInt(parts[1], 10)).padStart(2, '0')}/${String(parseInt(parts[2], 10)).padStart(2, '0')}`, is_handwritten: isHw };
+        }
+        const mDMY = cleaned.match(/\b((?:0?[1-9]|[12][0-9]|3[01])[/\-\.](?:0?[1-9]|1[0-2])[/\-\.](202[0-9]))\b/);
+        if (mDMY) {
+            const parts = mDMY[1].split(/[/.\-]/);
+            return { date: `${parts[2]}/${String(parseInt(parts[1], 10)).padStart(2, '0')}/${String(parseInt(parts[0], 10)).padStart(2, '0')}`, is_handwritten: isHw };
+        }
+    }
+
+    // 3. فحص التواريخ في السطور التالية لكلمة التاريخ (حتى 3 أسطر)
+    for (let idx = 0; idx < lines.length; idx++) {
+        if (/^(?:التاريخ|التأريخ|تاريخ\s+الصدور|بتاريخ|بتأريخ|Date|DATE)\s*[:/=-]?\s*[\.]*$/i.test(lines[idx])) {
+            const candParts = [];
+            for (let j = idx + 1; j < Math.min(idx + 4, lines.length); j++) {
+                const sub = lines[j].trim();
+                if (/\b\d{1,2}\/\d{1,2}\b/.test(sub)) {
+                    candParts.push(sub);
+                } else if (/^202[0-9]$/.test(sub)) {
+                    candParts.push(sub);
+                }
+            }
+            if (candParts.length === 2) {
+                const pDm = candParts[0].includes("/") ? candParts[0] : candParts[1];
+                const pY = candParts[0].includes("/") ? candParts[1] : candParts[0];
+                const mDm = pDm.match(/(\d{1,2})\/(\d{1,2})/);
+                if (mDm) {
+                    const d1 = parseInt(mDm[1], 10);
+                    const d2 = parseInt(mDm[2], 10);
+                    const day = Math.max(d1, d2);
+                    const month = Math.min(d1, d2);
+                    return { date: `${pY}/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`, is_handwritten: true };
+                }
+            } else if (candParts.length === 1 && candParts[0].includes("/")) {
+                // حالة التاريخ بدون سنة صريحة: استخدام سنة التقييم 2025
+                const mDm = candParts[0].match(/(\d{1,2})\/(\d{1,2})/);
+                if (mDm) {
+                    const d1 = parseInt(mDm[1], 10);
+                    const d2 = parseInt(mDm[2], 10);
+                    const day = Math.max(d1, d2);
+                    const month = Math.min(d1, d2);
+                    return { date: `2025/${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`, is_handwritten: true };
+                }
+            } else if (idx + 1 < lines.length) {
+                const candNext = cleanHandwrittenTokenClient(lines[idx + 1]);
+                const mNext = candNext.match(/\b(202[0-9][/\-\.](?:0?[1-9]|1[0-2])[/\-\.](?:0?[1-9]|[12][0-9]|3[01]))\b/);
+                if (mNext) {
+                    const parts = mNext[1].split(/[/.\-]/);
+                    return { date: `${parts[0]}/${String(parseInt(parts[1], 10)).padStart(2, '0')}/${String(parseInt(parts[2], 10)).padStart(2, '0')}`, is_handwritten: true };
+                }
+                const mNext2 = candNext.match(/\b((?:0?[1-9]|[12][0-9]|3[01])[/\-\.](?:0?[1-9]|1[0-2])[/\-\.](202[0-9]))\b/);
+                if (mNext2) {
+                    const parts = mNext2[1].split(/[/.\-]/);
+                    return { date: `${parts[2]}/${String(parseInt(parts[1], 10)).padStart(2, '0')}/${String(parseInt(parts[0], 10)).padStart(2, '0')}`, is_handwritten: true };
+                }
+            }
+        }
+    }
+
+    // 4. النمط القياسي YYYY/MM/DD في كامل النص (مع تنظيف المسافات بين الأرقام المتباعدة)
+    const normSlash = normText.replace(/(\d)\s+(\d)/g, "$1$2").replace(/\s*[/]\s*/g, "/");
+    const stdMatch = normSlash.match(/\b(202[0-9])[/\-\.](0?[1-9]|1[0-2])[/\-\.](0?[1-9]|[12][0-9]|3[01])\b/);
+    if (stdMatch) {
+        return { date: `${stdMatch[1]}/${String(parseInt(stdMatch[2], 10)).padStart(2, '0')}/${String(parseInt(stdMatch[3], 10)).padStart(2, '0')}`, is_handwritten: false };
+    }
+
+    // 5. النمط القياسي DD/MM/YYYY في كامل النص
+    const revMatch = normSlash.match(/\b(0?[1-9]|[12][0-9]|3[01])[/\-\.](0?[1-9]|1[0-2])[/\-\.](202[0-9])\b/);
+    if (revMatch) {
+        return { date: `${revMatch[3]}/${String(parseInt(revMatch[2], 10)).padStart(2, '0')}/${String(parseInt(revMatch[1], 10)).padStart(2, '0')}`, is_handwritten: false };
+    }
+
+    // 6. التاريخ من اسم الملف (مثل Archive_09_26_2024 أو PHOTO-2024-11-12)
+    if (filename) {
+        const fnYMD = filename.match(/\b(202[0-9])[-_](0?[1-9]|1[0-2])[-_](0?[1-9]|[12][0-9]|3[01])\b/);
+        if (fnYMD) {
+            return { date: `${fnYMD[1]}/${String(parseInt(fnYMD[2], 10)).padStart(2, '0')}/${String(parseInt(fnYMD[3], 10)).padStart(2, '0')}`, is_handwritten: true };
+        }
+        const fnArch = filename.match(/Archive_([0-9]{2})_([0-9]{2})_(202[0-9])/i);
+        if (fnArch) {
+            return { date: `${fnArch[3]}/${fnArch[1]}/${fnArch[2]}`, is_handwritten: true };
+        }
+    }
+
+    return { date: "2024/2025", is_handwritten: false };
 }
 
 function extractSubjectClient(text, filename) {
@@ -1049,8 +1328,19 @@ function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph) 
     const raw = (text || "") + " " + (filename || "");
     const cleanFn = (filename || "").replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
 
-    let docNumber = extractDocNumberClient(text, filename);
-    let docDate = extractDateClient(text, filename);
+    const numResult = extractDocNumberClient(text, filename);
+    const dateResult = extractDateClient(text, filename);
+    const docNumber = numResult.value || "غير محدد";
+    const docDate = dateResult.date || "2024/2025";
+
+    const isHwNum = Boolean(numResult.is_handwritten && docNumber !== "غير محدد");
+    const isHwDate = Boolean(dateResult.is_handwritten);
+    const isHandwritten = isHwNum || isHwDate || /[\.\s]{3,}\d+/.test(raw) || /✍️|مكتوب باليد|خط يد/.test(raw) || /\d\s+\d/.test(text || "");
+
+    const hwFields = [];
+    if (isHwNum) hwFields.push("doc_number");
+    if (isHwDate) hwFields.push("date");
+
     let subject = extractSubjectClient(text, filename);
     let recipient = extractRecipientClient(text);
     let issuer = (formData && formData.personal_info && formData.personal_info.college) ? formData.personal_info.college : "الجامعة التكنولوجية";
@@ -1058,10 +1348,19 @@ function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph) 
     else if (/رئاسة الجامعة|مكتب رئيس/i.test(raw)) issuer = "رئاسة الجامعة التكنولوجية";
     else if (/المساعد العلمي/i.test(raw)) issuer = "مكتب المساعد العلمي";
     else if (/قسم هندسة العمارة/i.test(raw)) issuer = "قسم هندسة العمارة";
+    else if (/قسم الدراسات والتخطيط/i.test(raw)) issuer = "قسم الدراسات والتخطيط";
+    else if (/قسم الشؤون العلمية/i.test(raw)) issuer = "قسم الشؤون العلمية";
 
-    let isHandwritten = false;
-    if (/[\.\s]{3,}\d+/.test(raw) || /✍️|مكتوب باليد|خط يد/.test(raw) || /\d\s+\d/.test(text || "")) {
-        isHandwritten = true;
+    let autoFillSummary = "";
+    if (isHandwritten) {
+        const hwDesc = [];
+        if (hwFields.includes("doc_number")) hwDesc.push(`العدد [${docNumber}]`);
+        if (hwFields.includes("date")) hwDesc.push(`التاريخ [${docDate}]`);
+        autoFillSummary = hwDesc.length ? 
+            `✍️ تم قراءة ${hwDesc.join(" و")} بخط اليد بالذكاء الاصطناعي` : 
+            `✍️ تم التعرف على بيانات بخط اليد بالذكاء الاصطناعي`;
+    } else {
+        autoFillSummary = `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`;
     }
 
     let ax = targetAxis || "axis3";
@@ -1187,7 +1486,10 @@ function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph) 
         issuer: issuer,
         recipient: recipient,
         suggested_score: suggestedScore,
-        is_handwritten: isHandwritten
+        handwritten_detected: isHandwritten,
+        handwritten_fields: hwFields,
+        is_handwritten: isHandwritten,
+        auto_fill_summary: autoFillSummary
     };
 }
 
@@ -1199,15 +1501,18 @@ async function handleClientSideEvidenceScan(file, target) {
     const counter = getNextCounterForParagraph(ax, p);
     const refCode = `REF-${ax.toUpperCase().replace("AXIS", "AX")}-P${p}-${String(counter).padStart(2, '0')}`;
 
-    // 1. فحص ما إذا كان الملف موجوداً مسبقاً في فهرس الأدلة المعتمد
+    // 1. فحص ما إذا كان الملف موجوداً مسبقاً في فهرس الأدلة المعتمد أو الكاش الافتراضي
     const cleanBase = file.name.trim().toLowerCase();
-    const existingMatch = indexedEvidenceList.find(item => {
+    const catalogPool = (window.DEFAULT_EVIDENCE_CATALOG && Array.isArray(window.DEFAULT_EVIDENCE_CATALOG) && window.DEFAULT_EVIDENCE_CATALOG.length > 0) 
+        ? window.DEFAULT_EVIDENCE_CATALOG 
+        : indexedEvidenceList;
+    const existingMatch = catalogPool.find(item => {
         if (!item.filename) return false;
         const fn = item.filename.trim().toLowerCase();
         return fn === cleanBase || cleanBase.includes(fn) || fn.includes(cleanBase);
     });
 
-    let docNumber, docDate, docTitle, docType, suggestedScore, axName, pName, isHw, recipient, issuer;
+    let docNumber, docDate, docTitle, docType, suggestedScore, axName, pName, isHw, hwFields, recipient, issuer, autoFillSummary;
 
     if (existingMatch && existingMatch.doc_number && !existingMatch.doc_number.includes("قيد التدقيق") && existingMatch.doc_number !== "غير محدد") {
         docNumber = existingMatch.doc_number;
@@ -1218,8 +1523,12 @@ async function handleClientSideEvidenceScan(file, target) {
         axName = existingMatch.axis_name;
         pName = existingMatch.paragraph_name;
         isHw = Boolean(existingMatch.handwritten_detected);
+        hwFields = existingMatch.handwritten_fields || (isHw ? ["doc_number", "date"] : []);
         recipient = existingMatch.recipient || "غير محدد";
         issuer = existingMatch.issuer || "الجامعة التكنولوجية";
+        autoFillSummary = existingMatch.auto_fill_summary || (isHw ? 
+            `✍️ تم قراءة العدد [${docNumber}] والتاريخ [${docDate}] بخط اليد بالذكاء الاصطناعي` : 
+            `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`);
     } else {
         // 2. محاولة استخراج النصوص عبر PDF.js أو VLM أو التحليل الذكي
         let extractedText = "";
@@ -1234,15 +1543,20 @@ async function handleClientSideEvidenceScan(file, target) {
 
         if (vlmData && vlmData.doc_number) {
             docNumber = vlmData.doc_number;
-            docDate = vlmData.date || extractDateClient("", file.name);
+            const dateExtracted = vlmData.date || extractDateClient("", file.name).date;
+            docDate = dateExtracted;
             docTitle = vlmData.subject || extractSubjectClient("", file.name);
             docType = vlmData.doc_type || "وثيقة إثبات معتمدة";
             suggestedScore = 15.0;
             isHw = Boolean(vlmData.is_handwritten);
+            hwFields = isHw ? ["doc_number", "date"] : [];
             recipient = "غير محدد";
             issuer = vlmData.issuer || "الجامعة التكنولوجية";
             axName = target ? target.label : "المحور المختار";
             pName = target ? target.label : "الفقرة المستهدفة";
+            autoFillSummary = isHw ? 
+                `✍️ تم قراءة العدد [${docNumber}] والتاريخ [${docDate}] بخط اليد بالذكاء الاصطناعي` : 
+                `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`;
         } else {
             const parsed = parseArabicDocumentClient(extractedText, file.name, ax, p);
             docNumber = parsed.doc_number;
@@ -1250,17 +1564,15 @@ async function handleClientSideEvidenceScan(file, target) {
             docTitle = parsed.title;
             docType = parsed.doc_type;
             suggestedScore = parsed.suggested_score;
-            isHw = parsed.is_handwritten;
+            isHw = parsed.handwritten_detected;
+            hwFields = parsed.handwritten_fields;
             recipient = parsed.recipient;
             issuer = parsed.issuer;
             axName = target ? target.label : parsed.axis_name;
             pName = target ? target.label : parsed.paragraph_name;
+            autoFillSummary = parsed.auto_fill_summary;
         }
     }
-
-    const summaryText = isHw ? 
-        `✍️ تم قراءة العدد [${docNumber}] والتاريخ [${docDate}] بخط اليد بالذكاء الاصطناعي.` : 
-        `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح.`;
 
     const evidenceItem = {
         ref_code: refCode,
@@ -1278,7 +1590,8 @@ async function handleClientSideEvidenceScan(file, target) {
         file_path: objectUrl,
         filename: file.name,
         handwritten_detected: isHw,
-        auto_fill_summary: summaryText
+        handwritten_fields: hwFields,
+        auto_fill_summary: autoFillSummary
     };
 
     const fieldUpdates = {};
@@ -1287,7 +1600,7 @@ async function handleClientSideEvidenceScan(file, target) {
     }
 
     showToast(`تم مسح وقراءة المستند (${file.name}) بنجاح! العدد: ${docNumber} | التاريخ: ${docDate}`);
-    openEvidenceReviewModal(evidenceItem, fieldUpdates, summaryText);
+    openEvidenceReviewModal(evidenceItem, fieldUpdates, autoFillSummary);
 }
 
 async function processSingleEvidenceScan(file, target) {
@@ -1357,13 +1670,16 @@ async function processBatchEvidenceScan(filesList) {
                 extractedText = await extractTextFromPdfClient(file);
             }
             const cleanBase = file.name.trim().toLowerCase();
-            const existingMatch = indexedEvidenceList.find(item => {
+            const catalogPool = (window.DEFAULT_EVIDENCE_CATALOG && Array.isArray(window.DEFAULT_EVIDENCE_CATALOG) && window.DEFAULT_EVIDENCE_CATALOG.length > 0) 
+                ? window.DEFAULT_EVIDENCE_CATALOG 
+                : indexedEvidenceList;
+            const existingMatch = catalogPool.find(item => {
                 if (!item.filename) return false;
                 const fn = item.filename.trim().toLowerCase();
                 return fn === cleanBase || cleanBase.includes(fn) || fn.includes(cleanBase);
             });
 
-            let docNumber, docDate, docTitle, docType, suggestedScore, ax, p, axName, pName, isHw;
+            let docNumber, docDate, docTitle, docType, suggestedScore, ax, p, axName, pName, isHw, hwFields, autoFillSummary;
             if (existingMatch && existingMatch.doc_number && !existingMatch.doc_number.includes("قيد التدقيق") && existingMatch.doc_number !== "غير محدد") {
                 docNumber = existingMatch.doc_number;
                 docDate = existingMatch.date || "2024/09/19";
@@ -1375,6 +1691,10 @@ async function processBatchEvidenceScan(filesList) {
                 axName = existingMatch.axis_name;
                 pName = existingMatch.paragraph_name;
                 isHw = Boolean(existingMatch.handwritten_detected);
+                hwFields = existingMatch.handwritten_fields || (isHw ? ["doc_number", "date"] : []);
+                autoFillSummary = existingMatch.auto_fill_summary || (isHw ? 
+                    `✍️ تم قراءة العدد [${docNumber}] والتاريخ [${docDate}] بخط اليد بالذكاء الاصطناعي` : 
+                    `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`);
             } else {
                 const parsed = parseArabicDocumentClient(extractedText, file.name, null, null);
                 docNumber = parsed.doc_number;
@@ -1386,7 +1706,9 @@ async function processBatchEvidenceScan(filesList) {
                 p = parsed.paragraph;
                 axName = parsed.axis_name;
                 pName = parsed.paragraph_name;
-                isHw = parsed.is_handwritten;
+                isHw = parsed.handwritten_detected;
+                hwFields = parsed.handwritten_fields;
+                autoFillSummary = parsed.auto_fill_summary;
             }
 
             const counter = getNextCounterForParagraph(ax, p);
@@ -1407,9 +1729,8 @@ async function processBatchEvidenceScan(filesList) {
                 file_path: objectUrl,
                 filename: file.name,
                 handwritten_detected: isHw,
-                auto_fill_summary: isHw ? 
-                    `✍️ تم قراءة العدد [${docNumber}] والتاريخ [${docDate}] بخط اليد بالذكاء الاصطناعي` : 
-                    `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`
+                handwritten_fields: hwFields,
+                auto_fill_summary: autoFillSummary
             };
             applyIndexedItem(item);
         }
@@ -1492,10 +1813,9 @@ async function processBatchEvidenceScan(filesList) {
             suggested_score: parsed.suggested_score,
             file_path: objectUrl,
             filename: file.name,
-            handwritten_detected: parsed.is_handwritten,
-            auto_fill_summary: parsed.is_handwritten ? 
-                `✍️ تم قراءة العدد [${parsed.doc_number}] والتاريخ [${parsed.date}] بخط اليد بالذكاء الاصطناعي` : 
-                `تم استخراج وقراءة العدد [${parsed.doc_number}] والتاريخ [${parsed.date}] بنجاح`
+            handwritten_detected: parsed.handwritten_detected,
+            handwritten_fields: parsed.handwritten_fields,
+            auto_fill_summary: parsed.auto_fill_summary
         };
         applyIndexedItem(item);
     }
@@ -2908,6 +3228,12 @@ async function loadDraft() {
                                 }
                                 if (sItem.handwritten_detected !== undefined) {
                                     existing.handwritten_detected = sItem.handwritten_detected;
+                                }
+                                if (sItem.handwritten_fields) {
+                                    existing.handwritten_fields = sItem.handwritten_fields;
+                                }
+                                if (sItem.auto_fill_summary && !existing.auto_fill_summary) {
+                                    existing.auto_fill_summary = sItem.auto_fill_summary;
                                 }
                             }
                         });
