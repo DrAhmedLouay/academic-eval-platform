@@ -129,6 +129,9 @@ def get_bundled_html():
         </div>
     </div>
     """
+    if '<div id="gh-pages-banner"' in html_content:
+        html_content = re.sub(r'<div id="gh-pages-banner"[\s\S]*?</div>\s*</div>', streamlit_banner.strip(), html_content, count=1)
+
     catalog_path = os.path.join(base_dir, "docs", "data", "evidence_catalog.json")
     if not os.path.exists(catalog_path):
         catalog_path = os.path.join(base_dir, "static", "data", "evidence_catalog.json")

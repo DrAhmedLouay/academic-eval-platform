@@ -11,8 +11,8 @@
 
 | المسار | المنصة | الرابط / النطاق | الميزات |
 | :--- | :--- | :--- | :--- |
-| **المسار السحابي الكامل** | **Streamlit Community Cloud** | `https://share.streamlit.io` | تشغيل كود بايثون بالكامل، استخراج الذكاء الاصطناعي، وتنزيل Word (.docx) و PDF مباشرة |
-| **المسار السريع للمتصفح** | **GitHub Pages** | `https://<username>.github.io/<repo>/` | واجهة ويب تفاعلية سريعة، احتساب فوري، تفقيط عربي، حفظ مسودات، وطباعة |
+| **المسار السحابي الكامل** | **Streamlit Community Cloud** | [`academic-eval-platform.streamlit.app`](https://academic-eval-platform.streamlit.app) | تشغيل كود بايثون بالكامل، استخراج الذكاء الاصطناعي، وتنزيل Word (.docx) و PDF مباشرة |
+| **المسار السريع للمتصفح** | **GitHub Pages** | [`drahmedlouay.github.io/academic-eval-platform`](https://drahmedlouay.github.io/academic-eval-platform/) | واجهة ويب تفاعلية سريعة، احتساب فوري، تفقيط عربي، حفظ مسودات، وطباعة |
 
 ---
 
@@ -51,8 +51,12 @@ git push -u origin main
 
 ---
 
-## ☁️ ثانياً: خطوات النشر على Streamlit Community Cloud
+## ☁️ ثانياً: تشغيل النسخة السحابية المباشرة (Streamlit Community Cloud)
 
+يمكنك الوصول مباشرة إلى النسخة السحابية النشطة والكاملة عبر الرابط الرسمي:
+👉 **[https://academic-eval-platform.streamlit.app](https://academic-eval-platform.streamlit.app)**
+
+### خطوات النشر أو إعادة الربط على Streamlit Community Cloud:
 1. توجه إلى منصة **[Streamlit Community Cloud](https://share.streamlit.io)** وسجّل الدخول بحسابك في GitHub.
 2. انقر على زر **"New app"**.
 3. املأ بيانات التطبيق كالآتي:
@@ -61,7 +65,7 @@ git push -u origin main
    - **Main file path:** اكتب `streamlit_app.py`
 4. انقر على زر **Deploy!** 🚀
 5. سيقوم خادم Streamlit تلقائياً بتثبيت الحزم من [`requirements.txt`](requirements.txt) وتشغيل التطبيق في غضون دقيقة واحدة.
-6. ستحصل على رابط دائم ومجاني يمكنك مشاركته مع التدريسيين واللجان الأكاديمية!
+6. الرابط الرسمي المباشر هو: **[https://academic-eval-platform.streamlit.app](https://academic-eval-platform.streamlit.app)**!
 
 ---
 
