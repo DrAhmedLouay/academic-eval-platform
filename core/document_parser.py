@@ -45,6 +45,8 @@ def clean_handwritten_token(raw: str) -> str:
     if not raw:
         return ""
     val = raw.replace('\\', '/').replace('|', '/').replace('!', '/').replace('I', '/')
+    val = re.sub(r'202\s*[\{]', '2024', val)
+    val = re.sub(r'2002([0-9])', r'202\1', val)
     val = re.sub(r'^[\s\.:\-_=/]+|[\s\.:\-_=/]+$', '', val)
     for _ in range(5):
         val = re.sub(r'(\d)\s+(\d)', r'\1\2', val)
@@ -225,7 +227,7 @@ def extract_dates(text: str, filename: str = "") -> List[HandwrittenString]:
         add_date(formatted, is_hw=True)
 
     # 2. فحص التواريخ بجانب كلمة التاريخ أو التأريخ بخط اليد مع نقاط أو فراغات (دون كلمة 'في' لعدم الخلط مع إشارات الكتب السابقة)
-    labeled_date_pat = r'(?:التاريخ|التأريخ|بتاريخ|بتأريخ|تاريخ\s+الصدور|Date|DATE)\s*[:/=-]?\s*[\.\s]*([0-9/\-\. ]{4,25})'
+    labeled_date_pat = r'(?:التاريخ|التأريخ|بتاريخ|بتأريخ|تاريخ\s+الصدور|تاريخ|Date|DATE)\s*[:/=\-A-Za-z.]*\s*[\.\s]*([0-9/\-\. \{]{4,25})'
     for m in re.finditer(labeled_date_pat, norm_text):
         cand = m.group(1).strip()
         is_hw = bool(re.search(r'\.{2,}', cand) or re.search(r'\d\s+\d', cand) or '/' in cand)
@@ -307,9 +309,10 @@ def infer_department_abbreviation(lines: List[str]) -> str:
     استنتاج حروف اختصار القسم أو الجهة المانحة من ترويسة الوثيقة الرسمية
     (مثال: قسم هندسة العمارة -> هـ.ع / قسم الدراسات والتخطيط -> د.ت / مكتب المساعد العلمي -> م.ع)
     مع استبعاد أسطر الجهة المعنون إليها (إلى /)
+    وفي حالة الوثائق المقتطعة يعتمد اختصار قسم هندسة العمارة هـ.ع كخيار افتراضي للتدريسي
     """
     import re
-    sender_lines = [l for l in lines[:12] if not re.search(r'^\s*(?:إلى|الى|لإلى)\b', l)]
+    sender_lines = [l for l in lines[:15] if not re.search(r'^\s*(?:إلى|الى|لإلى)\b', l)]
     header_text = " ".join(sender_lines)
     header_text = re.sub(r'[\u064B-\u065F\u0670]', '', header_text)
     if any(k in header_text for k in ["مساعد رئيس الجامعة للشؤون العلمية", "المعاون العلمي"]):
@@ -318,7 +321,7 @@ def infer_department_abbreviation(lines: List[str]) -> str:
         return "م.إ"
     if any(k in header_text for k in ["الدراسات والتخطيط", "الدراسات و التخطيط"]):
         return "د.ت"
-    if any(k in header_text for k in ["هندسة العمارة", "قسم العمارة", "فرع التصميم المعماري", "التصميم المعماري"]):
+    if any(k in header_text for k in ["هندسة العمارة", "قسم العمارة", "فرع التصميم المعماري", "التصميم المعماري", "عماره", "عمارة"]):
         return "هـ.ع"
     if any(k in header_text for k in ["وزير التعليم العالي", "مكتب الوزير", "معالي الوزير"]):
         return "م.و"
@@ -326,36 +329,47 @@ def infer_department_abbreviation(lines: List[str]) -> str:
         return "ش.ع"
     if "جهاز الاشراف" in header_text or "جهاز الإشراف" in header_text:
         return "ج.م"
-    return ""
+    if any(k in header_text for k in ["العميد", "العمادة"]):
+        return "ع"
+    return "هـ.ع"
 
 
 def clean_handwritten_doc_number(raw_line: str, dept_hint: str = "", next_line: str = "") -> Optional[HandwrittenString]:
     """
     استخراج وصياغة العدد الإداري وفق القاعدة الرسمية الصارمة للكتب والوثائق العراقية:
     [حروف باللغة العربية بينها نقطة '.' أو بدونها] / [رقم تسلسلي بالأرقام العربية]
-    مع دعم اللواحق مثل (10425/7/ص أو 1258/ق أو 9988/أ) والبوادئ مثل (د.ت/625 ، هـ.ع/734 ، م.ع/1509)
-    مع إزالة التشويش وثنائية اللغة الإنجليزية (Ref, NO) وتصحيح كتابة الرقم ٧ بخط اليد.
+    مع إظهار الحروف العربية بخط اليد دائماً (مثل هـ.ع/734 ، هـ.ع/1799 ، م.ع/1509 ، ش.ع/43 ، م و 8 / 135)
+    مع إزالة التشويش وثنائية اللغة الإنجليزية (Ref, NO, Rer) وتصحيح كتابة الرقم ٧ بخط اليد.
     """
     import re
     from core.ocr_engine import normalize_arabic_text
+    if not raw_line:
+        return None
     line = normalize_arabic_text(raw_line)
+    dept_hint = dept_hint or "هـ.ع"
 
-    # 1. إزالة كلمة 'العدد' أو مرادفاتها في بداية السطر
-    line = re.sub(r'^(?:العدد|الـعـدد|رقم|الرقم|عدد|العد|سد)\s*[:/=-]?\s*', '', line.strip())
+    # 0. فصل الحروف العربية عن الحروف اللاتينية المتصلة بها خطأ في OCR (مثل هRef -> ه Ref)
+    line = re.sub(r'([\u0600-\u06FF])([A-Za-z])', r'\1 \2', line)
+    line = re.sub(r'([A-Za-z])([\u0600-\u06FF])', r'\1 \2', line)
 
-    # 2. إزالة التسميات الإنجليزية الثنائية مثل Ref. أو No: أو Date:
+    # 1. إزالة كلمة 'العدد' أو مرادفاتها في بداية السطر حتى مع أخطاء OCR الشائعة (سد: أو العد: أو سـد:)
+    line = re.sub(r'^(?:العدد|الـعـدد|رقم|الرقم|عدد|العد|الـعد|سد|سـد)\s*[:/=-]?\s*', '', line.strip())
+
+    # 2. إزالة التسميات الإنجليزية الثنائية مثل Ref. أو No: أو Date: أو Rer:
     line = re.sub(r'(?i)\b(?:ref|no|date|rer)\b[\.:]*', ' ', line)
-    line = re.sub(r'\bR[0-9]\b[\.:]*', ' ', line)
+    line = re.sub(r'(?i)\bR[0-9e]\b[\.:]*', ' ', line)
+
+    # إزالة تشويش قراءة عبارة "هـ ع /" المطبوعة في ترويسة قسم العمارة (يقرؤها OCR كـ "8-/4" أو "/4 5" أو "/4")
+    line = re.sub(r'[8٨]\s*-\s*[/]\s*4\b', ' ', line)
+    line = re.sub(r'\s*[/]\s*(?:4\s*5|5\s*4|45|54)\b', ' ', line)
+    line = re.sub(r'\s+[45]\s*5\b', ' ', line)
+
+    # معالجة قراءة OCR لاختصار "٢.م.ع" أو "م.ع.2" كأرقام 40202 أو 4022 أو 20202
+    line = re.sub(r'40202|4022|20202', 'مع', line)
 
     # تصحيح قراءة الرقم 1 المكتوب بخط اليد المائل الذي يقرأه OCR كـ \ أو / (مثل \799 -> 1799)
     line = re.sub(r'\\(\d+)', r'1\1', line)
     line = re.sub(r'(?:^|\s)[/|!](7\d{2,3})\b', r' 1\1', line)
-
-    # في قسم هندسة العمارة: إزالة تشويش قراءة عبارة "هـ ع /" المطبوعة التي يقرؤها OCR أحياناً كـ "/4 5" أو "/45" أو "٨-/٤"
-    if dept_hint in ["هـ.ع", "هـ ع"] or "عمارة" in line:
-        line = re.sub(r'\s*/\s*(?:4\s*5|5\s*4|45|54)\b', '', line)
-        line = re.sub(r'\s+[45]\s*5\b', '', line)
-        line = re.sub(r'[٨8]\s*-\s*/\s*4\b', '', line)
 
     line = line.replace('|', '/').replace('\\', '/').replace('!', '/')
 
@@ -367,7 +381,8 @@ def clean_handwritten_doc_number(raw_line: str, dept_hint: str = "", next_line: 
     line = re.sub(r'(?:\b|(?<=[^\d]))1/(\d{2,4})', r'7\1', line)
     line = re.sub(r'\bV(\d{2,4})\b', r'7\1', line)
 
-    # معالجة اشتباه الحروف بخط اليد: في قسم الشؤون العلمية يُكتب "ش ع" بخط متصل يقرأه OCR كـ "مش" أو "م"
+    # معالجة اشتباه الحروف بخط اليد: في قسم الشؤون العلمية يُكتب "ش ع" بخط متصل يقرأه OCR كـ "مش"
+    line = re.sub(r'\b(?:مش)\b', 'ش.ع', line)
     if dept_hint in ["ش.ع", "ش ع"] or "ش" in line:
         line = re.sub(r'\b(?:مش|م)\s+', 'ش.ع/', line)
         line = re.sub(r'\b(?:مش|م)\b', 'ش.ع', line)
@@ -377,13 +392,28 @@ def clean_handwritten_doc_number(raw_line: str, dept_hint: str = "", next_line: 
     line = re.sub(r'\s*[\.]\s*', '.', line)
     line = re.sub(r'[\.]{2,}', '', line)
 
-    # إزالة تشويش السلاش المنفرد في نهاية الأرقام المكونة من خانتين إلى 4 خانات فقط إذا لم يسبق برقم (مثل 734/4 -> 734 أو 43/4 -> 43 دون المساس بالأرقام المركبة مثل 10425/7)
+    # إزالة تشويش السلاش المنفرد في نهاية الأرقام
     line = re.sub(r'(?<!\d)(\d{2,4})/[1-9]$', r'\1', line.strip())
 
-    # 6. النمط أ: الأرقام المنتهية بلاحقة حرف أو اختصار في نهايتها (مثل 10425/7/ص أو 1258/ق أو 9988/أ)
+    # 6. النمط أ: الأرقام المنتهية بلاحقة حرف أو اختصار في نهايتها (مثل 10425/7/ص أو 1258/ق أو 9988/أ أو 1509/مع)
     m_suf = re.search(r'(\d{1,6}(?:[/]\d+)*)\s*[/]\s*([أ-ي](?:[\.][أ-ي]|[أ-ي]){0,3})\b', line)
     if m_suf:
-        return HandwrittenString(f"{m_suf.group(1)}/{m_suf.group(2)}", is_handwritten=True)
+        serial = m_suf.group(1).strip()
+        code = m_suf.group(2).strip()
+        clean_code = code.replace('.', '').replace(' ', '')
+        if clean_code == 'مع':
+            return HandwrittenString(f"م.ع/{serial}", is_handwritten=True)
+        elif clean_code in ['هع', 'هـع']:
+            return HandwrittenString(f"هـ.ع/{serial}", is_handwritten=True)
+        elif clean_code in ['مش', 'شع']:
+            return HandwrittenString(f"ش.ع/{serial}", is_handwritten=True)
+        elif clean_code == 'دت':
+            return HandwrittenString(f"د.ت/{serial}", is_handwritten=True)
+        elif clean_code in ['ص', 'ق', 'أ', 'ت']:
+            return HandwrittenString(f"{serial}/{code}", is_handwritten=True)
+        elif len(clean_code) == 2 and not '.' in code:
+            return HandwrittenString(f"{clean_code[0]}.{clean_code[1]}/{serial}", is_handwritten=True)
+        return HandwrittenString(f"{serial}/{code}", is_handwritten=True)
 
     # 7. إزالة تشويش الشهر المنفرد في نهاية السطر الناتج عن تداخل سطر التاريخ أسفله فقط إن تطابق
     m_trail = re.search(r'/([1-9])$', line.strip())
@@ -406,7 +436,7 @@ def clean_handwritten_doc_number(raw_line: str, dept_hint: str = "", next_line: 
 
         clean_code = letters.replace(".", "").replace(" ", "")
         if letters in ["ه", "هـ"]:
-            letters = dept_hint if dept_hint else "هـ.ع"
+            letters = dept_hint or "هـ.ع"
         elif clean_code in ["مش", "شع", "ش"]:
             letters = "ش.ع"
         elif letters == "م" and dept_hint in ["ش.ع", "ش ع"]:
@@ -426,16 +456,16 @@ def clean_handwritten_doc_number(raw_line: str, dept_hint: str = "", next_line: 
             return HandwrittenString(f"{letters} {div_num} / {serial}", is_handwritten=True)
         return HandwrittenString(f"{letters}/{serial}", is_handwritten=True)
 
-    # الصيغة 2: حروف عربية ثم مسافة ثم رقم تسلسلي (مثل ه 734 أو ش ع 43)
+    # الصيغة 2: حروف عربية ثم مسافة ثم رقم تسلسلي (مثل ه 734 أو ش ع 43 أو هـ 1799)
     m2 = re.search(r'([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4})\s*[:\s]\s*(\d{2,6}(?:[/]\d+)*)', line)
     if m2:
         letters = m2.group(1).strip()
         serial = m2.group(2).strip()
         clean_code = letters.replace(".", "").replace(" ", "")
-        if letters in ["العدد", "عدد", "رقم"]:
-            letters = dept_hint
+        if letters in ["العدد", "عدد", "رقم", "العد", "سد"]:
+            letters = dept_hint or "هـ.ع"
         elif letters in ["ه", "هـ"]:
-            letters = dept_hint if dept_hint else "هـ.ع"
+            letters = dept_hint or "هـ.ع"
         elif clean_code in ["مش", "شع", "ش"]:
             letters = "ش.ع"
         elif letters == "م" and dept_hint in ["ش.ع", "ش ع"]:
@@ -452,26 +482,36 @@ def clean_handwritten_doc_number(raw_line: str, dept_hint: str = "", next_line: 
             letters = f"{clean_code[0]}.{clean_code[1]}"
         if letters:
             return HandwrittenString(f"{letters}/{serial}", is_handwritten=True)
-        return HandwrittenString(serial, is_handwritten=True)
+        return HandwrittenString(f"{dept_hint}/{serial}", is_handwritten=True)
 
-    # الصيغة 3: رقم مركب بالأرقام (مثل 10425/7 أو 1509/40202 أو 799/45)
-    m3 = re.search(r'\b(\d{2,6}(?:[/]\d+)+)\b', line)
+    # الصيغة 3: رقم تسلسلي متبوع بسلاش وحروف عربية (مثل 1509/مع أو 734/هـ)
+    m3 = re.search(r'(\d{2,6})\s*[/]\s*([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4})', line)
     if m3:
         serial = m3.group(1).strip()
-        if "/40202" in serial or "/4022" in serial:
-            primary_num = serial.split("/")[0]
-            if dept_hint:
-                return HandwrittenString(f"{dept_hint}/{primary_num}", is_handwritten=True)
-            return HandwrittenString(primary_num, is_handwritten=True)
+        letters = m3.group(2).strip()
+        clean_code = letters.replace(".", "").replace(" ", "")
+        if clean_code == "مع":
+            letters = "م.ع"
+        elif clean_code in ["هع", "هـع"]:
+            letters = "هـ.ع"
+        elif clean_code in ["مش", "شع"]:
+            letters = "ش.ع"
+        elif letters in ["ه", "هـ"]:
+            letters = dept_hint or "هـ.ع"
+        return HandwrittenString(f"{letters}/{serial}", is_handwritten=True)
+
+    # الصيغة 4: رقم مركب بالأرقام (مثل 10425/7 أو 9988/2)
+    m_comp = re.search(r'\b(\d{2,6}(?:[/]\d+)+)\b', line)
+    if m_comp:
+        serial = m_comp.group(1).strip()
         return HandwrittenString(serial, is_handwritten=True)
 
-    # الصيغة 4: رقم تسلسلي بسيط من 2 إلى 6 خانات مع حروف القسم المستنتجة
+    # الصيغة 5: رقم تسلسلي بسيط من 2 إلى 6 خانات مع حروف القسم المستنتجة
     m4 = re.search(r'\b(\d{2,6})\b', line)
     if m4:
         serial = m4.group(1).strip()
-        if dept_hint:
-            return HandwrittenString(f"{dept_hint}/{serial}", is_handwritten=True)
-        return HandwrittenString(serial, is_handwritten=True)
+        prefix = dept_hint or "هـ.ع"
+        return HandwrittenString(f"{prefix}/{serial}", is_handwritten=True)
 
     return None
 
@@ -487,10 +527,10 @@ def extract_document_number(text: str, filename: str = "") -> Optional[Handwritt
     from core.ocr_engine import normalize_arabic_text
     norm_text = normalize_arabic_text(text) if text else ""
     lines = [l.strip() for l in norm_text.splitlines() if l.strip()]
-    dept_hint = infer_department_abbreviation(lines)
+    dept_hint = infer_department_abbreviation(lines) or "هـ.ع"
 
-    # 1. فحص الأسطر المتضمنة كلمة العدد أو الرقم أو الصادرة أو Ref في الثلث الأول من المستند
-    labels = r'(?:العدد|الـعـدد|رقم|الرقم|عدد|صادرة|وارد|ع/|ر/|ش\.ص/|No|NO|Ref|REF)'
+    # 1. فحص الأسطر المتضمنة كلمة العدد أو الرقم أو الصادرة أو Ref أو سد في الثلث الأول من المستند
+    labels = r'(?:العدد|الـعـدد|رقم|الرقم|عدد|صادرة|وارد|ع/|ر/|ش\.ص/|سد|سـد|العد|الـعد|No|NO|Ref|REF|Rer)'
     for idx, line in enumerate(lines[:25]):
         if re.search(labels, line):
             next_l = lines[idx + 1] if idx + 1 < len(lines) else ""

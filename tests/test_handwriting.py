@@ -200,6 +200,21 @@ class TestHandwritingExtraction(unittest.TestCase):
         self.assertIsNotNone(num_min_direct)
         self.assertEqual(str(num_min_direct), "م و 8 / 135")
 
+    def test_user_uploaded_cropped_images_all_have_arabic_letters(self):
+        """التحقق من أن كافة الصور المقتطعة للمستخدم تحتوي على الحروف العربية بخط اليد كاملة"""
+        cases = [
+            ("العدد : 1509/40202\nالتاريخ: 20024/9/19", "م.ع/1509"),
+            ("العدد: هRef.: 1/34 /4\nالتاريخ : Date: 2025 / 4 / 14", "هـ.ع/734"),
+            ("العدد: مش 43 /4\nالتاريخ: 2025/1/13", "ش.ع/43"),
+            ("سد: Rer: 1799 8-/4\nتاريخ D:e: 202 { / 10 / 29", "هـ.ع/1799"),
+            ("العدد :\nم و 8 /\n135\nالتاريخ: 2025 / 1 / 21", "م و 8 / 135"),
+        ]
+        for snippet, expected in cases:
+            res = extract_document_number(snippet)
+            self.assertIsNotNone(res, f"Failed on snippet: {snippet}")
+            self.assertEqual(str(res), expected, f"Expected {expected} but got {res} on snippet: {snippet}")
+            self.assertTrue(getattr(res, "is_handwritten", False))
+
 if __name__ == "__main__":
     unittest.main()
 

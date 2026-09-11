@@ -819,6 +819,8 @@ function normalizeArabicTextClient(str) {
 function cleanHandwrittenTokenClient(raw) {
     if (!raw) return "";
     let val = raw.replace(/\\/g, '/').replace(/[|!I]/g, '/');
+    val = val.replace(/202\s*[\{]/g, '2024');
+    val = val.replace(/2002([0-9])/g, '202$1');
     val = val.replace(/^[\s\.:\-_=/]+|[\s\.:\-_=/]+$/g, '');
     for (let i = 0; i < 5; i++) {
         val = val.replace(/(\d)\s+(\d)/g, '$1$2');
@@ -829,42 +831,57 @@ function cleanHandwrittenTokenClient(raw) {
 }
 
 function inferDepartmentAbbreviationClient(lines) {
-    const senderLines = lines.slice(0, 15).filter(l => !/^\s*(?:إلى|الى|لإلى)\b/i.test(l));
+    const senderLines = (lines || []).slice(0, 15).filter(l => !/^\s*(?:إلى|الى|لإلى)\b/i.test(l));
     const headerText = senderLines.join(" ");
     const norm = normalizeArabicTextClient(headerText);
 
     if (/مساعد رئيس الجامع[ةه] للشؤون العلمي[ةه]|المعاون العلمي/.test(norm)) return "م.ع";
     if (/مساعد رئيس الجامع[ةه] للشؤون الاداري[ةه]|المعاون الاداري/.test(norm)) return "م.إ";
     if (/الدراسات والتخطيط|الدراسات و التخطيط/.test(norm)) return "د.ت";
-    if (/هندس[ةه] العمار[ةه]|قسم العمار[ةه]|فرع التصميم المعماري|التصميم المعماري/.test(norm)) return "هـ.ع";
+    if (/هندس[ةه] العمار[ةه]|قسم العمار[ةه]|فرع التصميم المعماري|التصميم المعماري|عماره|عمارة/.test(norm)) return "هـ.ع";
     if (/وزير التعليم العالي|مكتب الوزير|معالي الوزير/.test(norm)) return "م.و";
     if (/الشؤون العلمي[ةه]|شعب[ةه] المجلات/.test(norm)) return "ش.ع";
     if (/جهاز الاشراف|جهاز الإشراف/.test(norm)) return "ج.م";
     if (/العميد|العماد[ةه]/.test(norm)) return "ع";
-    return "";
+
+    // إذا كانت الوثيقة مقتطعة، نعتمد قسم التدريسي من بيانات الاستمارة أو هـ.ع افتراضياً
+    if (typeof formData !== "undefined" && formData && formData.personal_info) {
+        const pDept = normalizeArabicTextClient((formData.personal_info.department || "") + " " + (formData.personal_info.college || ""));
+        if (/هندس[ةه] العمار[ةه]|قسم العمار[ةه]|فرع التصميم المعماري|التصميم المعماري/.test(pDept)) return "هـ.ع";
+        if (/الدراسات والتخطيط/.test(pDept)) return "د.ت";
+        if (/الشؤون العلمي[ةه]/.test(pDept)) return "ش.ع";
+    }
+
+    return "هـ.ع";
 }
 
 function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
     if (!rawLine) return null;
+    deptHint = deptHint || (typeof formData !== "undefined" ? inferDepartmentAbbreviationClient([]) : "هـ.ع") || "هـ.ع";
     let line = normalizeArabicTextClient(rawLine);
 
-    // 1. إزالة كلمة 'العدد' أو مرادفاتها
-    line = line.replace(/^(?:العدد|الـعـدد|رقم|الرقم|عدد|العد|سد)\s*[:/=-]?\s*/i, "");
+    // 0. فصل الحروف العربية عن الحروف اللاتينية المتصلة بها في قراءة OCR (مثل هRef -> ه Ref)
+    line = line.replace(/([\u0600-\u06FF])([A-Za-z])/g, "$1 $2");
+    line = line.replace(/([A-Za-z])([\u0600-\u06FF])/g, "$1 $2");
 
-    // 2. إزالة التسميات الإنجليزية الثنائية مثل Ref. أو No: أو Date:
+    // 1. إزالة كلمة 'العدد' أو مرادفاتها مع تشوهات OCR الشائعة (سد: أو العد: أو سـد:)
+    line = line.replace(/^(?:العدد|الـعـدد|رقم|الرقم|عدد|العد|الـعد|سد|سـد)\s*[:/=-]?\s*/i, "");
+
+    // 2. إزالة التسميات الإنجليزية الثنائية مثل Ref. أو No: أو Date: أو Rer:
     line = line.replace(/\b(?:ref|no|date|rer)\b[\.:]*/gi, " ");
-    line = line.replace(/\bR[0-9]\b[\.:]*/gi, " ");
+    line = line.replace(/\bR[0-9e]\b[\.:]*/gi, " ");
+
+    // إزالة تشويش ترويسة قسم العمارة المطبوعة (8-/4 أو /4 5 أو /45)
+    line = line.replace(/[8٨]\s*-\s*[/]\s*4\b/g, " ");
+    line = line.replace(/\s*\/\s*(?:4\s*5|5\s*4|45|54)\b/g, " ");
+    line = line.replace(/\s+[45]\s*5\b/g, " ");
+
+    // معالجة قراءة OCR لاختصار "٢.م.ع" أو "م.ع.2" كأرقام 40202 أو 4022 أو 20202
+    line = line.replace(/40202|4022|20202/g, "مع");
 
     // تصحيح قراءة الرقم 1 المكتوب بخط اليد المائل الذي يقرأه OCR كـ \ أو / (مثل \799 -> 1799)
     line = line.replace(/\\(\d+)/g, "1$1");
     line = line.replace(/(?:^|\s)[/|!](7\d{2,3})\b/g, " 1$1");
-
-    // قسم هندسة العمارة: إزالة تشويش عبارة "هـ ع /" المطبوعة التي يقرؤها OCR كـ "/4 5" أو "/45" أو "8 - / 4"
-    if (deptHint === "هـ.ع" || deptHint === "هـ ع" || line.includes("عماره") || line.includes("عمارة")) {
-        line = line.replace(/\s*\/\s*(?:4\s*5|5\s*4|45|54)\b/g, "");
-        line = line.replace(/\s+[45]\s*5\b/g, "");
-        line = line.replace(/[8]\s*-\s*\/\s*4\b/g, "");
-    }
 
     line = line.replace(/[|\\]/g, "/").replace(/[!I]/g, "/");
 
@@ -877,7 +894,8 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
     line = line.replace(/(?:\b|(?<=[^\d]))1\/(\d{2,4})/g, "7$1");
     line = line.replace(/\bV(\d{2,4})\b/gi, "7$1");
 
-    // قسم الشؤون العلمية: "مش" أو "م" بخط اليد -> ش.ع
+    // قسم الشؤون العلمية: "مش" بخط اليد -> ش.ع
+    line = line.replace(/\b(?:مش)\b/g, "ش.ع");
     if (deptHint === "ش.ع" || deptHint === "ش ع" || line.includes("ش")) {
         line = line.replace(/\b(?:مش|م)\s+/g, "ش.ع/");
         line = line.replace(/\b(?:مش|م)\b/g, "ش.ع");
@@ -888,13 +906,30 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
     line = line.replace(/\s*[\.]\s*/g, ".");
     line = line.replace(/[\.]{2,}/g, "");
 
-    // 6. النمط أ: الأرقام المنتهية بلاحقة حرف أو اختصار (مثل 10425/7/ص أو 1258/ق أو 9988/أ)
+    // إزالة تشويش السلاش المنفرد في نهاية الأرقام
+    line = line.replace(/(?<!\d)(\d{2,4})\/[1-9]$/, "$1").trim();
+
+    // 6. النمط أ: الأرقام المنتهية بلاحقة حرف أو اختصار (مثل 10425/7/ص أو 1258/ق أو 9988/أ أو 1509/مع)
     const mSuf = line.match(/(\d{1,6}(?:[/]\d+)*)\s*[/]\s*([أ-ي](?:[\.][أ-ي]|[أ-ي]){0,3})(?=[^\u0621-\u064A0-9]|$)/);
     if (mSuf) {
-        return { value: `${mSuf[1]}/${mSuf[2]}`, is_handwritten: true };
+        const serial = mSuf[1].trim();
+        const code = mSuf[2].trim();
+        const cleanCode = code.replace(/[\.\s]/g, "");
+        if (cleanCode === "مع") {
+            return { value: `م.ع/${serial}`, is_handwritten: true };
+        } else if (cleanCode === "هع" || cleanCode === "هـع") {
+            return { value: `هـ.ع/${serial}`, is_handwritten: true };
+        } else if (cleanCode === "مش" || cleanCode === "شع") {
+            return { value: `ش.ع/${serial}`, is_handwritten: true };
+        } else if (cleanCode === "دت") {
+            return { value: `د.ت/${serial}`, is_handwritten: true };
+        } else if (["ص", "ق", "أ", "ت"].includes(cleanCode)) {
+            return { value: `${serial}/${code}`, is_handwritten: true };
+        } else if (cleanCode.length === 2 && !code.includes(".")) {
+            return { value: `${cleanCode[0]}.${cleanCode[1]}/${serial}`, is_handwritten: true };
+        }
+        return { value: `${serial}/${code}`, is_handwritten: true };
     }
-
-    line = line.replace(/(?<!\d)(\d{2,4})\/[1-9]$/, "$1").trim();
 
     // 7. إزالة تشويش الشهر المنفرد في نهاية السطر الناتج عن تداخل سطر التاريخ أسفله
     const mTrail = line.match(/\/([1-9])$/);
@@ -944,14 +979,14 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
         return { value: `${letters}/${serial}`, is_handwritten: true };
     }
 
-    // الصيغة 2: حروف عربية ثم مسافة ثم رقم تسلسلي (مثل ه 734 أو ش ع 43)
+    // الصيغة 2: حروف عربية ثم مسافة ثم رقم تسلسلي (مثل ه 734 أو ش ع 43 أو هـ 1799)
     const m2 = line.match(/([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4})\s*[:\s]\s*(\d{2,6}(?:[/]\d+)*)/);
     if (m2) {
         let letters = m2[1].trim();
         const serial = m2[2].trim();
         const cleanCode = letters.replace(/[\.\s]/g, "");
-        if (["العدد", "عدد", "رقم"].includes(letters)) {
-            letters = deptHint;
+        if (["العدد", "عدد", "رقم", "العد", "سد"].includes(letters)) {
+            letters = deptHint || "هـ.ع";
         } else if (letters === "ه" || letters === "هـ") {
             letters = deptHint || "هـ.ع";
         } else if (cleanCode === "مش" || cleanCode === "شع" || cleanCode === "ش") {
@@ -972,34 +1007,39 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
         if (letters) {
             return { value: `${letters}/${serial}`, is_handwritten: true };
         }
-        return { value: serial, is_handwritten: true };
+        return { value: `${deptHint}/${serial}`, is_handwritten: true };
     }
 
-    // الصيغة 3: رقم مركب بالأرقام (مثل 10425/7 أو 1509/40202 أو 799/45)
-    const m3 = line.match(/\b(\d{2,6}(?:[/]\d+)+)\b/);
+    // الصيغة 3: رقم تسلسلي متبوع بسلاش وحروف عربية (مثل 1509/مع أو 734/هـ)
+    const m3 = line.match(/(\d{2,6})\s*[/]\s*([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4})/);
     if (m3) {
         const serial = m3[1].trim();
-        if (serial.includes("/40202") || serial.includes("/4022")) {
-            const primaryNum = serial.split("/")[0];
-            if (deptHint) {
-                return { value: `${deptHint}/${primaryNum}`, is_handwritten: true };
-            }
-            return { value: primaryNum, is_handwritten: true };
+        let letters = m3[2].trim();
+        const cleanCode = letters.replace(/[\.\s]/g, "");
+        if (cleanCode === "مع") {
+            letters = "م.ع";
+        } else if (cleanCode === "هع" || cleanCode === "هـع") {
+            letters = "هـ.ع";
+        } else if (cleanCode === "مش" || cleanCode === "شع") {
+            letters = "ش.ع";
+        } else if (letters === "ه" || letters === "هـ") {
+            letters = deptHint || "هـ.ع";
         }
-        if (deptHint && !serial.includes(deptHint)) {
-            return { value: `${deptHint}/${serial}`, is_handwritten: true };
-        }
-        return { value: serial, is_handwritten: true };
+        return { value: `${letters}/${serial}`, is_handwritten: true };
     }
 
-    // الصيغة 4: رقم تسلسلي بسيط من 2 إلى 6 خانات مع حروف القسم المستنتجة
+    // الصيغة 4: رقم مركب بالأرقام (مثل 10425/7 أو 9988/2)
+    const mComp = line.match(/\b(\d{2,6}(?:[/]\d+)+)\b/);
+    if (mComp) {
+        return { value: mComp[1].trim(), is_handwritten: true };
+    }
+
+    // الصيغة 5: رقم تسلسلي بسيط من 2 إلى 6 خانات مع حروف القسم المستنتجة
     const m4 = line.match(/\b(\d{2,6})\b/);
     if (m4) {
         const serial = m4[1].trim();
-        if (deptHint) {
-            return { value: `${deptHint}/${serial}`, is_handwritten: true };
-        }
-        return { value: serial, is_handwritten: true };
+        const prefix = deptHint || "هـ.ع";
+        return { value: `${prefix}/${serial}`, is_handwritten: true };
     }
 
     return null;
@@ -1012,8 +1052,8 @@ function extractDocNumberClient(text, filename) {
     const lines = normText.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
     const deptHint = inferDepartmentAbbreviationClient(lines);
 
-    // 1. فحص الأسطر المتضمنة كلمة العدد أو الرقم أو الصادرة في أول 25 سطراً
-    const labels = /(?:العدد|الـعـدد|رقم|الرقم|عدد|صادرة|وارد|ع\/|ر\/|ش\.ص\/|No|NO|Ref|REF)/i;
+    // 1. فحص الأسطر المتضمنة كلمة العدد أو الرقم أو الصادرة في أول 25 سطراً مع مراعاة أخطاء OCR
+    const labels = /(?:العدد|الـعـدد|رقم|الرقم|عدد|صادرة|وارد|ع\/|ر\/|ش\.ص\/|سد|سـد|العد|الـعد|No|NO|Ref|REF|Rer)/i;
     for (let idx = 0; idx < Math.min(lines.length, 25); idx++) {
         const line = lines[idx];
         if (labels.test(line)) {
@@ -1107,7 +1147,7 @@ function extractDateClient(text, filename) {
     }
 
     // 2. فحص التواريخ بجانب كلمة التاريخ أو التأريخ بخط اليد مع نقاط أو فراغات
-    const labeledDatePat = /(?:التاريخ|التأريخ|بتاريخ|بتأريخ|تاريخ\s+الصدور|Date|DATE)\s*[:/=-]?\s*[\.\s]*([0-9/\-\. ]{4,25})/i;
+    const labeledDatePat = /(?:التاريخ|التأريخ|بتاريخ|بتأريخ|تاريخ\s+الصدور|تاريخ|Date|DATE)\s*[:/=\-A-Za-z.]*\s*[\.\s]*([0-9/\-\. \{]{4,25})/i;
     const mLabeled = normText.match(labeledDatePat);
     if (mLabeled) {
         const cand = mLabeled[1].trim();
@@ -1933,10 +1973,35 @@ function openEvidenceReviewModal(indexedEvidence, fieldUpdates, autoFillSummary)
     const dateHwHint = document.getElementById("modal-docdate-hw-hint");
     const isHw = !!indexedEvidence.handwritten_detected;
     const hwFields = indexedEvidence.handwritten_fields || [];
+    const isNumHw = isHw && (hwFields.includes("doc_number") || !hwFields.length);
+    const isDateHw = isHw && (hwFields.includes("date") || !hwFields.length);
 
     if (hwBadge) hwBadge.style.display = isHw ? "inline-flex" : "none";
-    if (numHwHint) numHwHint.style.display = (isHw && (hwFields.includes("doc_number") || !hwFields.length)) ? "inline-flex" : "none";
-    if (dateHwHint) dateHwHint.style.display = (isHw && (hwFields.includes("date") || !hwFields.length)) ? "inline-flex" : "none";
+    if (numHwHint) numHwHint.style.display = isNumHw ? "inline-flex" : "none";
+    if (dateHwHint) dateHwHint.style.display = isDateHw ? "inline-flex" : "none";
+
+    const elNumInp = document.getElementById("modal-doc-number");
+    if (elNumInp) {
+        if (isNumHw) {
+            elNumInp.style.borderColor = "#c084fc";
+            elNumInp.style.backgroundColor = "#faf5ff";
+            elNumInp.style.fontWeight = "700";
+        } else {
+            elNumInp.style.borderColor = "";
+            elNumInp.style.backgroundColor = "";
+            elNumInp.style.fontWeight = "";
+        }
+    }
+    const elDateInp = document.getElementById("modal-doc-date");
+    if (elDateInp) {
+        if (isDateHw) {
+            elDateInp.style.borderColor = "#c084fc";
+            elDateInp.style.backgroundColor = "#faf5ff";
+        } else {
+            elDateInp.style.borderColor = "";
+            elDateInp.style.backgroundColor = "";
+        }
+    }
 
     modal.classList.add("active");
 }
@@ -2586,12 +2651,25 @@ function renderMiniEvidenceTable(axis, paragraph) {
                             ${item.handwritten_detected ? '<div style="margin-top: 3px;"><span class="badge-handwritten" title="تم قراءة العدد/التاريخ بخط اليد بالذكاء الاصطناعي"><i class="fa-solid fa-pen-nib"></i> خط يد</span></div>' : ''}
                         </td>
                         <td><strong>${item.doc_type}</strong></td>
-                        <td style="text-align: center; font-size: 0.75rem;">
-                            <strong>${item.doc_number || '-'}</strong>
-                            ${item.handwritten_fields && item.handwritten_fields.includes("doc_number") ? '<span class="badge-handwritten" style="font-size:0.65rem; margin-right:2px;" title="رقم مكتوب بخط اليد"><i class="fa-solid fa-pen-nib"></i></span>' : ''}
-                            <br/>
-                            <span style="color:#64748b;">${item.date || '-'}</span>
-                            ${item.handwritten_fields && item.handwritten_fields.includes("date") ? '<span class="badge-handwritten" style="font-size:0.65rem; margin-right:2px;" title="تاريخ مكتوب بخط اليد"><i class="fa-solid fa-pen-nib"></i></span>' : ''}
+                        <td style="text-align: center; font-size: 0.78rem;">
+                            ${(item.handwritten_fields && item.handwritten_fields.includes("doc_number")) || (item.handwritten_detected && item.doc_number && item.doc_number !== 'غير محدد') ? `
+                                <div style="margin-bottom: 3px;">
+                                    <span class="badge-handwritten" style="font-size: 0.76rem; font-weight: 800;" title="تم استخراج رقم الأمر والحروف الإدارية بخط اليد بالذكاء الاصطناعي">
+                                        <i class="fa-solid fa-pen-nib"></i> ${item.doc_number || '-'}
+                                    </span>
+                                </div>
+                            ` : `
+                                <div style="margin-bottom: 2px;"><strong>${item.doc_number || '-'}</strong></div>
+                            `}
+                            ${(item.handwritten_fields && item.handwritten_fields.includes("date")) || (item.handwritten_detected && item.date) ? `
+                                <div>
+                                    <span class="badge-handwritten" style="font-size: 0.70rem; background: #faf5ff; border-color: #e9d5ff;" title="تاريخ مكتوب بخط اليد بالذكاء الاصطناعي">
+                                        <i class="fa-solid fa-pen-nib"></i> ${item.date || '-'}
+                                    </span>
+                                </div>
+                            ` : `
+                                <span style="color:#64748b; font-size: 0.75rem;">${item.date || '-'}</span>
+                            `}
                         </td>
                         <td>
                             <div class="clickable-doc" onclick="openDocumentPreview('${item.ref_code}')" style="font-weight: 700; color: #1e3a8a;" title="انقر لمعاينة وتحميل الوثيقة">
@@ -2663,11 +2741,24 @@ function renderMasterCatalogTable() {
                 ${item.issuer ? `<div style="font-size: 0.75rem; color: #64748b;">${item.issuer}</div>` : ''}
             </td>
             <td style="text-align: center; font-size: 0.8rem;">
-                <strong>${item.doc_number || '-'}</strong>
-                ${item.handwritten_fields && item.handwritten_fields.includes("doc_number") ? '<span class="badge-handwritten" style="font-size:0.65rem; margin-right:2px;" title="رقم مكتوب بخط اليد"><i class="fa-solid fa-pen-nib"></i></span>' : ''}
-                <br/>
-                <span style="color: #64748b;">${item.date || '-'}</span>
-                ${item.handwritten_fields && item.handwritten_fields.includes("date") ? '<span class="badge-handwritten" style="font-size:0.65rem; margin-right:2px;" title="تاريخ مكتوب بخط اليد"><i class="fa-solid fa-pen-nib"></i></span>' : ''}
+                ${(item.handwritten_fields && item.handwritten_fields.includes("doc_number")) || (item.handwritten_detected && item.doc_number && item.doc_number !== 'غير محدد') ? `
+                    <div style="margin-bottom: 3px;">
+                        <span class="badge-handwritten" style="font-size: 0.78rem; font-weight: 800;" title="تم استخراج رقم الأمر والحروف الإدارية بخط اليد بالذكاء الاصطناعي">
+                            <i class="fa-solid fa-pen-nib"></i> ${item.doc_number || '-'}
+                        </span>
+                    </div>
+                ` : `
+                    <div style="margin-bottom: 2px;"><strong>${item.doc_number || '-'}</strong></div>
+                `}
+                ${(item.handwritten_fields && item.handwritten_fields.includes("date")) || (item.handwritten_detected && item.date) ? `
+                    <div>
+                        <span class="badge-handwritten" style="font-size: 0.72rem; background: #faf5ff; border-color: #e9d5ff;" title="تاريخ مكتوب بخط اليد بالذكاء الاصطناعي">
+                            <i class="fa-solid fa-pen-nib"></i> ${item.date || '-'}
+                        </span>
+                    </div>
+                ` : `
+                    <span style="color: #64748b; font-size: 0.75rem;">${item.date || '-'}</span>
+                `}
             </td>
             <td>
                 <div class="clickable-doc" onclick="openDocumentPreview('${item.ref_code}')" style="font-weight: 700; color: #1e3a8a;" title="انقر لمعاينة وتحميل الوثيقة">
