@@ -266,23 +266,30 @@ window.syncEvidenceWithScores = syncEvidenceWithScores;
 // ============================================================================
 // تهيئة التطبيق عند تحميل الصفحة
 // ============================================================================
-document.addEventListener("DOMContentLoaded", () => {
-    hideUploadLoadingState();
-    initTabs();
-    initEventListeners();
-    initDropzones();
-    initParagraphScanInputs();
-    initSignaturePads();
-    initAuditorMode();
-    initVlmSettingsModal();
-    initSnippetCropper();
-    loadDraft();
-    syncEvidenceWithScores();
-    calculateLiveScore();
-    renderAllMiniEvidenceTables();
-    renderMasterCatalogTable();
-    updateIndexStats();
-});
+function initApp() {
+    const logWarn = (msg, err) => { if (typeof console !== "undefined" && console && console.warn) console.warn(msg, err); };
+    try { hideUploadLoadingState(); } catch (e) { logWarn("hideUploadLoadingState error:", e); }
+    try { initTabs(); } catch (e) { logWarn("initTabs error:", e); }
+    try { initEventListeners(); } catch (e) { logWarn("initEventListeners error:", e); }
+    try { initDropzones(); } catch (e) { logWarn("initDropzones error:", e); }
+    try { initParagraphScanInputs(); } catch (e) { logWarn("initParagraphScanInputs error:", e); }
+    try { initSignaturePads(); } catch (e) { logWarn("initSignaturePads error:", e); }
+    try { initAuditorMode(); } catch (e) { logWarn("initAuditorMode error:", e); }
+    try { initVlmSettingsModal(); } catch (e) { logWarn("initVlmSettingsModal error:", e); }
+    try { initSnippetCropper(); } catch (e) { logWarn("initSnippetCropper error:", e); }
+    try { loadDraft(); } catch (e) { logWarn("loadDraft error:", e); }
+    try { syncEvidenceWithScores(); } catch (e) { logWarn("syncEvidenceWithScores error:", e); }
+    try { calculateLiveScore(); } catch (e) { logWarn("calculateLiveScore error:", e); }
+    try { renderAllMiniEvidenceTables(); } catch (e) { logWarn("renderAllMiniEvidenceTables error:", e); }
+    try { renderMasterCatalogTable(); } catch (e) { logWarn("renderMasterCatalogTable error:", e); }
+    try { updateIndexStats(); } catch (e) { logWarn("updateIndexStats error:", e); }
+}
+
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initApp);
+} else {
+    initApp();
+}
 
 // إعداد التبويبات
 function initTabs() {
@@ -343,30 +350,35 @@ function initEventListeners() {
         });
     }
 
+    const safeAddListener = (id, event, handler) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(event, handler);
+    };
+
     // أزرار التصدير
-    document.getElementById("btn-export-docx").addEventListener("click", exportDocx);
-    document.getElementById("btn-export-pdf").addEventListener("click", exportPdf);
-    const btnDossier = document.getElementById("btn-export-dossier-pdf");
-    if (btnDossier) btnDossier.addEventListener("click", exportDossierPdf);
-    document.getElementById("btn-print").addEventListener("click", () => window.print());
+    safeAddListener("btn-export-docx", "click", exportDocx);
+    safeAddListener("btn-export-pdf", "click", exportPdf);
+    safeAddListener("btn-export-dossier-pdf", "click", exportDossierPdf);
+    safeAddListener("btn-print", "click", () => window.print());
 
     // أزرار الحفظ والاسترجاع والبيانات التجريبية
-    document.getElementById("btn-sample-data").addEventListener("click", loadSampleData);
-    document.getElementById("btn-save-draft").addEventListener("click", saveDraft);
-    document.getElementById("btn-restore-draft").addEventListener("click", () => document.getElementById("restore-file-input").click());
-    document.getElementById("restore-file-input").addEventListener("change", handleRestoreFile);
-    document.getElementById("btn-reset").addEventListener("click", resetForm);
+    safeAddListener("btn-sample-data", "click", loadSampleData);
+    safeAddListener("btn-save-draft", "click", saveDraft);
+    safeAddListener("btn-restore-draft", "click", () => {
+        const inp = document.getElementById("restore-file-input");
+        if (inp) inp.click();
+    });
+    safeAddListener("restore-file-input", "change", handleRestoreFile);
+    safeAddListener("btn-reset", "click", resetForm);
 
     // زر إعدادات الذكاء الاصطناعي وزر نمط المدقق في الترويسة
-    const btnVlmHdr = document.getElementById("btn-vlm-settings-header");
-    if (btnVlmHdr) btnVlmHdr.addEventListener("click", openVlmSettings);
-    const btnAuditorHdr = document.getElementById("btn-toggle-auditor-mode");
-    if (btnAuditorHdr) btnAuditorHdr.addEventListener("click", toggleAuditorMode);
+    safeAddListener("btn-vlm-settings-header", "click", openVlmSettings);
+    safeAddListener("btn-toggle-auditor-mode", "click", toggleAuditorMode);
 
     // إغلاق النافذة المنبثقة لمراجعة OCR
-    document.getElementById("modal-close-btn").addEventListener("click", closeModal);
-    document.getElementById("modal-cancel-btn").addEventListener("click", closeModal);
-    document.getElementById("modal-confirm-btn").addEventListener("click", confirmOcrAttachment);
+    safeAddListener("modal-close-btn", "click", closeModal);
+    safeAddListener("modal-cancel-btn", "click", closeModal);
+    safeAddListener("modal-confirm-btn", "click", confirmOcrAttachment);
 
     // معاينة الملف في نافذة مراجعة OCR
     const modalPrevBtn = document.getElementById("modal-preview-current-file-btn");
@@ -3845,9 +3857,7 @@ th, td {
     html += `
   </tbody>
 </table>
-
-</body>
-</html>`;
+` + "<" + "/body>\n<" + "/html>";
 
     const blob = new Blob([html], { type: "application/msword;charset=utf-8" });
     downloadBlob(blob, safeFilename);

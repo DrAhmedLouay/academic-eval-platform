@@ -118,7 +118,29 @@ class TestExportGenerators(unittest.TestCase):
             code = f.read()
         self.assertIn("import json", code, "streamlit_app.py must import json")
         tree = ast.parse(code)
-        self.assertIsNotNone(tree)
+    def test_bundled_html_scripts_validity(self):
+        import re, subprocess
+        with open("docs/index.html", "r", encoding="utf-8") as f:
+            html = f.read()
+        with open("docs/css/styles.css", "r", encoding="utf-8") as f:
+            css = f.read()
+        with open("docs/js/app.js", "r", encoding="utf-8") as f:
+            js = f.read()
+
+        bundle = re.sub(r'<link[^>]*styles\.css[^>]*>', lambda m: f'<style>\n{css}\n</style>', html)
+        bundle = re.sub(r'<script[^>]*app\.js[^>]*></script>', lambda m: f'<script>\n{js}\n</script>', bundle)
+        scripts = re.findall(r'<script(?:\s+[^>]*)?>(.*?)</script>', bundle, re.DOTALL)
+        self.assertGreaterEqual(len(scripts), 2)
+        jsc_bin = "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc"
+        if os.path.exists(jsc_bin):
+            mock = "var window = this; var document = { readyState: 'complete', getElementById: function(){ return { style: { setProperty: function(){} } }; }, querySelectorAll: function(){ return []; }, querySelector: function(){ return null; }, addEventListener: function(){} }; var navigator = { userAgent: 'test' }; var localStorage = { getItem: function(){ return null; }, setItem: function(){} }; var Blob = function(){}; var URL = { createObjectURL: function(){}, revokeObjectURL: function(){} }; var alert = function(){}; var console = { log: function(){}, warn: function(){}, error: function(){} };"
+            for idx, sc in enumerate(scripts):
+                if not sc.strip(): continue
+                test_path = f"/tmp/test_eval_block_{idx}.js"
+                with open(test_path, "w", encoding="utf-8") as tf:
+                    tf.write(mock + "\n" + sc)
+                res = subprocess.run([jsc_bin, test_path], capture_output=True, text=True)
+                self.assertEqual(res.returncode, 0, f"Script block {idx} failed in jsc: {res.stderr or res.stdout}")
 
 if __name__ == "__main__":
     unittest.main()

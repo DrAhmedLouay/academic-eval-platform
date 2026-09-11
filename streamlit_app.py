@@ -29,7 +29,7 @@ st.set_page_config(
     page_title="منصة تقييم أداء أعضاء الهيئة التدريسية - استمارة 21 (2025-2026)",
     page_icon="🏛️",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # ==============================================================================
@@ -37,8 +37,8 @@ st.set_page_config(
 # ==============================================================================
 st.markdown("""
 <style>
-    /* إخفاء عناصر تحكم Streamlit الافتراضية */
-    header[data-testid="stHeader"], footer, #MainMenu, [data-testid="stToolbar"] {
+    /* إخفاء عناصر تحكم Streamlit الافتراضية مع إبقاء زر الشريط الجانبي */
+    footer, #MainMenu, [data-testid="stToolbar"] {
         display: none !important;
         visibility: hidden !important;
     }
@@ -77,7 +77,7 @@ st.markdown("""
 # ==============================================================================
 # 3. تجميع وحقن الواجهة الأصلية بالكامل (HTML + CSS + JS)
 # ==============================================================================
-APP_BUNDLE_VERSION = "2026.09.11.v13"
+APP_BUNDLE_VERSION = "2026.09.11.v14"
 
 def get_bundled_html():
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -144,10 +144,12 @@ def get_bundled_html():
                 cat_items = data.get("indexed_evidence_list", []) if isinstance(data, dict) else []
         except Exception:
             cat_items = []
-    html_content = html_content.replace(
-        "</body>",
-        f"<script>window.DEFAULT_EVIDENCE_CATALOG = {json.dumps(cat_items, ensure_ascii=False)};</script>\n</body>"
-    )
+    # حقن كتالوج الأدلة قبل أي سكربت لضمان توفره لحظة بدء التنفيذ
+    catalog_injection = f"<script>window.DEFAULT_EVIDENCE_CATALOG = {json.dumps(cat_items, ensure_ascii=False)};</script>\n"
+    if "</head>" in html_content:
+        html_content = html_content.replace("</head>", f"{catalog_injection}</head>", 1)
+    else:
+        html_content = catalog_injection + html_content
 
     return html_content
 
