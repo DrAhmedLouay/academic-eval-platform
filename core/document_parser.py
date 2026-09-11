@@ -41,17 +41,44 @@ ARABIC_MONTHS = {
 
 
 def clean_handwritten_token(raw: str) -> str:
-    """تنظيف شوائب المسح الضوئي والأرقام المتباعدة والخطوط المنقطة الناتجة عن خط اليد"""
+    """تنظيف شوائب المسح الضوئي والأرقام المتباعدة والخطوط المنقطة الناتجة عن خط اليد
+    مع معالجة الحروف اللاتينية التي يقرأها OCR بدلاً من الأرقام العربية المكتوبة بالقلم:
+      ٧ → يُقرأ كـ V أو U أو 1/
+      ٢ → يُقرأ كـ r أو c في بداية أرقام التاريخ
+      ٠ → يُقرأ كـ o منفردة بين أرقام
+      ٨ → يُقرأ كـ A في بعض الخطوط
+      ٩ → يُقرأ كـ q أحياناً
+      ٥ → يُقرأ كـ o أو 0 أحياناً (يُميَّز بالسياق)
+    """
     if not raw:
         return ""
     val = raw.replace('\\', '/').replace('|', '/').replace('!', '/').replace('I', '/')
     val = re.sub(r'202\s*[\{]', '2024', val)
     val = re.sub(r'2002([0-9])', r'202\1', val)
-    val = re.sub(r'^[\s\.:\-_=/]+|[\s\.:\-_=/]+$', '', val)
+    val = re.sub(r'^[\s\.\:\-_=/]+|[\s\.\:\-_=/]+$', '', val)
     for _ in range(5):
         val = re.sub(r'(\d)\s+(\d)', r'\1\2', val)
     val = re.sub(r'\s*[/]\s*', '/', val)
     val = re.sub(r'[/]{2,}', '/', val)
+
+    # ── تصحيح OCR لخط اليد العربي ──────────────────────────────────────────
+    # ٧ يُكتب كـ U/V مفتوح للأعلى → يُقرأ كـ V أو U
+    val = re.sub(r'\b[VU](\d{1,5})\b', r'7\1', val)
+    # ٧ يُقرأ أيضاً كـ 1/ في بعض الأحيان (مثل 1/39 → 739)
+    val = re.sub(r'(?:^|(?<=\s))1/(\d{2,4})\b', r'7\1', val)
+    # ٢ في التاريخ يُقرأ كـ r (مثل r.r5 → 2025 ، r025 → 2025)
+    val = re.sub(r'\br\.r([0-9])', r'202\1', val)      # r.r5 → 2025
+    val = re.sub(r'\br-([0-9]{3})\b', r'2\1', val)      # r-025 → 2025 نادر
+    val = re.sub(r'\b[rR]([0-9]{3})\b', r'2\1', val)    # r025 → 2025
+    # ٠ يُقرأ كـ o بين أرقام (مثل 2o25 → 2025)
+    val = re.sub(r'(?<=\d)[oO](?=\d)', '0', val)
+    # ٨ يُقرأ كـ A في بعض الخطوط (مثل A3/130 → 8... نادر لكن موجود)
+    val = re.sub(r'\bA(\d{2,4})\b', r'8\1', val)
+    # c-eo / c_eo / c.eo → 2025 (شكل ٢٠٢٥ في خط مائل)
+    val = re.sub(r'\bc[-_\.]?[Ee][oO0]\b', '2025', val)
+    val = re.sub(r'\bc[-_\.]?[2-9][0-9]\b', lambda m: '20' + m.group(0)[1:].lstrip('-_.'), val)
+    # ─────────────────────────────────────────────────────────────────────────
+
     return val.strip()
 
 
@@ -226,11 +253,20 @@ def extract_dates(text: str, filename: str = "") -> List[HandwrittenString]:
         formatted = f"{year}/{m_num}/{int(day):02d}"
         add_date(formatted, is_hw=True)
 
-    # 2. فحص التواريخ بجانب كلمة التاريخ أو التأريخ بخط اليد مع نقاط أو فراغات (دون كلمة 'في' لعدم الخلط مع إشارات الكتب السابقة)
-    labeled_date_pat = r'(?:التاريخ|التأريخ|بتاريخ|بتأريخ|تاريخ\s+الصدور|تاريخ|Date|DATE)\s*[:/=\-A-Za-z.]*\s*[\.\s]*([0-9/\-\. \{]{4,25})'
+    # 2. فحص التواريخ بجانب كلمة التاريخ أو التأريخ بخط اليد مع نقاط أو فراغات
+    # تم توسيع النمط ليشمل أحرف OCR المشوَّهة مثل r.r5 أو c-eo بدلاً من 2025
+    labeled_date_pat = r'(?:التاريخ|التأريخ|بتاريخ|بتأريخ|تاريخ\s+الصدور|تاريخ|Date|DATE)\s*[:/=\-A-Za-z.]*\s*[.\s]*([0-9rRcCoOVU/\-\. \{]{4,30})'
     for m in re.finditer(labeled_date_pat, norm_text):
         cand = m.group(1).strip()
-        is_hw = bool(re.search(r'\.{2,}', cand) or re.search(r'\d\s+\d', cand) or '/' in cand)
+        is_hw = bool(re.search(r'\.{2,}', cand) or re.search(r'\d\s+\d', cand) or '/' in cand
+                     or re.search(r'[rRcCoO]', cand))
+        # تطبيق تصحيحات OCR خط اليد على المرشح
+        cand = re.sub(r'\br\.r([0-9])', r'202\1', cand)       # r.r5 → 2025
+        cand = re.sub(r'\b[rR]([0-9]{3})\b', r'2\1', cand)    # r025 → 2025
+        cand = re.sub(r'(?<=\d)[oO](?=\d)', '0', cand)        # 2o25 → 2025
+        cand = re.sub(r'\bc[-_\.][Ee][oO0]\b', '2025', cand)  # c-eo → 2025
+        cand = re.sub(r'\bc[-_\.]([3-9][0-9])\b', r'20\1', cand)  # c-25 → 2025
+        cand = re.sub(r'\b[VU](\d{1,2})\b', r'7\1', cand)     # V4 → 74 (شهر/يوم)
         cleaned = clean_handwritten_token(cand)
         m_date = re.search(r'\b(202[0-9][/\-\.](?:0?[1-9]|1[0-2])[/\-\.](?:0?[1-9]|[12][0-9]|3[01]))\b', cleaned)
         if m_date:
@@ -239,6 +275,7 @@ def extract_dates(text: str, filename: str = "") -> List[HandwrittenString]:
         m_date2 = re.search(r'\b((?:0?[1-9]|[12][0-9]|3[01])[/\-\.](?:0?[1-9]|1[0-2])[/\-\.]202[0-9])\b', cleaned)
         if m_date2:
             add_date(m_date2.group(1), is_hw=is_hw)
+
 
     # 3. فحص التواريخ في السطور التالية لكلمة التاريخ (حتى 3 أسطر لدعم التواريخ متعددة الأسطر)
     lines = [l.strip() for l in norm_text.split('\n') if l.strip()]
@@ -408,9 +445,23 @@ def clean_handwritten_doc_number(raw_line: str, dept_hint: str = "", next_line: 
     for _ in range(3):
         line = re.sub(r'(\d)\s+(\d)', r'\1\2', line)
 
-    # 4. تصحيح قراءة الرقم ٧ المكتوب بخط اليد (الذي يقرأه OCR كـ 1/ أو V بسبب حدة زاويته)
-    line = re.sub(r'(?:\b|(?<=[^\d]))1/(\d{2,4})', r'7\1', line)
-    line = re.sub(r'\bV(\d{2,4})\b', r'7\1', line)
+    # 4. تصحيح قراءة الأرقام العربية المكتوبة بخط اليد وفق خصائص كل رقم:
+    # ── ٧ (سبعة): يُكتب كـ U أو V مفتوح للأعلى
+    line = re.sub(r'(?:\b|(?<=[^0-9]))1/([\d]{2,4})', r'7\1', line)  # 1/39 → 739
+    line = re.sub(r'\b[VU](\d{2,4})\b', r'7\1', line)                  # V39 → 739
+    # ── ٨ (ثمانية): يُكتب كـ A في بعض الخطوط أو كـ ع
+    line = re.sub(r'\bA(\d{2,4})\b', r'8\1', line)                     # A30 → 830
+    # ── ٠ (صفر): يُقرأ كـ o بين أرقام
+    line = re.sub(r'(?<=\d)[oO](?=\d)', '0', line)                     # 2o25 → 2025
+    # ── ٩ (تسعة): يُقرأ كـ q في بعض الأحيان
+    line = re.sub(r'\bq(\d{0,3})\b', r'9\1', line)                     # q → 9
+    # ── ٢ (اثنان): يُقرأ كـ r في بداية التواريخ  
+    line = re.sub(r'\br\.r([0-9])\b', r'202\1', line)                  # r.r5 → 2025
+    line = re.sub(r'\b[rR]([0-9]{3})\b', r'2\1', line)                 # r025 → 2025
+    # ── تصحيح سنة 202X المكتوبة كـ c-eo أو c_25 أو c.50
+    line = re.sub(r'\bc[-_\.][Ee][oO0]\b', '2025', line)               # c-eo → 2025
+    line = re.sub(r'\bc[-_\.]([3-9][0-9])\b', r'20\1', line)           # c-25 → 2025
+
 
     # معالجة قسم الشؤون العلمية: "م 43/4" أو "م 43 / 4" -> ش.ع/43
     line = re.sub(r'\bم\s+(\d{1,4})[/](\d)\b', r'ش.ع/\1', line)
