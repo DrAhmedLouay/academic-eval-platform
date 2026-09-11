@@ -2834,6 +2834,64 @@ async function confirmReclassify() {
         confirmBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ وإعادة الاحتساب...`;
     }
 
+    // --- تطبيق التغييرات محلياً أولاً (بدون انتظار الخادم) ---
+    item.axis = newAxisKey;
+    item.paragraph = String(newParagraph);
+    item.axis_name = def.name;
+    item.paragraph_name = pDef.name;
+    item.doc_type = newDocType;
+    item.suggested_score = newScore;
+    item.audit_status = "modified";
+    item.manual_reclassified = true;
+    item.auditor_notes = notes || `إعادة تصنيف يدوية إلى ${def.name} - ${pDef.name}`;
+
+    // إزالة التجاوز اليدوي للفقرة القديمة والجديدة لتعود المزامنة التلقائية مع الأدلة
+    const oldMapping = PARAGRAPH_SCORE_MAPPINGS.find(m => m.axis === oldAxis && String(m.paragraph) === oldParagraph);
+    if (oldMapping && manualScoreOverrides) {
+        delete manualScoreOverrides[oldMapping.field];
+    }
+    const newMapping = PARAGRAPH_SCORE_MAPPINGS.find(m => m.axis === newAxisKey && String(m.paragraph) === String(newParagraph));
+    if (newMapping && manualScoreOverrides) {
+        delete manualScoreOverrides[newMapping.field];
+    }
+
+    // مزامنة الدرجات والواجهات
+    syncEvidenceWithScores();
+
+    // حفظ المسودة في التخزين المحلي
+    const draftObj = {
+        timestamp: new Date().toISOString(),
+        formData: formData,
+        indexedEvidenceList: indexedEvidenceList,
+        manualScoreOverrides: manualScoreOverrides
+    };
+    localStorage.setItem("faculty_eval_draft_2026_indexed", JSON.stringify(draftObj));
+
+    // تحديث الجداول والإحصائيات
+    renderAllMiniEvidenceTables();
+    renderMasterCatalogTable();
+    updateIndexStats();
+    await calculateLiveScore();
+
+    // إذا كانت نافذة المعاينة مفتوحة لنفس الوثيقة، نحدث بياناتها
+    if (activePreviewItem && activePreviewItem.ref_code === item.ref_code) {
+        const metaType = document.getElementById("preview-meta-type");
+        if (metaType) metaType.textContent = item.doc_type;
+        const metaAxis = document.getElementById("preview-meta-axis");
+        if (metaAxis) metaAxis.textContent = `${item.axis_name} - فقرة ${item.paragraph}`;
+        const metaScore = document.getElementById("preview-meta-score");
+        if (metaScore) metaScore.textContent = `+${item.suggested_score} درجة`;
+    }
+
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = origBtnHtml;
+    }
+
+    closeReclassifyModal();
+    showToast(`✔ تم بنجاح نقل الوثيقة (${item.ref_code}) إلى "${def.name} - ${pDef.name}" وإعادة احتساب الدرجات تلقائياً!`);
+
+    // --- محاولة مزامنة مع الخادم في الخلفية (لا يؤثر على النتيجة) ---
     try {
         const payload = {
             ref_code: item.ref_code,
@@ -2843,79 +2901,22 @@ async function confirmReclassify() {
             paragraph_name: pDef.name,
             doc_type: newDocType,
             suggested_score: newScore,
-            auditor_notes: notes || `إعادة تصنيف يدوية إلى ${def.name} - ${pDef.name}`
+            auditor_notes: item.auditor_notes
         };
-
         const resp = await fetch("/api/reclassify-evidence", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
-
-        const data = await resp.json();
-        if (!data.success) {
-            throw new Error(data.error || "فشل تحديث الخادم");
+        if (resp.ok) {
+            const data = await resp.json();
+            if (!data.success) {
+                console.warn("Server reclassify sync warning:", data.error);
+            }
         }
-
-        // تحديث خصائص الوثيقة محلياً
-        item.axis = newAxisKey;
-        item.paragraph = String(newParagraph);
-        item.axis_name = def.name;
-        item.paragraph_name = pDef.name;
-        item.doc_type = newDocType;
-        item.suggested_score = newScore;
-        item.audit_status = "modified";
-        item.manual_reclassified = true;
-        item.auditor_notes = payload.auditor_notes;
-
-        // إزالة التجاوز اليدوي للفقرة القديمة والجديدة لتعود المزامنة التلقائية مع الأدلة
-        const oldMapping = PARAGRAPH_SCORE_MAPPINGS.find(m => m.axis === oldAxis && String(m.paragraph) === oldParagraph);
-        if (oldMapping && manualScoreOverrides) {
-            delete manualScoreOverrides[oldMapping.field];
-        }
-        const newMapping = PARAGRAPH_SCORE_MAPPINGS.find(m => m.axis === newAxisKey && String(m.paragraph) === String(newParagraph));
-        if (newMapping && manualScoreOverrides) {
-            delete manualScoreOverrides[newMapping.field];
-        }
-
-        // مزامنة الدرجات والواجهات
-        syncEvidenceWithScores();
-
-        // حفظ المسودة في التخزين المحلي
-        const draftObj = {
-            timestamp: new Date().toISOString(),
-            formData: formData,
-            indexedEvidenceList: indexedEvidenceList,
-            manualScoreOverrides: manualScoreOverrides
-        };
-        localStorage.setItem("faculty_eval_draft_2026_indexed", JSON.stringify(draftObj));
-
-        // تحديث الجداول والإحصائيات
-        renderAllMiniEvidenceTables();
-        renderMasterCatalogTable();
-        updateIndexStats();
-        await calculateLiveScore();
-
-        // إذا كانت نافذة المعاينة مفتوحة لنفس الوثيقة، نحدث بياناتها
-        if (activePreviewItem && activePreviewItem.ref_code === item.ref_code) {
-            const metaType = document.getElementById("preview-meta-type");
-            if (metaType) metaType.textContent = item.doc_type;
-            const metaAxis = document.getElementById("preview-meta-axis");
-            if (metaAxis) metaAxis.textContent = `${item.axis_name} - فقرة ${item.paragraph}`;
-            const metaScore = document.getElementById("preview-meta-score");
-            if (metaScore) metaScore.textContent = `+${item.suggested_score} درجة`;
-        }
-
-        closeReclassifyModal();
-        showToast(`✔ تم بنجاح نقل الوثيقة (${item.ref_code}) إلى "${def.name} - ${pDef.name}" وإعادة احتساب الدرجات تلقائياً!`);
-    } catch (err) {
-        console.error("Reclassify error:", err);
-        alert("حدث خطأ أثناء حفظ إعادة التصنيف: " + err.message);
-    } finally {
-        if (confirmBtn) {
-            confirmBtn.disabled = false;
-            confirmBtn.innerHTML = origBtnHtml;
-        }
+    } catch (syncErr) {
+        // الخادم غير متاح (وضع السحابة) — التغييرات محفوظة محلياً
+        console.info("Server sync unavailable (cloud mode), changes saved locally:", syncErr.message);
     }
 }
 
@@ -4180,7 +4181,7 @@ async function exportDossierPdf() {
     const btn = document.getElementById("btn-export-dossier-pdf");
     if (!btn) return;
     btn.disabled = true;
-    btn.innerHTML = `<span class="spinner"></span> جاري تجميع المصبار المدمج...`;
+    btn.innerHTML = `<span class="spinner"></span> جاري تجميع الاستمارة والمرفقات...`;
 
     try {
         const signatures = getDigitalSignaturesPayload();
@@ -4197,21 +4198,111 @@ async function exportDossierPdf() {
         if (response.ok) {
             const blob = await response.blob();
             const teacherName = [formData.personal_info.last_name, formData.personal_info.first_name].filter(Boolean).join('_') || '2026';
-            downloadBlob(blob, `المصبار_التوثيقي_المدمج_${teacherName}.pdf`);
-            showToast("تم إنشاء وتنزيل المصبار التوثيقي المدمج (Dossier PDF) مع الفهرس التفاعلي بنجاح! 📚");
+            downloadBlob(blob, `تصدير_الاستمارة_والمرفقات_${teacherName}.pdf`);
+            showToast("تم إنشاء وتنزيل الاستمارة والمرفقات (PDF) مع الفهرس التفاعلي بنجاح! 📚");
+            btn.disabled = false;
+            btn.innerHTML = `<i class="fa-solid fa-file-export"></i> تصدير الاستمارة والمرفقات`;
             return;
         }
     } catch (err) {
-        console.warn("Backend dossier export unavailable, falling back to print:", err);
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-book-bookmark"></i> المصبار المدمج (PDF)`;
+        console.warn("Backend dossier export unavailable, using print window:", err);
     }
 
-    // بديل فوري وفعال دون أي نوافذ تنبيه: فتح نافذة الطباعة والحفظ كـ PDF للمصبار الشامل
-    showToast("جارٍ فتح نافذة الطباعة والحفظ بصيغة PDF للمصبار التوثيقي الشامل... 📚");
-    window.print();
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-file-export"></i> تصدير الاستمارة والمرفقات`;
+
+    // بناء نافذة طباعة مخصصة تعرض الاستمارة وفهرس الأدلة بصيغة PDF
+    openDossierPrintWindow();
 }
+
+function openDossierPrintWindow() {
+    const teacher = formData.personal_info || {};
+    const teacherName = [teacher.last_name, teacher.first_name].filter(Boolean).join(' ') || 'الأستاذ';
+    const college = teacher.college || '-';
+    const dept = teacher.department || '-';
+    const year = teacher.academic_year || '2025-2026';
+
+    // بناء جدول فهرس الأدلة
+    let evidenceRows = '';
+    indexedEvidenceList.forEach((item, idx) => {
+        evidenceRows += `
+        <tr>
+            <td>${idx + 1}</td>
+            <td>${item.ref_code || '-'}</td>
+            <td>${item.filename || item.title || item.subject || '-'}</td>
+            <td>${item.doc_number || '-'}</td>
+            <td>${item.date || '-'}</td>
+            <td>${item.axis_name || item.axis || '-'}</td>
+            <td>${item.paragraph || '-'}</td>
+            <td>${item.doc_type || '-'}</td>
+            <td>${item.suggested_score !== undefined ? item.suggested_score : '-'}</td>
+        </tr>`;
+    });
+
+    const totalScore = indexedEvidenceList.reduce((s, e) => s + (parseFloat(e.suggested_score) || 0), 0).toFixed(1);
+
+    const html = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>تصدير الاستمارة والمرفقات</title>
+<style>
+  @page { size: A4; margin: 15mm; }
+  body { font-family: Arial, sans-serif; font-size: 11pt; color: #111; direction: rtl; }
+  h1 { font-size: 15pt; text-align: center; margin-bottom: 4px; }
+  h2 { font-size: 12pt; margin: 18px 0 6px; border-bottom: 2px solid #333; padding-bottom: 3px; }
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 16px; }
+  .meta-grid div { font-size: 10.5pt; }
+  .meta-grid span { font-weight: bold; }
+  table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-top: 8px; }
+  th { background: #1a3c5e; color: #fff; padding: 6px 4px; text-align: center; }
+  td { border: 1px solid #bbb; padding: 5px 4px; text-align: center; vertical-align: middle; }
+  tr:nth-child(even) { background: #f5f7fa; }
+  .total-row { font-weight: bold; background: #e8f0fe; }
+  .footer { margin-top: 24px; font-size: 9pt; color: #555; text-align: center; }
+  @media print { button { display: none; } }
+</style>
+</head>
+<body>
+<h1>استمارة تقييم الأداء التدريسي وبحوث التعليم العالي — ${year}</h1>
+<div class="meta-grid">
+  <div><span>الاسم:</span> ${teacherName}</div>
+  <div><span>الكلية:</span> ${college}</div>
+  <div><span>القسم:</span> ${dept}</div>
+  <div><span>السنة الأكاديمية:</span> ${year}</div>
+</div>
+<h2>📋 فهرس الأدلة والمرفقات (${indexedEvidenceList.length} وثيقة)</h2>
+<table>
+  <thead>
+    <tr>
+      <th>#</th><th>الرمز</th><th>الوثيقة</th><th>العدد</th><th>التاريخ</th>
+      <th>المحور</th><th>الفقرة</th><th>نوع الوثيقة</th><th>الدرجة</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${evidenceRows}
+    <tr class="total-row">
+      <td colspan="8" style="text-align:right">مجموع الدرجات المقترحة</td>
+      <td>${totalScore}</td>
+    </tr>
+  </tbody>
+</table>
+<div class="footer">
+  تم إنشاء هذا التقرير تلقائياً بواسطة منصة التقييم الأكاديمي — ${new Date().toLocaleDateString('ar-IQ')}
+</div>
+<script>window.onload = function(){ window.print(); }<\/script>
+</body>
+</html>`;
+
+    const pw = window.open('', '_blank', 'width=900,height=700');
+    if (pw) {
+        pw.document.write(html);
+        pw.document.close();
+    } else {
+        showToast("يرجى السماح بالنوافذ المنبثقة في المتصفح لتصدير PDF، أو استخدم زر الطباعة.");
+    }
+}
+
 
 function downloadBlob(blob, filename) {
     const url = window.URL.createObjectURL(blob);
