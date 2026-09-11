@@ -59,6 +59,89 @@ def ar(text: Any) -> str:
     return "<br/>".join(reshaped_lines)
 
 
+def get_ref_color_scheme(ref_code: str) -> Dict[str, str]:
+    """
+    استرجاع لوحة الألوان الدلالية المعتمدة لكل رمز وثيقة حسب المحور
+    مع تمييز خاص وفاخر لوثائق المحور الرابع (مواطن القوة) باللون القرمزي الياقوتي
+    """
+    code = (ref_code or "").upper()
+    if "AX4" in code:
+        return {
+            "name": "المحور الرابع: مواطن القوة والتميز",
+            "axis_short": "المحور الرابع",
+            "primary": "#9F1239",      # Deep Crimson / ياقوتي فخم
+            "bg": "#FFF1F2",           # Soft Rose
+            "border": "#FECDD3",
+            "badge_bg": "#9F1239",
+            "text": "#9F1239"
+        }
+    elif "AX3" in code:
+        return {
+            "name": "المحور الثالث: الجانب التربوي والإرشادي",
+            "axis_short": "المحور الثالث",
+            "primary": "#047857",      # Emerald Green
+            "bg": "#ECFDF5",
+            "border": "#A7F3D0",
+            "badge_bg": "#047857",
+            "text": "#047857"
+        }
+    elif "AX2" in code:
+        return {
+            "name": "المحور الثاني: النشاط العلمي والبحثي",
+            "axis_short": "المحور الثاني",
+            "primary": "#7E22CE",      # Royal Purple
+            "bg": "#FAF5FF",
+            "border": "#D8B4FE",
+            "badge_bg": "#7E22CE",
+            "text": "#7E22CE"
+        }
+    elif "AX1" in code:
+        return {
+            "name": "المحور الأول: جودة التدريس والالتزام الوظيفي",
+            "axis_short": "المحور الأول",
+            "primary": "#1D4ED8",      # Royal Blue
+            "bg": "#EFF6FF",
+            "border": "#BFDBFE",
+            "badge_bg": "#1D4ED8",
+            "text": "#1D4ED8"
+        }
+    return {
+        "name": "الملف التوثيقي الرسمي المعتمد",
+        "axis_short": "ملف توثيقي",
+        "primary": "#334155",          # Slate
+        "bg": "#F8FAFC",
+        "border": "#CBD5E1",
+        "badge_bg": "#334155",
+        "text": "#334155"
+    }
+
+
+def create_dossier_page_banner_pdf(ref_code: str, title: str, width: float, height: float) -> str:
+    """توليد شريط ترويسة ملون كصفحة شفافة يتم دمجها أعلى كل صفحة وثيقة PDF ملحقة"""
+    from reportlab.pdfgen import canvas
+    scheme = get_ref_color_scheme(ref_code)
+    t_banner = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf", prefix="banner_overlay_")
+    c = canvas.Canvas(t_banner.name, pagesize=(width, height))
+    
+    banner_h = 22.0
+    y_pos = height - banner_h
+    
+    # شريط ملون
+    c.setFillColor(colors.HexColor(scheme["primary"]))
+    c.rect(0, y_pos, width, banner_h, fill=1, stroke=0)
+    
+    # نصوص الترويسة
+    c.setFillColor(colors.white)
+    c.setFont(FONT_NAME, 8.5)
+    c.drawString(15, y_pos + 6, f"[{ref_code}]")
+    
+    header_ar = ar(f"المصبار التوثيقي المعتمد | {scheme['name']} | {title[:65]}")
+    c.drawRightString(width - 15, y_pos + 6, header_ar)
+    
+    c.save()
+    return t_banner.name
+
+
 def create_form_21_pdf(data: Dict[str, Any], output_path: str, attachments: List[Dict[str, Any]] = None) -> str:
     """
     إنشاء ملف PDF رسمي متكامل للاستمارة رقم 21 مع جدول المرفقات
@@ -766,8 +849,20 @@ def create_form_21_pdf(data: Dict[str, Any], output_path: str, attachments: List
         att_data = [
             [Paragraph(ar(x), header_cell_style) for x in ["الدرجة", "المحور والفقرة", "الموضوع / العنوان", "التاريخ", "العدد", "نوع الوثيقة", "رمز الفهرسة", "ت"]]
         ]
+        t_att_styles = [
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#FFF200")),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3)
+        ]
         for idx, att in enumerate(attachments, start=1):
             ref_code = att.get("ref_code", f"REF-{idx:02d}")
+            scheme = get_ref_color_scheme(ref_code)
+            styled_ref = f"<font color='{scheme['primary']}'><b>{ref_code}</b></font>"
+            t_att_styles.append(('BACKGROUND', (6, idx), (6, idx), colors.HexColor(scheme["bg"])))
+            t_att_styles.append(('BOX', (6, idx), (6, idx), 1.0, colors.HexColor(scheme["border"])))
+            
             att_data.append([
                 Paragraph(ar(f"{att.get('suggested_score', 0)}"), cell_style),
                 Paragraph(ar(f"{att.get('axis_name', att.get('axis', ''))} - فقرة {att.get('suggested_paragraph', att.get('paragraph', ''))}"), cell_right_style),
@@ -775,17 +870,11 @@ def create_form_21_pdf(data: Dict[str, Any], output_path: str, attachments: List
                 Paragraph(ar(att.get("date", "-")), cell_style),
                 Paragraph(ar(att.get("document_number", att.get("doc_number", "-"))), cell_style),
                 Paragraph(ar(att.get("type_arabic", att.get("doc_type", att.get("type", "وثيقة")))), cell_right_style),
-                Paragraph(ar(ref_code), cell_style),
+                Paragraph(styled_ref, cell_style),
                 Paragraph(ar(f"{idx}"), cell_style)
             ])
         t_att = Table(att_data, colWidths=[35, 95, 135, 55, 65, 80, 65, 25])
-        t_att.setStyle(TableStyle([
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#FFF200")),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 3),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 3)
-        ]))
+        t_att.setStyle(TableStyle(t_att_styles))
         story.append(t_att)
         story.append(Spacer(1, 6))
         story.append(Paragraph(ar("هذه المنصة قيد التطوير وبمبادرة شخصية من المهندس المعماري الدكتور أحمد لؤي أحمد"), dev_note_style))
@@ -804,28 +893,36 @@ def create_form_21_pdf(data: Dict[str, Any], output_path: str, attachments: List
 
 
 def convert_image_to_a4_pdf(image_path: str, output_pdf_path: str, ref_code: str = "", title: str = "") -> str:
-    """تحويل صورة الوثيقة الثبوتية إلى صفحة PDF بحجم A4 مع ترويسة توثيقية رسمية"""
+    """تحويل صورة الوثيقة الثبوتية إلى صفحة PDF بحجم A4 مع ترويسة توثيقية رسمية ملونة حسب المحور"""
     doc = SimpleDocTemplate(
         output_pdf_path,
         pagesize=A4,
         leftMargin=20,
         rightMargin=20,
-        topMargin=20,
-        bottomMargin=20
+        topMargin=15,
+        bottomMargin=15
     )
     story = []
     
-    hdr_style = ParagraphStyle(
-        'DocHdr',
-        fontName=FONT_NAME,
-        fontSize=9,
-        leading=11,
-        alignment=1,
-        textColor=colors.HexColor("#0f172a")
-    )
+    scheme = get_ref_color_scheme(ref_code)
     
-    header_text = f"الوثيقة الثبوتية المعتمدة: [{ref_code}] - {title[:80]}"
-    story.append(Paragraph(ar(header_text), hdr_style))
+    # بناء شريط ترويسة رسمي ملون حسب تصنيف الوثيقة والمحور
+    hdr_table_data = [
+        [
+            Paragraph(f"<font color='#FFFFFF'><b>[{ref_code}]</b></font>", ParagraphStyle('HdrRef', fontName=FONT_NAME, fontSize=9, leading=11, alignment=0)),
+            Paragraph(ar(f"<font color='#FFFFFF'><b>المصبار التوثيقي المعتمد | {scheme['name']} | {title[:75]}</b></font>"), ParagraphStyle('HdrTitle', fontName=FONT_NAME, fontSize=8.5, leading=11, alignment=2))
+        ]
+    ]
+    t_hdr = Table(hdr_table_data, colWidths=[110, 445])
+    t_hdr.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(scheme["primary"])),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(t_hdr)
     story.append(Spacer(1, 6))
     
     try:
@@ -841,7 +938,7 @@ def convert_image_to_a4_pdf(image_path: str, output_pdf_path: str, ref_code: str
         
         story.append(RLImage(image_path, width=disp_w, height=disp_h))
     except Exception as e:
-        story.append(Paragraph(ar(f"تعذر تحميل صورة الوثيقة: {e}"), hdr_style))
+        story.append(Paragraph(ar(f"تعذر تحميل صورة الوثيقة: {e}"), ParagraphStyle('DocErr', fontName=FONT_NAME, fontSize=9, textColor=colors.red)))
         
     doc.build(story)
     return output_pdf_path
@@ -928,6 +1025,18 @@ def create_consolidated_dossier_pdf(
                         att_reader = PdfReader(doc_pdf_path)
                         writer.add_outline_item(f"[{ref_code}] {title[:40]}", current_page_idx, parent=parent_outline)
                         for att_page in att_reader.pages:
+                            # تطبيق الترويسة الملونة الرسمية للوثائق ذات الامتداد PDF
+                            if ext == ".pdf":
+                                try:
+                                    pw = float(att_page.mediabox.width)
+                                    ph = float(att_page.mediabox.height)
+                                    b_path = create_dossier_page_banner_pdf(ref_code, title, pw, ph)
+                                    b_reader = PdfReader(b_path)
+                                    att_page.merge_page(b_reader.pages[0])
+                                    if os.path.exists(b_path):
+                                        os.remove(b_path)
+                                except Exception as b_err:
+                                    print(f"Notice: banner overlay skipped for {ref_code}: {b_err}")
                             writer.add_page(att_page)
                             current_page_idx += 1
                     except Exception as merge_err:

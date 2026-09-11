@@ -64,6 +64,86 @@ class TestDossierPdf(unittest.TestCase):
         self.assertEqual(res.headers.get("content-type"), "application/pdf")
         self.assertGreater(len(res.content), 1000)
 
+    def test_update_evidence_meta_api(self):
+        cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "indexed_results_cache.json")
+        backup_content = None
+        if os.path.exists(cache_file):
+            try:
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    backup_content = f.read()
+            except Exception:
+                backup_content = None
+
+        try:
+            # Sync test item
+            sync_res = self.client.post("/api/sync-evidence-catalog", json={
+                "indexed_evidence_list": [
+                    {
+                        "ref_code": "REF-AX4-P2-01",
+                        "axis": "axis4",
+                        "paragraph": "2",
+                        "doc_number": "111",
+                        "date": "2025/01/01",
+                        "title": "كتاب قديم"
+                    }
+                ]
+            })
+            self.assertEqual(sync_res.status_code, 200)
+
+            update_res = self.client.post("/api/update-evidence-meta", json={
+                "ref_code": "REF-AX4-P2-01",
+                "doc_number": "و.ت/554",
+                "date": "2025/11/20",
+                "title": "كتاب شكر وتقدير من معالي الوزير"
+            })
+            self.assertEqual(update_res.status_code, 200)
+            data = update_res.json()
+            self.assertTrue(data.get("success"))
+            self.assertEqual(data["item"]["doc_number"], "و.ت/554")
+            self.assertEqual(data["item"]["date"], "2025/11/20")
+            self.assertEqual(data["item"]["audit_status"], "modified")
+        finally:
+            if backup_content is not None:
+                try:
+                    with open(cache_file, "w", encoding="utf-8") as f:
+                        f.write(backup_content)
+                except Exception:
+                    pass
+
+    def test_ref_color_schemes_and_dossier_ax4(self):
+        from core.pdf_generator import get_ref_color_scheme
+        scheme_ax4 = get_ref_color_scheme("REF-AX4-P2-01")
+        self.assertEqual(scheme_ax4["primary"], "#9F1239")
+        self.assertIn("المحور الرابع", scheme_ax4["name"])
+
+        scheme_ax3 = get_ref_color_scheme("REF-AX3-P1-05")
+        self.assertEqual(scheme_ax3["primary"], "#047857")
+
+        scheme_ax2 = get_ref_color_scheme("REF-AX2-P1-01")
+        self.assertEqual(scheme_ax2["primary"], "#7E22CE")
+
+        scheme_ax1 = get_ref_color_scheme("REF-AX1-P1-01")
+        self.assertEqual(scheme_ax1["primary"], "#1D4ED8")
+
+        # Test dossier export containing REF-AX4-P2-01
+        res = self.client.post("/api/export-dossier-pdf", json={
+            "form_data": {"personal_info": {"first_name": "أحمد"}},
+            "attachments": [
+                {
+                    "ref_code": "REF-AX4-P2-01",
+                    "axis": "axis4",
+                    "paragraph": "2",
+                    "doc_number": "و.ت/554",
+                    "date": "2025/11/20",
+                    "title": "شكر وتقدير وزاري",
+                    "suggested_score": 15.0
+                }
+            ],
+            "signatures": {}
+        })
+        self.assertEqual(res.status_code, 200)
+        self.assertGreater(len(res.content), 2000)
+
     def test_delete_evidence_isolation(self):
         cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "indexed_results_cache.json")
         backup_content = None

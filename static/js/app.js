@@ -2222,7 +2222,11 @@ function openDocumentPreview(refCodeOrItem) {
     if (!modal) return;
 
     document.getElementById("preview-modal-title").textContent = `معاينة: ${item.filename || item.title || 'وثيقة'}`;
-    document.getElementById("preview-modal-ref").textContent = refCode;
+    const refBadgeEl = document.getElementById("preview-modal-ref");
+    if (refBadgeEl) {
+        refBadgeEl.textContent = refCode;
+        refBadgeEl.className = getRefBadgeClass(refCode);
+    }
 
     // أزرار التحميل والفتح المباشر
     const dlBtn = document.getElementById("preview-download-btn");
@@ -2248,6 +2252,7 @@ function openDocumentPreview(refCodeOrItem) {
         if (item.handwritten_detected) {
             numDateHtml += ` <span class="badge-handwritten" style="margin-right: 4px;"><i class="fa-solid fa-pen-nib"></i> خط يد</span>`;
         }
+        numDateHtml += ` <button type="button" class="btn-quick-edit-numdate" style="margin-right: 8px;" onclick="closeDocumentPreview(); startEditDocNumberDate('${item.ref_code}');" title="تعديل العدد والتاريخ مباشرة"><i class="fa-solid fa-pen-to-square"></i> تعديل</button>`;
         metaNumDate.innerHTML = numDateHtml;
     }
 
@@ -2396,7 +2401,10 @@ function openReclassifyModal(refCode) {
     activeReclassifyItem = item;
 
     const refBadge = document.getElementById("reclassify-ref-badge");
-    if (refBadge) refBadge.textContent = item.ref_code;
+    if (refBadge) {
+        refBadge.textContent = item.ref_code;
+        refBadge.className = getRefBadgeClass(item.ref_code);
+    }
 
     const filenameEl = document.getElementById("reclassify-filename");
     if (filenameEl) filenameEl.textContent = item.filename || item.title || item.subject || "وثيقة رسمية";
@@ -2813,6 +2821,95 @@ function renderAllMiniEvidenceTables() {
     });
 }
 
+// ============================================================================
+// نظام تمييز ألوان وثائق الأدلة والمحاور (Color Hierarchy)
+// ============================================================================
+function getRefBadgeClass(refCode) {
+    if (!refCode) return "badge-ref";
+    const code = String(refCode).toUpperCase();
+    if (code.includes("AX4")) return "badge-ref badge-ref-ax4";
+    if (code.includes("AX3")) return "badge-ref badge-ref-ax3";
+    if (code.includes("AX2")) return "badge-ref badge-ref-ax2";
+    if (code.includes("AX1")) return "badge-ref badge-ref-ax1";
+    return "badge-ref";
+}
+window.getRefBadgeClass = getRefBadgeClass;
+
+let inlineEditingRefCode = null;
+
+function startEditDocNumberDate(refCode) {
+    inlineEditingRefCode = refCode;
+    renderMasterCatalogTable();
+    setTimeout(() => {
+        const inp = document.getElementById(`inline-edit-num-${refCode}`);
+        if (inp) {
+            inp.focus();
+            inp.select();
+        }
+    }, 60);
+}
+window.startEditDocNumberDate = startEditDocNumberDate;
+
+function cancelInlineDocNumberDate() {
+    inlineEditingRefCode = null;
+    renderMasterCatalogTable();
+}
+window.cancelInlineDocNumberDate = cancelInlineDocNumberDate;
+
+async function saveInlineDocNumberDate(refCode) {
+    const item = indexedEvidenceList.find(e => e.ref_code === refCode);
+    if (!item) return;
+
+    const numInp = document.getElementById(`inline-edit-num-${refCode}`);
+    const dateInp = document.getElementById(`inline-edit-date-${refCode}`);
+    if (!numInp || !dateInp) return;
+
+    const newNum = numInp.value.trim();
+    const newDate = dateInp.value.trim();
+
+    item.doc_number = newNum;
+    item.document_number = newNum;
+    item.date = newDate;
+    item.audit_status = 'modified';
+
+    inlineEditingRefCode = null;
+
+    // الحفظ في مسودة المتصفح
+    saveDraft();
+
+    // المزامنة مع الخادم إن وجد
+    try {
+        await fetch("/api/update-evidence-meta", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                ref_code: refCode,
+                doc_number: newNum,
+                date: newDate
+            })
+        });
+    } catch (err) {
+        console.warn("Backend update-evidence-meta notice:", err);
+    }
+
+    renderMasterCatalogTable();
+    renderAllMiniEvidenceTables();
+    updateIndexStats();
+    showToast(`تم حفظ العدد (${newNum || 'بدون'}) والتاريخ (${newDate || 'بدون'}) للوثيقة [${refCode}] بنجاح! ✔`);
+}
+window.saveInlineDocNumberDate = saveInlineDocNumberDate;
+
+function handleInlineEditKey(event, refCode) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        saveInlineDocNumberDate(refCode);
+    } else if (event.key === "Escape") {
+        event.preventDefault();
+        cancelInlineDocNumberDate();
+    }
+}
+window.handleInlineEditKey = handleInlineEditKey;
+
 function renderMiniEvidenceTable(axis, paragraph) {
     let containerId = `evidence-container-${axis}-p${paragraph}`;
     let container = document.getElementById(containerId);
@@ -2856,7 +2953,7 @@ function renderMiniEvidenceTable(axis, paragraph) {
                 ${items.map(item => `
                     <tr>
                         <td style="text-align: center;">
-                            <span class="badge-ref clickable-badge" onclick="openDocumentPreview('${item.ref_code}')" title="انقر لمعاينة وتحميل الوثيقة">${item.ref_code}</span>
+                            <span class="${getRefBadgeClass(item.ref_code)} clickable-badge" onclick="openDocumentPreview('${item.ref_code}')" title="انقر لمعاينة وتحميل الوثيقة">${item.ref_code}</span>
                             ${item.handwritten_detected ? '<div style="margin-top: 3px;"><span class="badge-handwritten" title="تم قراءة العدد/التاريخ بخط اليد بالذكاء الاصطناعي"><i class="fa-solid fa-pen-nib"></i> خط يد</span></div>' : ''}
                         </td>
                         <td><strong>${item.doc_type}</strong></td>
@@ -2977,33 +3074,61 @@ function renderMasterCatalogTable() {
         <tr>
             <td style="text-align: center; font-weight: 700;">${idx + 1}</td>
             <td style="text-align: center;">
-                <span class="badge-ref clickable-badge" onclick="openDocumentPreview('${item.ref_code}')" title="انقر لمعاينة وتحميل الوثيقة">${item.ref_code}</span>
+                <span class="${getRefBadgeClass(item.ref_code)} clickable-badge" onclick="openDocumentPreview('${item.ref_code}')" title="انقر لمعاينة وتحميل الوثيقة">${item.ref_code}</span>
                 ${item.handwritten_detected ? '<div style="margin-top: 3px;"><span class="badge-handwritten" title="تم التعرف على خط اليد بالذكاء الاصطناعي"><i class="fa-solid fa-pen-nib"></i> خط يد</span></div>' : ''}
             </td>
             <td>
                 <strong>${item.doc_type}</strong>
                 ${item.issuer ? `<div style="font-size: 0.75rem; color: #64748b;">${item.issuer}</div>` : ''}
             </td>
-            <td style="text-align: center; font-size: 0.8rem;">
-                ${(item.handwritten_fields && item.handwritten_fields.includes("doc_number")) || (item.handwritten_detected && item.doc_number && item.doc_number !== 'غير محدد') ? `
-                    <div style="margin-bottom: 3px;">
-                        <span class="badge-handwritten" style="font-size: 0.78rem; font-weight: 800;" title="تم استخراج رقم الأمر والحروف الإدارية بخط اليد بالذكاء الاصطناعي">
-                            <i class="fa-solid fa-pen-nib"></i> ${item.doc_number || '-'}
-                        </span>
+            ${inlineEditingRefCode === item.ref_code ? `
+                <td class="cell-numdate-edit" style="text-align: center; min-width: 175px;">
+                    <div style="display: flex; flex-direction: column; gap: 5px;">
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 0.72rem; color: #15803d; font-weight: 700; width: 34px;">العدد:</span>
+                            <input type="text" id="inline-edit-num-${item.ref_code}" value="${(item.doc_number && item.doc_number !== 'غير محدد') ? item.doc_number : ''}" class="form-control" style="font-size: 0.76rem; padding: 2px 6px; height: 26px; border: 1px solid #86efac;" placeholder="رقم الأمر / العدد" onkeydown="handleInlineEditKey(event, '${item.ref_code}')">
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 4px;">
+                            <span style="font-size: 0.72rem; color: #15803d; font-weight: 700; width: 34px;">التاريخ:</span>
+                            <input type="text" id="inline-edit-date-${item.ref_code}" value="${(item.date && item.date !== 'غير محدد') ? item.date : ''}" class="form-control" style="font-size: 0.76rem; padding: 2px 6px; height: 26px; border: 1px solid #86efac;" placeholder="YYYY/MM/DD" onkeydown="handleInlineEditKey(event, '${item.ref_code}')">
+                        </div>
+                        <div style="display: flex; justify-content: center; gap: 5px; margin-top: 3px;">
+                            <button type="button" class="btn btn-sm btn-success" style="padding: 2px 10px; font-size: 0.72rem; font-weight: 700;" onclick="saveInlineDocNumberDate('${item.ref_code}')" title="حفظ التعديل">
+                                <i class="fa-solid fa-check"></i> حفظ
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline" style="padding: 2px 8px; font-size: 0.72rem; color: #64748b; background: white;" onclick="cancelInlineDocNumberDate()" title="إلغاء">
+                                <i class="fa-solid fa-xmark"></i> إلغاء
+                            </button>
+                        </div>
                     </div>
-                ` : `
-                    <div style="margin-bottom: 2px;"><strong>${item.doc_number || '-'}</strong></div>
-                `}
-                ${(item.handwritten_fields && item.handwritten_fields.includes("date")) || (item.handwritten_detected && item.date) ? `
+                </td>
+            ` : `
+                <td style="text-align: center; font-size: 0.8rem; min-width: 130px;">
+                    ${(item.handwritten_fields && item.handwritten_fields.includes("doc_number")) || (item.handwritten_detected && item.doc_number && item.doc_number !== 'غير محدد') ? `
+                        <div style="margin-bottom: 3px;">
+                            <span class="badge-handwritten" style="font-size: 0.78rem; font-weight: 800;" title="تم استخراج رقم الأمر والحروف الإدارية بخط اليد بالذكاء الاصطناعي">
+                                <i class="fa-solid fa-pen-nib"></i> ${item.doc_number || '-'}
+                            </span>
+                        </div>
+                    ` : `
+                        <div style="margin-bottom: 2px;"><strong>${item.doc_number || '-'}</strong></div>
+                    `}
+                    ${(item.handwritten_fields && item.handwritten_fields.includes("date")) || (item.handwritten_detected && item.date) ? `
+                        <div>
+                            <span class="badge-handwritten" style="font-size: 0.72rem; background: #faf5ff; border-color: #e9d5ff;" title="تاريخ مكتوب بخط اليد بالذكاء الاصطناعي">
+                                <i class="fa-solid fa-pen-nib"></i> ${item.date || '-'}
+                            </span>
+                        </div>
+                    ` : `
+                        <span style="color: #64748b; font-size: 0.75rem;">${item.date || '-'}</span>
+                    `}
                     <div>
-                        <span class="badge-handwritten" style="font-size: 0.72rem; background: #faf5ff; border-color: #e9d5ff;" title="تاريخ مكتوب بخط اليد بالذكاء الاصطناعي">
-                            <i class="fa-solid fa-pen-nib"></i> ${item.date || '-'}
-                        </span>
+                        <button type="button" class="btn-quick-edit-numdate" onclick="startEditDocNumberDate('${item.ref_code}')" title="تعديل العدد والتاريخ">
+                            <i class="fa-solid fa-pen-to-square"></i> تعديل
+                        </button>
                     </div>
-                ` : `
-                    <span style="color: #64748b; font-size: 0.75rem;">${item.date || '-'}</span>
-                `}
-            </td>
+                </td>
+            `}
             <td>
                 <div class="clickable-doc" onclick="openDocumentPreview('${item.ref_code}')" style="font-weight: 700; color: #1e3a8a;" title="انقر لمعاينة وتحميل الوثيقة">
                     <i class="fa-regular fa-file-lines" style="color: #2563eb; margin-left: 4px;"></i>${item.title || item.subject || item.filename || 'مستند رسمي'}
@@ -3038,6 +3163,9 @@ function renderMasterCatalogTable() {
                 </select>
             </td>
             <td style="text-align: center; white-space: nowrap;">
+                <button type="button" class="btn btn-outline btn-edit-doc-action" onclick="startEditDocNumberDate('${item.ref_code}')" title="تعديل العدد والتاريخ">
+                    <i class="fa-solid fa-pen-to-square"></i> تعديل
+                </button>
                 <button type="button" class="btn btn-outline" style="padding: 4px 8px; font-size: 0.75rem; color: #0284c7; border-color: #bae6fd; margin-left: 3px;" onclick="openReclassifyModal('${item.ref_code}')" title="تغيير المحور والفقرة لهذا الملف">
                     <i class="fa-solid fa-sliders"></i> نقل
                 </button>

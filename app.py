@@ -641,6 +641,61 @@ async def save_audit_status_endpoint(req: AuditStatusRequest):
         return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
 
 
+class UpdateEvidenceMetaRequest(BaseModel):
+    ref_code: str
+    doc_number: Optional[str] = None
+    date: Optional[str] = None
+    title: Optional[str] = None
+    doc_type: Optional[str] = None
+    issuer: Optional[str] = None
+    notes: Optional[str] = None
+
+
+@app.post("/api/update-evidence-meta")
+async def update_evidence_meta_endpoint(req: UpdateEvidenceMetaRequest):
+    """
+    تحديث بيانات الوثيقة المحددة (العدد، التاريخ، العنوان) في الفهرس الشامل وسجلات الكاش
+    """
+    cache_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "indexed_results_cache.json")
+    try:
+        data = {"indexed_evidence_list": []}
+        if os.path.exists(cache_file):
+            with open(cache_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+        updated_item = None
+        for item in data.get("indexed_evidence_list", []):
+            if item.get("ref_code") == req.ref_code:
+                if req.doc_number is not None:
+                    item["doc_number"] = req.doc_number
+                    item["document_number"] = req.doc_number
+                if req.date is not None:
+                    item["date"] = req.date
+                if req.title is not None:
+                    item["title"] = req.title
+                    item["subject"] = req.title
+                if req.doc_type is not None:
+                    item["doc_type"] = req.doc_type
+                if req.issuer is not None:
+                    item["issuer"] = req.issuer
+                item["audit_status"] = "modified"
+                updated_item = item
+                break
+
+        if updated_item:
+            with open(cache_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            return JSONResponse({
+                "success": True,
+                "item": updated_item,
+                "message": f"تم تحديث بيانات الوثيقة [{req.ref_code}] بنجاح."
+            })
+        else:
+            return JSONResponse(status_code=404, content={"success": False, "error": f"الوثيقة [{req.ref_code}] غير موجودة في الفهرس."})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(e)})
+
+
 class SyncEvidenceRequest(BaseModel):
     indexed_evidence_list: List[Dict[str, Any]]
 

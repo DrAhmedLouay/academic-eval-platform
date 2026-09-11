@@ -566,14 +566,116 @@ body {
 
 .badge-ref {
     display: inline-block;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-    font-family: monospace;
+    padding: 0.18rem 0.55rem;
+    border-radius: 5px;
+    font-family: 'Fira Code', monospace, system-ui, sans-serif;
     font-weight: 700;
-    font-size: 0.75rem;
+    font-size: 0.76rem;
     background: #eff6ff;
     color: #1d4ed8;
     border: 1px solid #bfdbfe;
+    transition: all 0.2s ease;
+    letter-spacing: 0.3px;
+}
+
+.badge-ref:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.badge-ref.badge-ref-ax1 {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #93c5fd;
+}
+
+.badge-ref.badge-ref-ax2 {
+    background: #faf5ff;
+    color: #7e22ce;
+    border-color: #d8b4fe;
+}
+
+.badge-ref.badge-ref-ax3 {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #a7f3d0;
+}
+
+/* تمييز وثائق المحور الرابع بلون قرمزي ياقوتي فخم وبارز */
+.badge-ref.badge-ref-ax4 {
+    background: #fff1f2;
+    color: #9f1239;
+    border-color: #fecdd3;
+    font-weight: 800;
+    box-shadow: 0 1px 4px rgba(159, 18, 57, 0.2);
+    border-width: 1.5px;
+}
+
+.badge-ref.badge-ref-ax4:hover {
+    background: #ffe4e6;
+    color: #881337;
+    border-color: #fda4af;
+    box-shadow: 0 2px 8px rgba(159, 18, 57, 0.3);
+}
+
+/* خلايا وأزرار تعديل العدد والتاريخ في الفهرس الشامل */
+.cell-numdate-edit {
+    background: #f0fdf4 !important;
+    border: 1.5px dashed #22c55e !important;
+    border-radius: 6px !important;
+    padding: 6px 8px !important;
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.15) !important;
+    animation: pulseBorder 1.5s infinite alternate;
+}
+
+@keyframes pulseBorder {
+    0% { border-color: #22c55e; }
+    100% { border-color: #15803d; }
+}
+
+.btn-quick-edit-numdate {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #0284c7;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: 4px;
+}
+
+.btn-quick-edit-numdate:hover {
+    background: #0284c7;
+    color: white;
+    border-color: #0284c7;
+    transform: scale(1.03);
+}
+
+.btn-edit-doc-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+    background: #f0fdf4;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-edit-doc-action:hover {
+    background: #059669;
+    color: white;
+    border-color: #059669;
+    transform: translateY(-1px);
 }
 
 .badge-score-add {
