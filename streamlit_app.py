@@ -132,16 +132,18 @@ def get_bundled_html():
     catalog_path = os.path.join(base_dir, "docs", "data", "evidence_catalog.json")
     if not os.path.exists(catalog_path):
         catalog_path = os.path.join(base_dir, "static", "data", "evidence_catalog.json")
+    cat_items = []
     if os.path.exists(catalog_path):
         try:
             with open(catalog_path, "r", encoding="utf-8") as cf:
-                cat_text = cf.read().strip()
-                html_content = html_content.replace(
-                    "</body>",
-                    f"<script>window.DEFAULT_EVIDENCE_CATALOG = ({cat_text}).indexed_evidence_list;</script>\n</body>"
-                )
-        except Exception as e:
-            pass
+                data = json.loads(cf.read().strip())
+                cat_items = data.get("indexed_evidence_list", []) if isinstance(data, dict) else []
+        except Exception:
+            cat_items = []
+    html_content = html_content.replace(
+        "</body>",
+        f"<script>window.DEFAULT_EVIDENCE_CATALOG = {json.dumps(cat_items, ensure_ascii=False)};</script>\n</body>"
+    )
 
     return html_content
 

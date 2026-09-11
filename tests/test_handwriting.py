@@ -215,6 +215,83 @@ class TestHandwritingExtraction(unittest.TestCase):
             self.assertEqual(str(res), expected, f"Expected {expected} but got {res} on snippet: {snippet}")
             self.assertTrue(getattr(res, "is_handwritten", False))
 
+    def test_handwritten_edge_cases_and_non_decree_filtering(self):
+        """التحقق من عدم اختلاق اختصارات للكتب المجردة من الحروف ومنع استخراج أرقام من مقالات Scopus ورسائل البريد"""
+        # 1. كتاب مجلة العمارة: العدد 17 مع وجود مخاطب مساعد رئيس الجامعة للشؤون العلمية (يجب أن يبقى 17 ولا يصبح م.ع/17)
+        text_mag = """
+        الجامعة التكنولوجية
+        قسم هندسة العمارة
+        المجلة العراقية لهندسة العمارة والتخطيط
+        IQ JAP
+        العدد: 17
+        التاريخ: 2024/12/15
+        السيد مساعد رئيس الجامعة للشؤون العلمية والدراسات العليا ... المحترم
+        """
+        num_mag = extract_document_number(text_mag)
+        self.assertIsNotNone(num_mag)
+        self.assertEqual(str(num_mag), "17")
+
+        # 2. كتاب الشؤون الإدارية والمالية: تصحيح أسر 10582 إلى أ.م/10582
+        text_admin = """
+        جمهورية العراق
+        وزارة التعليم العالي والبحث العلمي
+        الجامعة التكنولوجية
+        قسم الشؤون الإدارية والمالية
+        العدد: أسر 10582
+        التاريخ: 2024/ 12 /30
+        """
+        num_admin = extract_document_number(text_admin)
+        self.assertIsNotNone(num_admin)
+        self.assertEqual(str(num_admin), "أ.م/10582")
+
+        # 3. كتاب مكتب رئيس الجامعة: سد : 51 / 40/2 -> م.ر 1 / 51
+        text_pres = """
+        وزارة التعليم العالي والبحث العلمي
+        الجامعة التكنولوجية
+        مصكتب رئيس المامعة
+        سد : 51 / 40/2
+        تاريخ 2025 / 2/18
+        """
+        num_pres = extract_document_number(text_pres)
+        self.assertIsNotNone(num_pres)
+        self.assertIn(str(num_pres), ["م.ر 1 / 51", "م.ر/51"])
+
+        # 4. كتاب نقابة المهندسين: العدد 7417 دون فرض هـ.ع
+        text_eng = """
+        نقابة المهندسين العراقية
+        مكتب النقيب
+        العدد: 7417
+        Ref.
+        """
+        num_eng = extract_document_number(text_eng)
+        self.assertIsNotNone(num_eng)
+        self.assertEqual(str(num_eng), "7417")
+
+        # 5. مستندات غير إدارية يجب ألا يستخرج منها رقم أمر إداري مصطنع
+        text_scopus = """
+        Scopus - Exploring the Integration of Design Thinking
+        References (59) Similar documents
+        Civil Engineering and Architecture • Article
+        """
+        self.assertIsNone(extract_document_number(text_scopus))
+
+        text_email = """
+        From: IETAS 2024 ietas2024@easychair.org
+        Subject: Thank you for the review on IETAS 2024 submission 270
+        Date: November 26-27, 2024
+        """
+        self.assertIsNone(extract_document_number(text_email))
+
+        text_bologna = """
+        نظام مسار بولونيا
+        عدد الطلبة
+        99
+        عدد المواد 3
+        """
+        self.assertIsNone(extract_document_number(text_bologna))
+
+
 if __name__ == "__main__":
     unittest.main()
+
 

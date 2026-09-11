@@ -831,55 +831,69 @@ function cleanHandwrittenTokenClient(raw) {
 }
 
 function inferDepartmentAbbreviationClient(lines) {
-    const senderLines = (lines || []).slice(0, 15).filter(l => !/^\s*(?:إلى|الى|لإلى)\b/i.test(l));
+    const senderLines = (lines || []).slice(0, 15).filter(l => {
+        return !/^\s*(?:إلى|الى|لإلى)\b|المحترم|المحترمة|المحترمون|تهديكم|نهديكم|نرفق|تحية طيبة/i.test(l);
+    });
     const headerText = senderLines.join(" ");
     const norm = normalizeArabicTextClient(headerText);
 
+    if (/أمان[ةه] مجلس الجامع[ةه]|مجلس الجامع[ةه]/.test(norm)) return "م.ج";
+    if (/مكتب رئيس الجامع[ةه]|مصكتب رئيس|رئيس المامع[ةه]|رئيس الجامع[ةه]|Office of The President|President Office/i.test(norm)) return "م.ر";
     if (/مساعد رئيس الجامع[ةه] للشؤون العلمي[ةه]|المعاون العلمي/.test(norm)) return "م.ع";
     if (/مساعد رئيس الجامع[ةه] للشؤون الاداري[ةه]|المعاون الاداري/.test(norm)) return "م.إ";
     if (/الدراسات والتخطيط|الدراسات و التخطيط/.test(norm)) return "د.ت";
+    if (/الشؤون الإداري[ةه] والمالي[ةه]|قسم الشؤون الاداري[ةه]|الشؤون الاداري[ةه]/.test(norm)) return "ش.إ";
     if (/هندس[ةه] العمار[ةه]|قسم العمار[ةه]|فرع التصميم المعماري|التصميم المعماري|عماره|عمارة/.test(norm)) return "هـ.ع";
     if (/وزير التعليم العالي|مكتب الوزير|معالي الوزير/.test(norm)) return "م.و";
     if (/الشؤون العلمي[ةه]|شعب[ةه] المجلات/.test(norm)) return "ش.ع";
     if (/جهاز الاشراف|جهاز الإشراف/.test(norm)) return "ج.م";
     if (/العميد|العماد[ةه]/.test(norm)) return "ع";
 
-    // إذا كانت الوثيقة مقتطعة، نعتمد قسم التدريسي من بيانات الاستمارة أو هـ.ع افتراضياً
-    if (typeof formData !== "undefined" && formData && formData.personal_info) {
-        const pDept = normalizeArabicTextClient((formData.personal_info.department || "") + " " + (formData.personal_info.college || ""));
-        if (/هندس[ةه] العمار[ةه]|قسم العمار[ةه]|فرع التصميم المعماري|التصميم المعماري/.test(pDept)) return "هـ.ع";
-        if (/الدراسات والتخطيط/.test(pDept)) return "د.ت";
-        if (/الشؤون العلمي[ةه]/.test(pDept)) return "ش.ع";
-    }
-
-    return "هـ.ع";
+    return "";
 }
 
 function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
     if (!rawLine) return null;
-    deptHint = deptHint || (typeof formData !== "undefined" ? inferDepartmentAbbreviationClient([]) : "هـ.ع") || "هـ.ع";
+
+    // استبعاد أسطر الإحصائيات العامة مثل "عدد الطلبة" أو "عدد المواد"
+    if (/\bعدد\s*(?:الطلبة|المواد|الساعات|المشاركين|البحوث|الحضور|الصفحات|المقاعد|الدراسات|المحاضرات|الأيام|الاسابيع|الأشهر|السنوات)/i.test(rawLine)) {
+        return null;
+    }
+
+    // استبعاد نصوص الدوريات والكتب بالإنجليزية التي تحتوي على References
+    if (/\b(?:references|citations|abstract|contents)\b/i.test(rawLine)) {
+        return null;
+    }
+
+    deptHint = deptHint || "";
     let line = normalizeArabicTextClient(rawLine);
 
-    // 0. فصل الحروف العربية عن الحروف اللاتينية المتصلة بها في قراءة OCR (مثل هRef -> ه Ref)
+    // 0. فصل الحروف العربية عن الحروف اللاتينية المتصلة بها في قراءة OCR
     line = line.replace(/([\u0600-\u06FF])([A-Za-z])/g, "$1 $2");
     line = line.replace(/([A-Za-z])([\u0600-\u06FF])/g, "$1 $2");
 
-    // 1. إزالة كلمة 'العدد' أو مرادفاتها مع تشوهات OCR الشائعة (سد: أو العد: أو سـد:)
+    // 1. إزالة كلمة 'العدد' أو مرادفاتها مع تشوهات OCR الشائعة
     line = line.replace(/^(?:العدد|الـعـدد|رقم|الرقم|عدد|العد|الـعد|سد|سـد)\s*[:/=-]?\s*/i, "");
 
-    // 2. إزالة التسميات الإنجليزية الثنائية مثل Ref. أو No: أو Date: أو Rer:
+    // 2. إزالة التسميات الإنجليزية الثنائية
     line = line.replace(/\b(?:ref|no|date|rer)\b[\.:]*/gi, " ");
     line = line.replace(/\bR[0-9e]\b[\.:]*/gi, " ");
 
-    // إزالة تشويش ترويسة قسم العمارة المطبوعة (8-/4 أو /4 5 أو /45)
-    line = line.replace(/[8٨]\s*-\s*[/]\s*4\b/g, " ");
-    line = line.replace(/\s*\/\s*(?:4\s*5|5\s*4|45|54)\b/g, " ");
+    // معالجة قراءة ترويسة قسم العمارة المطبوعة (8-/4 أو /4 5) وتحويلها إلى هـ.ع/
+    line = line.replace(/[8٨]\s*-\s*[/]\s*4\b/g, "هـ.ع/");
+    line = line.replace(/\s*\/\s*(?:4\s*5|5\s*4|45|54)\b/g, " / هـ.ع");
     line = line.replace(/\s+[45]\s*5\b/g, " ");
 
-    // معالجة قراءة OCR لاختصار "٢.م.ع" أو "م.ع.2" كأرقام 40202 أو 4022 أو 20202
+    // معالجة أخطاء OCR الشائعة لاختصارات الكتب الإدارية
     line = line.replace(/40202|4022|20202/g, "مع");
+    line = line.replace(/\b(?:أسر|امر|أمر|أم|أ\.م)\b/g, "أ.م");
 
-    // تصحيح قراءة الرقم 1 المكتوب بخط اليد المائل الذي يقرأه OCR كـ \ أو / (مثل \799 -> 1799)
+    // معالجة مكتب رئيس الجامعة
+    if (deptHint === "م.ر" || /رئيس.*الجامعة/.test(line)) {
+        line = line.replace(/40\s*\/\s*2\b/g, "م.ر 1");
+    }
+
+    // تصحيح قراءة الرقم 1 المكتوب بخط اليد المائل
     line = line.replace(/\\(\d+)/g, "1$1");
     line = line.replace(/(?:^|\s)[/|!](7\d{2,3})\b/g, " 1$1");
 
@@ -890,7 +904,7 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
         line = line.replace(/(\d)\s+(\d)/g, "$1$2");
     }
 
-    // تصحيح قراءة الرقم 7 المكتوب بخط اليد (1/ أو V)
+    // تصحيح قراءة الرقم 7 المكتوب بخط اليد
     line = line.replace(/(?:\b|(?<=[^\d]))1\/(\d{2,4})/g, "7$1");
     line = line.replace(/\bV(\d{2,4})\b/gi, "7$1");
 
@@ -909,7 +923,7 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
     // إزالة تشويش السلاش المنفرد في نهاية الأرقام
     line = line.replace(/(?<!\d)(\d{2,4})\/[1-9]$/, "$1").trim();
 
-    // 6. النمط أ: الأرقام المنتهية بلاحقة حرف أو اختصار (مثل 10425/7/ص أو 1258/ق أو 9988/أ أو 1509/مع)
+    // 6. النمط أ: الأرقام المنتهية بلاحقة حرف أو اختصار
     const mSuf = line.match(/(\d{1,6}(?:[/]\d+)*)\s*[/]\s*([أ-ي](?:[\.][أ-ي]|[أ-ي]){0,3})(?=[^\u0621-\u064A0-9]|$)/);
     if (mSuf) {
         const serial = mSuf[1].trim();
@@ -923,6 +937,10 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
             return { value: `ش.ع/${serial}`, is_handwritten: true };
         } else if (cleanCode === "دت") {
             return { value: `د.ت/${serial}`, is_handwritten: true };
+        } else if (["ام", "أم", "أسر"].includes(cleanCode)) {
+            return { value: `أ.م/${serial}`, is_handwritten: true };
+        } else if (cleanCode === "مر") {
+            return { value: `م.ر/${serial}`, is_handwritten: true };
         } else if (["ص", "ق", "أ", "ت"].includes(cleanCode)) {
             return { value: `${serial}/${code}`, is_handwritten: true };
         } else if (cleanCode.length === 2 && !code.includes(".")) {
@@ -931,7 +949,7 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
         return { value: `${serial}/${code}`, is_handwritten: true };
     }
 
-    // 7. إزالة تشويش الشهر المنفرد في نهاية السطر الناتج عن تداخل سطر التاريخ أسفله
+    // 7. إزالة تشويش الشهر المنفرد في نهاية السطر الناتج عن تداخل سطر التاريخ
     const mTrail = line.match(/\/([1-9])$/);
     if (mTrail && nextLine) {
         const dVal = mTrail[1];
@@ -942,7 +960,6 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
     line = line.trim();
 
     // الصيغة 1: حروف عربية بنقاط أو بدونها مع رقم شعبة اختياري + سلاش / + رقم تسلسلي
-    // (مثل م و 8 / 135 ، ش ع / 43 ، د.ت/625 ، هـ.ع/734 ، م.ع/1509 ، ش.ع/43)
     const m1 = line.match(/([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4}(?:\s*\d{1,2})?)\s*[/]\s*(\d{1,6}(?:[/]\d+)*)/);
     if (m1) {
         let letters = m1[1].trim();
@@ -969,6 +986,10 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
             letters = "م.ع";
         } else if (cleanCode === "هع" || cleanCode === "هـع") {
             letters = "هـ.ع";
+        } else if (["ام", "أم", "أسر"].includes(cleanCode)) {
+            letters = "أ.م";
+        } else if (cleanCode === "مر") {
+            letters = "م.ر";
         } else if (cleanCode.length === 2 && !letters.includes(".")) {
             letters = `${cleanCode[0]}.${cleanCode[1]}`;
         }
@@ -979,14 +1000,14 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
         return { value: `${letters}/${serial}`, is_handwritten: true };
     }
 
-    // الصيغة 2: حروف عربية ثم مسافة ثم رقم تسلسلي (مثل ه 734 أو ش ع 43 أو هـ 1799)
+    // الصيغة 2: حروف عربية ثم مسافة ثم رقم تسلسلي
     const m2 = line.match(/([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4})\s*[:\s]\s*(\d{2,6}(?:[/]\d+)*)/);
     if (m2) {
         let letters = m2[1].trim();
         const serial = m2[2].trim();
         const cleanCode = letters.replace(/[\.\s]/g, "");
         if (["العدد", "عدد", "رقم", "العد", "سد"].includes(letters)) {
-            letters = deptHint || "هـ.ع";
+            return { value: serial, is_handwritten: true };
         } else if (letters === "ه" || letters === "هـ") {
             letters = deptHint || "هـ.ع";
         } else if (cleanCode === "مش" || cleanCode === "شع" || cleanCode === "ش") {
@@ -1001,17 +1022,21 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
             letters = "م.ع";
         } else if (cleanCode === "هع" || cleanCode === "هـع") {
             letters = "هـ.ع";
+        } else if (["ام", "أم", "أسر"].includes(cleanCode)) {
+            letters = "أ.م";
+        } else if (cleanCode === "مر") {
+            letters = "م.ر";
         } else if (cleanCode.length === 2 && !letters.includes(".")) {
             letters = `${cleanCode[0]}.${cleanCode[1]}`;
         }
         if (letters) {
             return { value: `${letters}/${serial}`, is_handwritten: true };
         }
-        return { value: `${deptHint}/${serial}`, is_handwritten: true };
+        return { value: serial, is_handwritten: true };
     }
 
-    // الصيغة 3: رقم تسلسلي متبوع بسلاش وحروف عربية (مثل 1509/مع أو 734/هـ)
-    const m3 = line.match(/(\d{2,6})\s*[/]\s*([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4})/);
+    // الصيغة 3: رقم تسلسلي متبوع بسلاش أو مسافة وحروف عربية
+    const m3 = line.match(/(\d{2,6})\s*(?:[/]|\s+)\s*([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4})/);
     if (m3) {
         const serial = m3[1].trim();
         let letters = m3[2].trim();
@@ -1022,24 +1047,31 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
             letters = "هـ.ع";
         } else if (cleanCode === "مش" || cleanCode === "شع") {
             letters = "ش.ع";
+        } else if (["ام", "أم", "أسر"].includes(cleanCode)) {
+            letters = "أ.م";
+        } else if (cleanCode === "مر") {
+            letters = "م.ر";
         } else if (letters === "ه" || letters === "هـ") {
             letters = deptHint || "هـ.ع";
         }
         return { value: `${letters}/${serial}`, is_handwritten: true };
     }
 
-    // الصيغة 4: رقم مركب بالأرقام (مثل 10425/7 أو 9988/2)
+    // الصيغة 4: رقم مركب بالأرقام
     const mComp = line.match(/\b(\d{2,6}(?:[/]\d+)+)\b/);
     if (mComp) {
         return { value: mComp[1].trim(), is_handwritten: true };
     }
 
-    // الصيغة 5: رقم تسلسلي بسيط من 2 إلى 6 خانات مع حروف القسم المستنتجة
-    const m4 = line.match(/\b(\d{2,6})\b/);
+    // الصيغة 5: رقم تسلسلي بسيط من 2 إلى 6 خانات
+    const lineBody = rawLine.replace(/^(?:العدد|الـعـدد|رقم|الرقم|عدد|العد|الـعد|سد|سـد)\s*[:/=-]?\s*/i, "").trim();
+    const m4 = lineBody.match(/\b(\d{2,6})\b/);
     if (m4) {
         const serial = m4[1].trim();
-        const prefix = deptHint || "هـ.ع";
-        return { value: `${prefix}/${serial}`, is_handwritten: true };
+        if (deptHint === "هـ.ع" && /[ههـع]/.test(lineBody)) {
+            return { value: `هـ.ع/${serial}`, is_handwritten: true };
+        }
+        return { value: serial, is_handwritten: true };
     }
 
     return null;
@@ -1052,10 +1084,13 @@ function extractDocNumberClient(text, filename) {
     const lines = normText.split(/[\r\n]+/).map(l => l.trim()).filter(Boolean);
     const deptHint = inferDepartmentAbbreviationClient(lines);
 
-    // 1. فحص الأسطر المتضمنة كلمة العدد أو الرقم أو الصادرة في أول 25 سطراً مع مراعاة أخطاء OCR
-    const labels = /(?:العدد|الـعـدد|رقم|الرقم|عدد|صادرة|وارد|ع\/|ر\/|ش\.ص\/|سد|سـد|العد|الـعد|No|NO|Ref|REF|Rer)/i;
+    // 1. فحص الأسطر المتضمنة كلمة العدد أو الرقم أو الصادرة بصرامة مع حدود الكلمات
+    const labels = /(?:العدد|الـعـدد|رقم|الرقم|صادرة|وارد|ع\/|ر\/|ش\.ص\/|سد|سـد|العد|الـعد|\b(?:No|NO|Ref|REF|Rer)\b|\bعدد\s*[:/=-])/i;
     for (let idx = 0; idx < Math.min(lines.length, 25); idx++) {
         const line = lines[idx];
+        if (/\bعدد\s*(?:الطلبة|المواد|الساعات|المشاركين|البحوث|الحضور|الصفحات)\b/i.test(line)) continue;
+        if (/\b(?:references|citations|abstract)\b/i.test(line)) continue;
+
         if (labels.test(line)) {
             const nextL = (idx + 1 < lines.length) ? lines[idx + 1] : "";
             const res = cleanHandwrittenDocNumberClient(line, deptHint, nextL);
@@ -1112,17 +1147,15 @@ function extractDocNumberClient(text, filename) {
         if (resOrder) return resOrder;
     }
 
-    // 4. استخراج الرقم من اسم الملف (مثل Archive_09_26_2024 أو أمر_1509)
+    // 4. استخراج الرقم من اسم الملف للأوامر الإدارية والجامعية فقط
     if (filename) {
         const cleanFn = normalizeArabicTextClient(filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "));
-        const mFnLetter = cleanFn.match(/([أ-ي]{1,3}\s*\/\s*\d{1,5})/);
-        if (mFnLetter) {
-            return { value: mFnLetter[1].replace(/\s+/g, ""), is_handwritten: true };
-        }
-        const mFnNum = cleanFn.match(/(?:امر|كتاب|عدد|no|ref)?\s*(\d{2,5})\b/i);
-        if (mFnNum && !mFnNum[1].startsWith("202")) {
-            const val = deptHint ? `${deptHint}/${mFnNum[1]}` : mFnNum[1];
-            return { value: val, is_handwritten: false };
+        if (!/photo|screenshot|whatsapp|archive|تقرير|اعتمادية|سيرة|جدول/i.test(cleanFn)) {
+            const mFnNum = cleanFn.match(/(?:أمر\s*جامعي|أمر\s*إداري|امر\s*جامعي|امر\s*اداري|قرار|شكر\s*وتقدير).*?(\d{2,6})\b/i);
+            if (mFnNum && !mFnNum[1].startsWith("202")) {
+                const val = deptHint ? `${deptHint}/${mFnNum[1]}` : mFnNum[1];
+                return { value: val, is_handwritten: true };
+            }
         }
     }
 
@@ -3629,12 +3662,21 @@ async function loadDraft() {
             const parsed = JSON.parse(saved);
             formData = parsed.formData || (Array.isArray(parsed) ? formData : parsed);
             const items = parsed.indexedEvidenceList || parsed.attachments || (Array.isArray(parsed) ? parsed : []);
-            const hasStuckOrCorrupted = items.some(e => 
-                !e.doc_number || e.doc_number === "غير محدد" || e.doc_number === "-" ||
-                /yolll|solell|ajljig/i.test(e.title || '') || /yolll|solell/i.test(e.subject || '')
-            );
-            if (!hasStuckOrCorrupted && items.length > 0) {
-                indexedEvidenceList = items;
+            // تفريغ أي مسودة قديمة كانت محشوة بـ 55 ملفاً افتراضياً لتبدأ الصفحة بحالة نظيفة 0 ملفات
+            const isLegacy55Draft = items.length === 55 || items.some(e => e.ref_code === "REF-AX4-P2-01" && (e.doc_number === "م.ع/17" || e.doc_number === "17"));
+            if (isLegacy55Draft) {
+                console.log("Purging legacy 55-item default catalog from local draft");
+                localStorage.removeItem("faculty_eval_draft_2026_indexed");
+                localStorage.removeItem("faculty_eval_draft_2026");
+                indexedEvidenceList = [];
+            } else {
+                const hasStuckOrCorrupted = items.some(e => 
+                    !e.doc_number || e.doc_number === "غير محدد" || e.doc_number === "-" ||
+                    /yolll|solell|ajljig/i.test(e.title || '') || /yolll|solell/i.test(e.subject || '')
+                );
+                if (!hasStuckOrCorrupted && items.length > 0) {
+                    indexedEvidenceList = items;
+                }
             }
             if (parsed.manualScoreOverrides) {
                 manualScoreOverrides = parsed.manualScoreOverrides;

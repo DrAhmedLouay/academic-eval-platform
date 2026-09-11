@@ -262,9 +262,7 @@ async def get_evidence_catalog():
         try:
             with open(cache_file, "r", encoding="utf-8") as cf:
                 data = json.load(cf)
-                items = data.get("indexed_evidence_list", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
-                if len(items) > 0:
-                    return JSONResponse(data if isinstance(data, dict) else {"success": True, "count": len(items), "indexed_evidence_list": items})
+                return JSONResponse(data if isinstance(data, dict) else {"success": True, "count": len(items), "indexed_evidence_list": items})
         except Exception:
             pass
 
