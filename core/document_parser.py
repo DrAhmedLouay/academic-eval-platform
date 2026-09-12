@@ -169,8 +169,12 @@ def extract_subject_or_title(text: str, filename: str = "", default: str = "") -
         if len(val) >= 3 and not any(k in val for k in ["مفترسة", "مختطفة"]):
             return val[:150]
 
-    # 3. أنماط الأوامر والقرارات والتقارير الإدارية المباشرة في المتن
+    # 3. أنماط الأوامر والقرارات والتقارير الإدارية والمحاضرات والدعوات المباشرة في المتن
     order_patterns = [
+        r'(?:المحاضرة\s+(?:الموسومة|النوعية)?\s+[^\n\r.]+)',
+        r'(?:(?:دعوة|ندعوكم)\s+لحضور\s+[^\n\r.]+)',
+        r'(?:ندوة\s+[^\n\r.]+)',
+        r'(?:ورشة\s+عمل\s+[^\n\r.]+)',
         r'(?:تقرير\s+اعتمادية\s+البحوث?[^\n\r.]*)',
         r'(?:اعتمادية\s+البحوث\s+العلمية[^\n\r.]*)',
         r'(?:برنامج\s+تطوير\s+وتأهيل\s+قدرات[^\n\r.]*)',
@@ -199,7 +203,7 @@ def extract_subject_or_title(text: str, filename: str = "", default: str = "") -
             return clean_fn
 
     # 5. الأسطر الأولى متجاهلاً الترويسات الرسمية
-    skip_keywords = ["جمهورية", "وزارة", "جامعة", "كلية", "قسم", "العدد", "التاريخ", "بسم الله", "شعار", "republic", "ministry", "camscanner", "scanned"]
+    skip_keywords = ["جمهورية", "دوهورية", "بواسورية", "وزارة", "جامعة", "كلية", "قسم", "نقابة", "حوسة", "العدد", "التاريخ", "بسم الله", "شعار", "republic", "ministry", "camscanner", "scanned"]
     for l in lines[:8]:
         if not any(k in l.lower() for k in skip_keywords) and len(l) > 10:
             return l[:120]
@@ -319,24 +323,23 @@ def extract_dates(text: str, filename: str = "") -> List[HandwrittenString]:
         for m in re.finditer(pat, norm_slash):
             add_date(m.group(1), is_hw=False)
 
-    # 5. استخراج التاريخ من اسم الملف ومطابقته لمنحه الأولوية القصوى (مثل Archive_09_26_2024 أو PHOTO-2024-11-12)
-    if filename:
-        fn_date = None
-        m_fn = re.search(r'\b(202[0-9])[-_](0?[1-9]|1[0-2])[-_](0?[1-9]|[12][0-9]|3[01])\b', filename)
-        if m_fn:
-            y, m, d = m_fn.groups()
-            fn_date = f"{y}/{int(m):02d}/{int(d):02d}"
-        else:
-            m_fn_arch = re.search(r'Archive_([0-9]{2})_([0-9]{2})_(202[0-9])', filename)
-            if m_fn_arch:
-                m, d, y = m_fn_arch.groups()
+    # 5. استخراج التاريخ من اسم الملف كخيار احتياطي أخير فقط إذا لم يُعثر على أي تاريخ داخل متن الوثيقة
+    if filename and not dates:
+        is_camera = bool(re.search(r'(?:PHOTO|IMG|PXL|Screenshot|WhatsApp|tempImage)', filename, re.I))
+        if not is_camera:
+            fn_date = None
+            m_fn = re.search(r'\b(202[0-9])[-_](0?[1-9]|1[0-2])[-_](0?[1-9]|[12][0-9]|3[01])\b', filename)
+            if m_fn:
+                y, m, d = m_fn.groups()
                 fn_date = f"{y}/{int(m):02d}/{int(d):02d}"
+            else:
+                m_fn_arch = re.search(r'Archive_([0-9]{2})_([0-9]{2})_(202[0-9])', filename)
+                if m_fn_arch:
+                    m, d, y = m_fn_arch.groups()
+                    fn_date = f"{y}/{int(m):02d}/{int(d):02d}"
 
-        if fn_date:
-            if fn_date not in seen:
-                add_date(fn_date, is_hw=True)
-            # إعادة ترتيب التواريخ بحيث يكون تاريخ الملف المؤكد في المرتبة الأولى
-            dates = [d for d in dates if str(d) == fn_date] + [d for d in dates if str(d) != fn_date]
+            if fn_date and fn_date not in seen:
+                add_date(fn_date, is_hw=False)
 
     return dates
 
@@ -780,20 +783,22 @@ def parse_academic_document(text: str, filename: str = "") -> Dict[str, Any]:
     # تحديد التاريخ الأنسب للوثيقة
     primary_date = "2025/2026"
     if dates:
-        clean_fn_d = filename.replace("-", "_").replace(".", "_")
-        m_fn_d = re.search(r'(\d{1,2})_(\d{1,2})_(\d{4})|(\d{4})_(\d{1,2})_(\d{1,2})', clean_fn_d)
+        is_camera = bool(re.search(r'(?:PHOTO|IMG|PXL|Screenshot|WhatsApp|tempImage)', filename, re.I))
         matched_date = None
-        if m_fn_d:
-            nums = [g for g in m_fn_d.groups() if g]
-            fn_nums = [n.lstrip("0") for n in nums]
-            best_score = 0
-            for d in dates:
-                d_str = str(d)
-                d_parts = [p.lstrip("0") for p in re.split(r'[/\-_.]', d_str) if p]
-                score = sum(1 for p in d_parts if p in fn_nums)
-                if score > best_score:
-                    best_score = score
-                    matched_date = d
+        if not is_camera:
+            clean_fn_d = filename.replace("-", "_").replace(".", "_")
+            m_fn_d = re.search(r'(\d{1,2})_(\d{1,2})_(\d{4})|(\d{4})_(\d{1,2})_(\d{1,2})', clean_fn_d)
+            if m_fn_d:
+                nums = [g for g in m_fn_d.groups() if g]
+                fn_nums = [n.lstrip("0") for n in nums]
+                best_score = 0
+                for d in dates:
+                    d_str = str(d)
+                    d_parts = [p.lstrip("0") for p in re.split(r'[/\-_.]', d_str) if p]
+                    score = sum(1 for p in d_parts if p in fn_nums)
+                    if score > best_score:
+                        best_score = score
+                        matched_date = d
         primary_date = matched_date or dates[0]
 
     # -------------------------------------------------------------------------
