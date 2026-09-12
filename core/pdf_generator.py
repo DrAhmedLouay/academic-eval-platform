@@ -117,26 +117,42 @@ def get_ref_color_scheme(ref_code: str) -> Dict[str, str]:
 
 
 def create_dossier_page_banner_pdf(ref_code: str, title: str, width: float, height: float) -> str:
-    """توليد شريط ترويسة ملون كصفحة شفافة يتم دمجها أعلى كل صفحة وثيقة PDF ملحقة"""
+    """توليد شريط ترويسة ملون مع وسم رمز المرفق البارز في أعلى يسار الصفحة"""
     from reportlab.pdfgen import canvas
     scheme = get_ref_color_scheme(ref_code)
     t_banner = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf", prefix="banner_overlay_")
     c = canvas.Canvas(t_banner.name, pagesize=(width, height))
     
-    banner_h = 22.0
+    banner_h = 26.0
     y_pos = height - banner_h
     
-    # شريط ملون
+    # 1. شريط الترويسة الأساسي
     c.setFillColor(colors.HexColor(scheme["primary"]))
     c.rect(0, y_pos, width, banner_h, fill=1, stroke=0)
     
-    # نصوص الترويسة
+    # 2. شارة / ختم رمز المرفق البارز في أعلى يسار الصفحة (خلفية كحلية داكنة + إطار ذهبي + نص ذهبي فاقع)
+    badge_w = 145.0
+    badge_h = 20.0
+    badge_x = 10.0
+    badge_y = y_pos + 3.0
+    
+    # خلفية شارة الرمز
+    c.setFillColor(colors.HexColor("#0F172A"))
+    c.setStrokeColor(colors.HexColor("#FACC15"))
+    c.setLineWidth(1.2)
+    c.roundRect(badge_x, badge_y, badge_w, badge_h, 3, fill=1, stroke=1)
+    
+    # كتابة رمز المرفق بلون ذهبي مميز
+    c.setFillColor(colors.HexColor("#FACC15"))
+    c.setFont(FONT_NAME, 8.5)
+    stamp_text = ar(f"رمز المرفق: [{ref_code}]")
+    c.drawCentredString(badge_x + (badge_w / 2.0), badge_y + 5.5, stamp_text)
+    
+    # 3. عنوان الوثيقة في الجهة اليمنى
     c.setFillColor(colors.white)
     c.setFont(FONT_NAME, 8.5)
-    c.drawString(15, y_pos + 6, f"[{ref_code}]")
-    
-    header_ar = ar(f"المصبار التوثيقي المعتمد | {scheme['name']} | {title[:65]}")
-    c.drawRightString(width - 15, y_pos + 6, header_ar)
+    header_ar = ar(f"المصبار التوثيقي المعتمد | {scheme['name']} | {title[:60]}")
+    c.drawRightString(width - 15, y_pos + 7.5, header_ar)
     
     c.save()
     return t_banner.name
@@ -906,16 +922,18 @@ def convert_image_to_a4_pdf(image_path: str, output_pdf_path: str, ref_code: str
     
     scheme = get_ref_color_scheme(ref_code)
     
-    # بناء شريط ترويسة رسمي ملون حسب تصنيف الوثيقة والمحور
+    # بناء شريط ترويسة رسمي ملون مع وسم رمز المرفق البارز في أقصى اليسار العلوي
     hdr_table_data = [
         [
-            Paragraph(f"<font color='#FFFFFF'><b>[{ref_code}]</b></font>", ParagraphStyle('HdrRef', fontName=FONT_NAME, fontSize=9, leading=11, alignment=0)),
-            Paragraph(ar(f"<font color='#FFFFFF'><b>المصبار التوثيقي المعتمد | {scheme['name']} | {title[:75]}</b></font>"), ParagraphStyle('HdrTitle', fontName=FONT_NAME, fontSize=8.5, leading=11, alignment=2))
+            Paragraph(f"<font color='#FACC15'><b>&nbsp;رمز المرفق: [{ref_code}]&nbsp;</b></font>", ParagraphStyle('HdrRef', fontName=FONT_NAME, fontSize=9.5, leading=12, alignment=1)),
+            Paragraph(ar(f"<font color='#FFFFFF'><b>المصبار التوثيقي المعتمد | {scheme['name']} | {title[:70]}</b></font>"), ParagraphStyle('HdrTitle', fontName=FONT_NAME, fontSize=8.5, leading=11, alignment=2))
         ]
     ]
-    t_hdr = Table(hdr_table_data, colWidths=[110, 445])
+    t_hdr = Table(hdr_table_data, colWidths=[150, 405])
     t_hdr.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor(scheme["primary"])),
+        ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#0F172A")),  # خلفية كحلية داكنة مميزة للرمز في أعلى اليسار
+        ('BACKGROUND', (1, 0), (1, 0), colors.HexColor(scheme["primary"])),
+        ('BOX', (0, 0), (0, 0), 1.5, colors.HexColor("#FACC15")),   # إطار ذهبي بارز لرمز المرفق
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
         ('TOPPADDING', (0, 0), (-1, -1), 4),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),

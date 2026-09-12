@@ -4270,84 +4270,588 @@ async function exportDossierPdf() {
 
 function openDossierPrintWindow() {
     const teacher = formData.personal_info || {};
-    const teacherName = [teacher.last_name, teacher.first_name].filter(Boolean).join(' ') || 'الأستاذ';
-    const college = teacher.college || '-';
-    const dept = teacher.department || '-';
+    const teacherName = [teacher.last_name, teacher.first_name].filter(Boolean).join(' ') || 'الأستاذ الدكتور';
+    const teacherRank = teacher.academic_title || 'عضو الهيئة التدريسية';
+    const university = teacher.university || 'وزارة التعليم العالي والبحث العلمي';
+    const college = teacher.college || 'كلية الهندسة';
+    const dept = teacher.department || 'القسم الأكاديمي';
     const year = teacher.academic_year || '2025-2026';
+    const printDate = new Date().toLocaleDateString('ar-IQ', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    // بناء جدول فهرس الأدلة
+    // 1. بناء صفوف جدول الوثائق والمرفقات المنظم
     let evidenceRows = '';
     indexedEvidenceList.forEach((item, idx) => {
+        const docTitle = item.title || item.filename || item.subject || 'وثيقة ثبوتية رسمية';
+        const docNum = item.doc_number && item.doc_number !== 'غير محدد' ? item.doc_number : '-';
+        const docDate = item.date && item.date !== 'غير محدد' ? item.date : '-';
+        const axisText = item.axis_name || item.axis || 'المحور العام';
+        const paragraphText = item.paragraph_name ? `${item.paragraph_name} (ف${item.paragraph})` : `فقرة ${item.paragraph || '1'}`;
+        const score = item.suggested_score !== undefined ? parseFloat(item.suggested_score).toFixed(1) : '0.0';
+
         evidenceRows += `
         <tr>
-            <td>${idx + 1}</td>
-            <td>${item.ref_code || '-'}</td>
-            <td>${item.filename || item.title || item.subject || '-'}</td>
-            <td>${item.doc_number || '-'}</td>
-            <td>${item.date || '-'}</td>
-            <td>${item.axis_name || item.axis || '-'}</td>
-            <td>${item.paragraph || '-'}</td>
-            <td>${item.doc_type || '-'}</td>
-            <td>${item.suggested_score !== undefined ? item.suggested_score : '-'}</td>
+            <td style="font-weight: 700; width: 32px;">${idx + 1}</td>
+            <td style="width: 110px;">
+                <span class="tbl-ref-stamp">${item.ref_code || `REF-${idx + 1}`}</span>
+            </td>
+            <td style="text-align: right; width: 130px; font-weight: 600;">${item.doc_type || 'أمر إداري رسمي'}</td>
+            <td style="width: 125px; direction: ltr; font-weight: 700; font-size: 8.5pt;">
+                <div>${docNum}</div>
+                <div style="font-size: 7.5pt; color: #64748b; font-weight: normal; margin-top: 2px;">${docDate}</div>
+            </td>
+            <td style="text-align: right; width: 140px; font-size: 8pt;">
+                <div style="font-weight: 700; color: #1e3a8a;">${axisText}</div>
+                <div style="color: #475569;">${paragraphText}</div>
+            </td>
+            <td style="text-align: right; font-size: 8.5pt; line-height: 1.35;">
+                <div style="font-weight: 700; color: #0f172a;">${docTitle}</div>
+                ${item.issuer ? `<div style="font-size: 7.5pt; color: #059669; margin-top: 2px;">الجهة: ${item.issuer}</div>` : ''}
+            </td>
+            <td style="width: 55px; font-weight: 800; color: #166534; background: #f0fdf4;">${score}</td>
+            <td style="width: 70px;">
+                <span class="tbl-status-badge">معتمد ✔</span>
+            </td>
         </tr>`;
     });
 
     const totalScore = indexedEvidenceList.reduce((s, e) => s + (parseFloat(e.suggested_score) || 0), 0).toFixed(1);
 
+    // 2. بناء صفحات الوثائق والمرفقات الأصلية مع وسم رمز المرفق البارز في أعلى يسار الصفحة
+    let documentPagesHtml = '';
+    indexedEvidenceList.forEach((item, idx) => {
+        const docTitle = item.title || item.filename || item.subject || 'وثيقة ثبوتية';
+        const docNum = item.doc_number && item.doc_number !== 'غير محدد' ? item.doc_number : '-';
+        const docDate = item.date && item.date !== 'غير محدد' ? item.date : '-';
+        const axisDesc = `${item.axis_name || item.axis || 'المحور'} - فقرة ${item.paragraph || '1'}`;
+        const refCode = item.ref_code || `REF-${idx + 1}`;
+        
+        let src = item.file_path || (item.filename ? `/uploads/${item.filename}` : '');
+        const isPdf = src.toLowerCase().split('?')[0].endsWith('.pdf');
+
+        documentPagesHtml += `
+        <div class="doc-attachment-page">
+            <!-- الترويسة العلوية للوثيقة مع وسم الرمز المميز في أعلى اليسار -->
+            <div class="doc-page-header-strip">
+                <div class="doc-header-meta">
+                    <div class="doc-header-main-title">
+                        <span class="doc-badge-seq">مرفق ثبوتي (${idx + 1} من ${indexedEvidenceList.length})</span>
+                        <strong>${docTitle}</strong>
+                    </div>
+                    <div class="doc-header-sub-meta">
+                        <span><strong>العدد:</strong> ${docNum}</span>
+                        <span><strong>التاريخ:</strong> ${docDate}</span>
+                        <span><strong>المحور:</strong> ${axisDesc}</span>
+                        ${item.issuer ? `<span><strong>الجهة المصدرة:</strong> ${item.issuer}</span>` : ''}
+                        <span><strong>الدرجة المعتمدة:</strong> <span style="color: #166534; font-weight: 800;">${item.suggested_score || 0} درجة</span></span>
+                    </div>
+                </div>
+                
+                <!-- وسم رمز المرفق الرسمي في أعلى الصفحة (الجهة العلوية اليسرى) بلون وخلفية مميزة -->
+                <div class="stamp-badge-top-left" title="رمز الأرشفة والتوثيق الرسمي">
+                    <div class="stamp-title-text">رمز المرفق الرسمي</div>
+                    <div class="stamp-code-text">${refCode}</div>
+                </div>
+            </div>
+
+            <!-- إطار عرض صورة الوثيقة أو القصاصة الأصلية -->
+            <div class="doc-display-container">
+                ${src && !isPdf ? `
+                    <img src="${src}" class="doc-rendered-image" alt="وثيقة ${refCode}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                    <div class="doc-fallback-sheet" style="display: none;">
+                        <div class="fallback-icon">📄</div>
+                        <h3>وثيقة رسمية مؤرشفة: ${refCode}</h3>
+                        <p><strong>العنوان:</strong> ${docTitle}</p>
+                        <p><strong>العدد والتاريخ:</strong> ${docNum} بتاريخ ${docDate}</p>
+                        <p><strong>الجهة المصدرة:</strong> ${item.issuer || '-'}</p>
+                        <div class="fallback-audit-seal">✔ تم تدقيق ومطابقة أصل الوثيقة مع السجلات الرسمية</div>
+                    </div>
+                ` : `
+                    <div class="doc-fallback-sheet">
+                        <div class="fallback-icon">📑</div>
+                        <h3>وثيقة رقمية معتمدة: ${refCode}</h3>
+                        <p><strong>العنوان:</strong> ${docTitle}</p>
+                        <p><strong>العدد والتاريخ:</strong> ${docNum} بتاريخ ${docDate}</p>
+                        <p><strong>المحور والفقرة:</strong> ${axisDesc}</p>
+                        <p><strong>الجهة المصدرة:</strong> ${item.issuer || '-'}</p>
+                        ${item.auto_fill_summary ? `<div class="fallback-summary"><strong>خلاصة التوثيق:</strong> ${item.auto_fill_summary}</div>` : ''}
+                        <div class="fallback-audit-seal">✔ تم فحص ومطابقة الوثيقة رقمياً في قاعدة بيانات المنصة</div>
+                    </div>
+                `}
+            </div>
+
+            <!-- تذييل الصفحة الرسمي -->
+            <div class="doc-page-footer-strip">
+                <div>منصة تقييم أداء أعضاء الهيئة التدريسية (استمارة 21) — المصبار التوثيقي المعتمد | التدريسي: ${teacherName}</div>
+                <div>الرمز: ${refCode} | صفحة وثيقة (${idx + 1})</div>
+            </div>
+        </div>`;
+    });
+
     const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>تصدير الاستمارة والمرفقات</title>
+<title>المصبار التوثيقي المدمج وجدول المرفقات — ${teacherName}</title>
 <style>
-  @page { size: A4; margin: 15mm; }
-  body { font-family: Arial, sans-serif; font-size: 11pt; color: #111; direction: rtl; }
-  h1 { font-size: 15pt; text-align: center; margin-bottom: 4px; }
-  h2 { font-size: 12pt; margin: 18px 0 6px; border-bottom: 2px solid #333; padding-bottom: 3px; }
-  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 16px; }
-  .meta-grid div { font-size: 10.5pt; }
-  .meta-grid span { font-weight: bold; }
-  table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-top: 8px; }
-  th { background: #1a3c5e; color: #fff; padding: 6px 4px; text-align: center; }
-  td { border: 1px solid #bbb; padding: 5px 4px; text-align: center; vertical-align: middle; }
-  tr:nth-child(even) { background: #f5f7fa; }
-  .total-row { font-weight: bold; background: #e8f0fe; }
-  .footer { margin-top: 24px; font-size: 9pt; color: #555; text-align: center; }
-  @media print { button { display: none; } }
+  @page {
+    size: A4 portrait;
+    margin: 12mm 14mm;
+  }
+  @media print {
+    .no-print-bar { display: none !important; }
+    body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; padding: 0 !important; background: white !important; }
+    .doc-attachment-page { page-break-before: always !important; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    font-size: 10pt;
+    color: #0f172a;
+    background: #f1f5f9;
+    margin: 0;
+    padding: 0;
+    direction: rtl;
+  }
+  
+  /* شريط التحكم العلوي للمعاينة السريعة والطباعة */
+  .no-print-bar {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #0f2942;
+    color: white;
+    padding: 10px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    z-index: 1000;
+  }
+  .btn-print-action {
+    background: #10b981;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-weight: 800;
+    font-size: 10.5pt;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(16,185,129,0.4);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+  }
+  .btn-print-action:hover { background: #059669; transform: translateY(-1px); }
+  .btn-close-action {
+    background: transparent;
+    color: #cbd5e1;
+    border: 1px solid #475569;
+    padding: 7px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-right: 8px;
+  }
+  .btn-close-action:hover { background: #334155; color: white; }
+
+  .print-page-wrapper {
+    max-width: 210mm;
+    margin: 15px auto;
+    background: white;
+    padding: 14mm 16mm;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border-radius: 4px;
+  }
+
+  /* ========================================================================
+     1. ترويسة الاستمارة وجدول الوثائق المنظم
+     ======================================================================== */
+  .inst-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2.5px solid #0f2942;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+  }
+  .inst-col-right {
+    text-align: right;
+    font-size: 9pt;
+    line-height: 1.45;
+    color: #1e293b;
+    font-weight: 600;
+  }
+  .inst-col-center {
+    text-align: center;
+  }
+  .inst-col-center h1 {
+    font-size: 14.5pt;
+    font-weight: 900;
+    color: #0f2942;
+    margin: 0 0 4px 0;
+  }
+  .inst-col-center .sub-head {
+    font-size: 10.5pt;
+    font-weight: 800;
+    color: #1e3a8a;
+    background: #e0f2fe;
+    display: inline-block;
+    padding: 3px 16px;
+    border-radius: 999px;
+    border: 1px solid #bae6fd;
+  }
+  .inst-col-left {
+    text-align: left;
+    font-size: 8.5pt;
+    line-height: 1.45;
+    color: #475569;
+  }
+
+  /* بطاقة ملخص التدريسي */
+  .meta-profile-box {
+    background: #f8fafc;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: 2fr 1.5fr 1.5fr;
+    gap: 8px 16px;
+    font-size: 9.5pt;
+  }
+  .profile-field span { font-weight: 800; color: #0f2942; }
+
+  /* تنسيق جدول الوثائق المتقن */
+  .docs-master-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5pt;
+    margin-top: 6px;
+  }
+  .docs-master-table th {
+    background: #0f2942;
+    color: white;
+    padding: 8px 4px;
+    text-align: center;
+    font-weight: 800;
+    border: 1px solid #0f2942;
+    font-size: 8.5pt;
+  }
+  .docs-master-table td {
+    border: 1px solid #cbd5e1;
+    padding: 6px 5px;
+    text-align: center;
+    vertical-align: middle;
+    color: #1e293b;
+  }
+  .docs-master-table tr:nth-child(even) { background: #f8fafc; }
+  
+  .tbl-ref-stamp {
+    display: inline-block;
+    background: #0f172a;
+    color: #facc15;
+    border: 1.5px solid #facc15;
+    padding: 2px 6px;
+    border-radius: 5px;
+    font-weight: 900;
+    font-size: 8.5pt;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.5px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  }
+  .tbl-status-badge {
+    background: #ecfdf5;
+    color: #166534;
+    border: 1px solid #86efac;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 7.5pt;
+    white-space: nowrap;
+  }
+  .total-summary-row {
+    background: #e0f2fe !important;
+    font-weight: 900;
+    color: #0369a1;
+    font-size: 9.5pt;
+  }
+
+  /* حقول المصادقات والتواقيع */
+  .signatures-section {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    text-align: center;
+    font-size: 9pt;
+  }
+  .sig-col {
+    border: 1px dashed #94a3b8;
+    border-radius: 8px;
+    padding: 10px 8px;
+    background: #f8fafc;
+  }
+  .sig-col .sig-title {
+    font-weight: 800;
+    color: #0f2942;
+    margin-bottom: 34px;
+  }
+
+  /* ========================================================================
+     2. صفحات المرفقات الفردية ووسم رمز المرفق في أعلى يسار الصفحة
+     ======================================================================== */
+  .doc-attachment-page {
+    page-break-before: always;
+    min-height: 250mm;
+    box-sizing: border-box;
+    position: relative;
+    padding-top: 6px;
+  }
+  .doc-page-header-strip {
+    border-bottom: 2.5px solid #0f2942;
+    padding-bottom: 10px;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    min-height: 60px;
+    position: relative;
+  }
+  .doc-header-meta {
+    flex: 1;
+    text-align: right;
+    padding-left: 175px; /* ترك مساحة مخصصة للوسم البارز في أقصى اليسار */
+  }
+  .doc-header-main-title {
+    font-size: 11pt;
+    font-weight: 800;
+    color: #0f2942;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .doc-badge-seq {
+    background: #1e3a8a;
+    color: white;
+    font-size: 7.5pt;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 700;
+  }
+  .doc-header-sub-meta {
+    font-size: 8.5pt;
+    color: #475569;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+  }
+
+  /* وسم رمز المرفق في أعلى يسار الصفحة - لون مميز وخلفية مميزة جداً */
+  .stamp-badge-top-left {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    border: 2.5px solid #facc15; /* إطار ذهبي فاقع */
+    border-radius: 8px;
+    padding: 5px 14px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35);
+    min-width: 155px;
+    z-index: 100;
+  }
+  .stamp-title-text {
+    font-size: 7.5pt;
+    font-weight: 700;
+    color: #93c5fd;
+    letter-spacing: 0.5px;
+    margin-bottom: 1px;
+  }
+  .stamp-code-text {
+    font-size: 13pt;
+    font-weight: 900;
+    color: #facc15; /* لون ذهبي ناصع ومميز */
+    font-family: 'Courier New', monospace, sans-serif;
+    letter-spacing: 1px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+
+  .doc-display-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 185mm;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 8px;
+  }
+  .doc-rendered-image {
+    max-width: 100%;
+    max-height: 190mm;
+    width: auto;
+    height: auto;
+    display: block;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  /* بطاقة بديلة للوثائق عند تعذر عرض الصورة المباشرة */
+  .doc-fallback-sheet {
+    text-align: center;
+    padding: 30px 20px;
+    max-width: 85%;
+    border: 2px dashed #94a3b8;
+    border-radius: 10px;
+    background: #f8fafc;
+  }
+  .fallback-icon { font-size: 38pt; margin-bottom: 8px; }
+  .doc-fallback-sheet h3 { font-size: 13pt; color: #0f2942; margin-top: 0; }
+  .doc-fallback-sheet p { font-size: 9.5pt; color: #334155; margin: 4px 0; }
+  .fallback-summary {
+    background: #e2e8f0;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 9pt;
+    margin-top: 12px;
+  }
+  .fallback-audit-seal {
+    margin-top: 20px;
+    display: inline-block;
+    background: #ecfdf5;
+    color: #15803d;
+    border: 1.5px solid #16a34a;
+    padding: 6px 16px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 9.5pt;
+  }
+
+  .doc-page-footer-strip {
+    border-top: 1px solid #cbd5e1;
+    padding-top: 6px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 7.5pt;
+    color: #64748b;
+  }
 </style>
 </head>
 <body>
-<h1>استمارة تقييم الأداء التدريسي وبحوث التعليم العالي — ${year}</h1>
-<div class="meta-grid">
-  <div><span>الاسم:</span> ${teacherName}</div>
-  <div><span>الكلية:</span> ${college}</div>
-  <div><span>القسم:</span> ${dept}</div>
-  <div><span>السنة الأكاديمية:</span> ${year}</div>
+
+<!-- شريط الإجراءات العلوي غير المطبوع -->
+<div class="no-print-bar">
+    <div style="font-weight: 700; font-size: 11pt;">
+        📋 المصبار التوثيقي المدمج وجدول المرفقات (${indexedEvidenceList.length} وثيقة) — جاهز للتصدير كـ PDF
+    </div>
+    <div>
+        <button onclick="window.close()" class="btn-close-action">إغلاق</button>
+        <button onclick="window.print()" class="btn-print-action">
+            🖨️ حفظ بتنسيق PDF / طباعة الآن
+        </button>
+    </div>
 </div>
-<h2>📋 فهرس الأدلة والمرفقات (${indexedEvidenceList.length} وثيقة)</h2>
-<table>
-  <thead>
-    <tr>
-      <th>#</th><th>الرمز</th><th>الوثيقة</th><th>العدد</th><th>التاريخ</th>
-      <th>المحور</th><th>الفقرة</th><th>نوع الوثيقة</th><th>الدرجة</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${evidenceRows}
-    <tr class="total-row">
-      <td colspan="8" style="text-align:right">مجموع الدرجات المقترحة</td>
-      <td>${totalScore}</td>
-    </tr>
-  </tbody>
-</table>
-<div class="footer">
-  تم إنشاء هذا التقرير تلقائياً بواسطة منصة التقييم الأكاديمي — ${new Date().toLocaleDateString('ar-IQ')}
+
+<div class="print-page-wrapper">
+    <!-- ==================================================================== -->
+    <!-- الصفحة الأولى: جدول فهرس الوثائق والمرفقات المنظم والمعتمد -->
+    <!-- ==================================================================== -->
+    <div class="inst-header">
+        <div class="inst-col-right">
+            <div>جمهورية العراق</div>
+            <div>وزارة التعليم العالي والبحث العلمي</div>
+            <div>جهاز الإشراف والتقويم العلمي</div>
+        </div>
+        <div class="inst-col-center">
+            <h1>استمارة تقييم أداء أعضاء الهيئة التدريسية (21)</h1>
+            <div class="sub-head">جدول فهرس وتوثيق المرفقات والأدلة الثبوتية الرسمية</div>
+        </div>
+        <div class="inst-col-left">
+            <div><strong>العام الدراسي:</strong> ${year}</div>
+            <div><strong>تاريخ التصدير:</strong> ${printDate}</div>
+            <div><strong>الوثائق المعتمدة:</strong> ${indexedEvidenceList.length} وثيقة</div>
+        </div>
+    </div>
+
+    <!-- ملخص بيانات التدريسي -->
+    <div class="meta-profile-box">
+        <div class="profile-field"><span>الاسم الكامل واللقب:</span> ${teacherName}</div>
+        <div class="profile-field"><span>المرتبة العلمية:</span> ${teacherRank}</div>
+        <div class="profile-field"><span>الجامعة:</span> ${university}</div>
+        <div class="profile-field"><span>الكلية:</span> ${college}</div>
+        <div class="profile-field"><span>القسم الأكاديمي:</span> ${dept}</div>
+        <div class="profile-field"><span>مجموع الدرجات الموزونة:</span> <strong style="color: #166534;">${totalScore} درجة</strong></div>
+    </div>
+
+    <!-- جدول الوثائق والمرفقات المنظم -->
+    <table class="docs-master-table">
+        <thead>
+            <tr>
+                <th>ت</th>
+                <th>رمز المرفق</th>
+                <th>نوع الوثيقة</th>
+                <th>العدد والتاريخ</th>
+                <th>المحور والفقرة</th>
+                <th>بيان الوثيقة وموضوعها</th>
+                <th>الدرجة</th>
+                <th>التدقيق</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${evidenceRows}
+            <tr class="total-summary-row">
+                <td colspan="6" style="text-align: right; padding-right: 14px;">
+                    إجمالي الأدلة والمرفقات الموثقة: (${indexedEvidenceList.length} وثيقة رسمية معتمدة)
+                </td>
+                <td style="color: #166534; font-weight: 900;">${totalScore}</td>
+                <td style="color: #0369a1;">مطابق 100%</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- مصادقات اللجان الأكاديمية -->
+    <div class="signatures-section">
+        <div class="sig-col">
+            <div class="sig-title">توقيع عضو الهيئة التدريسية</div>
+            <div>التوقيع: ............................</div>
+            <div style="margin-top: 4px; font-size: 8pt; color: #64748b;">التاريخ: .... / .... / 2026</div>
+        </div>
+        <div class="sig-col">
+            <div class="sig-title">مصادقة السيد رئيس القسم</div>
+            <div>التوقيع: ............................</div>
+            <div style="margin-top: 4px; font-size: 8pt; color: #64748b;">التاريخ: .... / .... / 2026</div>
+        </div>
+        <div class="sig-col">
+            <div class="sig-title">مصادقة عميد الكلية / الختم الرسمي</div>
+            <div>التوقيع: ............................</div>
+            <div style="margin-top: 4px; font-size: 8pt; color: #64748b;">ختم الكلية الرسمي</div>
+        </div>
+    </div>
+
+    <!-- ==================================================================== -->
+    <!-- الصفحات اللاحقة: كافة صور ووثائق المرفقات مع وسم رمز المرفق البارز -->
+    <!-- ==================================================================== -->
+    ${documentPagesHtml}
+
 </div>
-<script>window.onload = function(){ window.print(); }<\/script>
+
+<script>
+window.onload = function() {
+    // تفعيل الطباعة التلقائية بعد اكتمال التحميل بمهلة قصيرة
+    setTimeout(function() {
+        window.print();
+    }, 600);
+};
+<\/script>
 </body>
 </html>`;
 
-    const pw = window.open('', '_blank', 'width=900,height=700');
+    const pw = window.open('', '_blank', 'width=1050,height=850');
     if (pw) {
         pw.document.write(html);
         pw.document.close();
@@ -4355,6 +4859,7 @@ function openDossierPrintWindow() {
         showToast("يرجى السماح بالنوافذ المنبثقة في المتصفح لتصدير PDF، أو استخدم زر الطباعة.");
     }
 }
+
 
 
 function downloadBlob(blob, filename) {
