@@ -963,6 +963,15 @@ body {
 }
 
 /* تنسيقات خاصة بالطباعة */
+@page {
+    size: A4 portrait;
+    margin: 2.0cm 1.5cm;
+    margin-top: 2.0cm;
+    margin-bottom: 2.0cm;
+    margin-left: 1.5cm;
+    margin-right: 1.5cm;
+}
+
 @media print {
     .main-header, .sticky-scoreboard, .tabs-nav, .quick-actions, .ocr-dropzone, .btn, .initiative-announcement-bar, .platform-footer {
         display: none !important;
@@ -970,6 +979,7 @@ body {
     body {
         background: white !important;
         padding: 0 !important;
+        margin: 0 !important;
     }
     .tab-pane {
         display: block !important;
@@ -979,6 +989,7 @@ body {
         border: none !important;
         box-shadow: none !important;
         padding: 0 !important;
+        margin: 0 !important;
     }
 }
 

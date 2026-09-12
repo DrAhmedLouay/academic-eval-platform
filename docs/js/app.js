@@ -4290,16 +4290,16 @@ function openDossierPrintWindow() {
 
         evidenceRows += `
         <tr>
-            <td style="font-weight: 700; width: 32px;">${idx + 1}</td>
-            <td style="width: 110px;">
+            <td style="font-weight: 700; width: 28px;">${idx + 1}</td>
+            <td style="width: 100px;">
                 <span class="tbl-ref-stamp">${item.ref_code || `REF-${idx + 1}`}</span>
             </td>
-            <td style="text-align: right; width: 130px; font-weight: 600;">${item.doc_type || 'أمر إداري رسمي'}</td>
-            <td style="width: 125px; direction: ltr; font-weight: 700; font-size: 8.5pt;">
+            <td style="text-align: right; width: 110px; font-weight: 600;">${item.doc_type || 'أمر إداري رسمي'}</td>
+            <td style="width: 105px; direction: ltr; font-weight: 700; font-size: 8pt;">
                 <div>${docNum}</div>
                 <div style="font-size: 7.5pt; color: #64748b; font-weight: normal; margin-top: 2px;">${docDate}</div>
             </td>
-            <td style="text-align: right; width: 140px; font-size: 8pt;">
+            <td style="text-align: right; width: 115px; font-size: 8pt;">
                 <div style="font-weight: 700; color: #1e3a8a;">${axisText}</div>
                 <div style="color: #475569;">${paragraphText}</div>
             </td>
@@ -4307,8 +4307,8 @@ function openDossierPrintWindow() {
                 <div style="font-weight: 700; color: #0f172a;">${docTitle}</div>
                 ${item.issuer ? `<div style="font-size: 7.5pt; color: #059669; margin-top: 2px;">الجهة: ${item.issuer}</div>` : ''}
             </td>
-            <td style="width: 55px; font-weight: 800; color: #166534; background: #f0fdf4;">${score}</td>
-            <td style="width: 70px;">
+            <td style="width: 50px; font-weight: 800; color: #166534; background: #f0fdf4;">${score}</td>
+            <td style="width: 65px;">
                 <span class="tbl-status-badge">معتمد ✔</span>
             </td>
         </tr>`;
@@ -4395,12 +4395,37 @@ function openDossierPrintWindow() {
 <style>
   @page {
     size: A4 portrait;
-    margin: 12mm 14mm;
+    margin: 2.0cm 1.5cm;
+    margin-top: 2.0cm;
+    margin-bottom: 2.0cm;
+    margin-left: 1.5cm;
+    margin-right: 1.5cm;
   }
   @media print {
     .no-print-bar { display: none !important; }
-    body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; padding: 0 !important; background: white !important; }
-    .doc-attachment-page { page-break-before: always !important; }
+    body {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      background: white !important;
+    }
+    .print-page-wrapper {
+      max-width: 100% !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      border: none !important;
+      border-radius: 0 !important;
+    }
+    .doc-attachment-page {
+      page-break-before: always !important;
+      break-before: page !important;
+      margin-top: 0 !important;
+      padding-top: 0 !important;
+      border-top: none !important;
+    }
   }
   * { box-sizing: border-box; }
   body {
@@ -4460,9 +4485,10 @@ function openDossierPrintWindow() {
     max-width: 210mm;
     margin: 15px auto;
     background: white;
-    padding: 14mm 16mm;
+    padding: 2.0cm 1.5cm;
     box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     border-radius: 4px;
+    box-sizing: border-box;
   }
 
   /* ========================================================================
@@ -4683,16 +4709,16 @@ function openDossierPrintWindow() {
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 185mm;
+    min-height: 170mm;
     background: #ffffff;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
-    padding: 10px;
+    padding: 8px;
     margin-bottom: 8px;
   }
   .doc-rendered-image {
     max-width: 100%;
-    max-height: 190mm;
+    max-height: 180mm;
     width: auto;
     height: auto;
     display: block;

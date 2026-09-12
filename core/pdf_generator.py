@@ -909,14 +909,15 @@ def create_form_21_pdf(data: Dict[str, Any], output_path: str, attachments: List
 
 
 def convert_image_to_a4_pdf(image_path: str, output_pdf_path: str, ref_code: str = "", title: str = "") -> str:
-    """تحويل صورة الوثيقة الثبوتية إلى صفحة PDF بحجم A4 مع ترويسة توثيقية رسمية ملونة حسب المحور"""
+    """تحويل صورة الوثيقة الثبوتية إلى صفحة PDF بحجم A4 بهوامش 2 سم من الأعلى والأسفل و 1.5 سم من الجانبين"""
+    from reportlab.lib.units import cm
     doc = SimpleDocTemplate(
         output_pdf_path,
         pagesize=A4,
-        leftMargin=20,
-        rightMargin=20,
-        topMargin=15,
-        bottomMargin=15
+        leftMargin=1.5 * cm,
+        rightMargin=1.5 * cm,
+        topMargin=2.0 * cm,
+        bottomMargin=2.0 * cm
     )
     story = []
     
@@ -926,10 +927,10 @@ def convert_image_to_a4_pdf(image_path: str, output_pdf_path: str, ref_code: str
     hdr_table_data = [
         [
             Paragraph(f"<font color='#FACC15'><b>&nbsp;رمز المرفق: [{ref_code}]&nbsp;</b></font>", ParagraphStyle('HdrRef', fontName=FONT_NAME, fontSize=9.5, leading=12, alignment=1)),
-            Paragraph(ar(f"<font color='#FFFFFF'><b>المصبار التوثيقي المعتمد | {scheme['name']} | {title[:70]}</b></font>"), ParagraphStyle('HdrTitle', fontName=FONT_NAME, fontSize=8.5, leading=11, alignment=2))
+            Paragraph(ar(f"<font color='#FFFFFF'><b>المصبار التوثيقي المعتمد | {scheme['name']} | {title[:65]}</b></font>"), ParagraphStyle('HdrTitle', fontName=FONT_NAME, fontSize=8.5, leading=11, alignment=2))
         ]
     ]
-    t_hdr = Table(hdr_table_data, colWidths=[150, 405])
+    t_hdr = Table(hdr_table_data, colWidths=[140, 370])
     t_hdr.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (0, 0), colors.HexColor("#0F172A")),  # خلفية كحلية داكنة مميزة للرمز في أعلى اليسار
         ('BACKGROUND', (1, 0), (1, 0), colors.HexColor(scheme["primary"])),
@@ -944,12 +945,12 @@ def convert_image_to_a4_pdf(image_path: str, output_pdf_path: str, ref_code: str
     story.append(Spacer(1, 6))
     
     try:
-        # حساب أبعاد الصورة لتلائم صفحة A4 (عرض 555 × ارتفاع 760 كحد أقصى)
+        # حساب أبعاد الصورة لتلائم صفحة A4 بهوامش 2 سم أعلى وأسفل و 1.5 سم جانبين (عرض 510 × ارتفاع 680 كحد أقصى)
         from PIL import Image as PILImage
         with PILImage.open(image_path) as im:
             w, h = im.size
         
-        max_w, max_h = 555.0, 750.0
+        max_w, max_h = 510.0, 680.0
         ratio = min(max_w / w, max_h / h)
         disp_w = w * ratio
         disp_h = h * ratio
