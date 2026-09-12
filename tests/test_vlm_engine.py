@@ -125,5 +125,26 @@ class TestVlmEngine(unittest.TestCase):
         sdata = res.json()
         self.assertTrue(sdata.get("success"))
 
+    def test_gemini_vlm_handwriting_post_processing(self):
+        from unittest.mock import patch
+        from core.vlm_engine import scan_document_multimodal
+
+        mock_gemini_response = {
+            "doc_number": "هـ.ع / V39",
+            "date": "r.r5/4/14",
+            "subject": "أمر إداري بتشكيل لجنة",
+            "issuer": "قسم هندسة العمارة",
+            "doc_type": "أمر إداري",
+            "is_handwritten": True
+        }
+
+        with patch("core.vlm_engine.load_vlm_config", return_value={"engine": "gemini", "gemini_api_key": "dummy_key", "model": "gemini-2.0-flash"}), \
+             patch("core.vlm_engine.call_gemini_vlm_api", return_value=mock_gemini_response):
+            result = scan_document_multimodal("dummy_path.jpg", faculty_name="أحمد لؤي أحمد")
+            self.assertTrue(result.get("ocr_success"))
+            self.assertIn("739", result.get("doc_number", ""))
+            self.assertIn("2025", result.get("date", ""))
+
 if __name__ == "__main__":
     unittest.main()
+

@@ -1410,6 +1410,9 @@ async function callGeminiVisionClient(file) {
                    (document.getElementById("vlm-api-key-input") ? document.getElementById("vlm-api-key-input").value.trim() : "");
     if (!apiKey) return null;
 
+    // اختيار النموذج المحفوظ أو الافتراضي
+    const model = localStorage.getItem("vlm_model") || "gemini-2.0-flash";
+
     try {
         const base64Data = await new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -1422,17 +1425,44 @@ async function callGeminiVisionClient(file) {
         });
 
         const mimeType = file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
-        const promptText = `أنت خبير توثيق أكاديمي في الجامعات العراقية. استخرج بدقة الحقول التالية من الوثيقة المرفقة (سواء كانت مطبوعة أو مكتوبة بخط اليد):
-1. doc_number: العدد الإداري (مثل م.ع/1509 أو د.ت/625 أو ش.ع/43 أو 17).
-2. date: التاريخ بصيغة YYYY/MM/DD (مثل 2024/09/19).
-3. subject: موضوع الوثيقة أو عنوان البحث أو اللجنة.
-4. issuer: الجهة المصدرة (الوزارة أو الجامعة أو الكلية أو القسم).
-5. doc_type: نوع الوثيقة (أمر إداري، كتاب شكر وتقدير، بحث علمي، شهادة مشاركة).
-6. is_handwritten: هل العدد أو التاريخ مكتوب بخط اليد (true أو false).
-أجب بصيغة JSON فقط كالتالي:
-{"doc_number": "...", "date": "YYYY/MM/DD", "subject": "...", "issuer": "...", "doc_type": "...", "is_handwritten": true}`;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+        const promptText = `أنت خبير متخصص في قراءة وتحليل الوثائق الإدارية العراقية الرسمية المكتوبة بخط اليد أو المطبوعة.
+مهمتك: استخراج بيانات الوثيقة بدقة متناهية مع التركيز الخاص على الأرقام المكتوبة بخط اليد.
+
+## دليل تمييز الأرقام العربية المكتوبة بخط اليد:
+الأرقام العربية المشرقية (٠١٢٣٤٥٦٧٨٩) تختلف بصرياً عن الأرقام اللاتينية، وخاصةً بخط اليد:
+
+| الرقم | شكله بخط اليد | يُخلط مع | كيف تُميّزه |
+|-------|--------------|----------|-------------|
+| ٧ (سبعة) | U أو V مفتوح للأعلى | حرف V أو شرطة + رقم | مفتوح للأعلى دائماً |
+| ٢ (اثنان) | r صغيرة أو خطاف متجه للأمام | حرف r اللاتيني | في سياق الأرقام = ٢ |
+| ٠ (صفر) | دائرة صغيرة بدون ذيل | حرف o اللاتيني | أصغر من ٥، بدون ذيل |
+| ٥ (خمسة) | دائرة مع ذيل صغير أسفل اليمين | الصفر ٠ | تمييزه بالذيل |
+| ٣ (ثلاثة) | ε أو 3 — مفتوح من الجانبين | ٤ (أربعة) | أصغر وأكثر انفتاحاً |
+| ٤ (أربعة) | ε أكبر أو 3 — أكثر انغلاقاً من أعلى | ٣ (ثلاثة) | أكبر حجماً |
+| ٨ (ثمانية) | A كبيرة أو ع عربية | حرف A | في سياق الأرقام = ٨ |
+| ١ (واحد) | خط مائل أو رأسي يشبه / | شرطة مائلة | في سياق الأرقام = ١ |
+| ٩ (تسعة) | خطاف معكوس أو q | حرف q | في سياق الأرقام = ٩ |
+| ٦ (ستة) | يشبه 7 لكن مع حلقة في الأسفل | الرقم 7 | فحص وجود الحلقة |
+
+## تنسيق العدد الإداري العراقي (صيغة: [اختصار الجهة]/[رقم]):
+أمثلة حقيقية من الوثائق العراقية:
+- هـ.ع/739 — قسم هندسة العمارة
+- هـ.ع/1799 — نفس القسم، عدد أكبر
+- م.ع/1509 — مساعد رئيس الجامعة للشؤون العلمية
+- د.ت/625 — قسم الدراسات والتخطيط
+- ش.ع/43 — الشؤون العلمية
+- م و 8/130 — مكتب الوزير، شعبة 8، عدد 130
+- م.ر/51 — مكتب رئيس الجامعة
+- م.ج 9/421 — أمانة مجلس الجامعة
+
+## تنسيق التاريخ: YYYY/MM/DD — السنة دائماً 2023-2026
+مثال: 2025/04/14 أو 2025/01/12
+
+## أرجع JSON فقط بهذه الحقول:
+{"doc_number": "...", "date": "YYYY/MM/DD", "subject": "...", "issuer": "...", "doc_type": "...", "is_handwritten": true, "confidence_note": "اذكر أي رقم كنت غير متأكد منه"}`;
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
         const resp = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -1442,7 +1472,11 @@ async function callGeminiVisionClient(file) {
                         { text: promptText },
                         { inline_data: { mime_type: mimeType, data: base64Data } }
                     ]
-                }]
+                }],
+                generationConfig: {
+                    temperature: 0.05,
+                    responseMimeType: "application/json"
+                }
             })
         });
 
@@ -1451,7 +1485,25 @@ async function callGeminiVisionClient(file) {
             const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
             const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-                return JSON.parse(jsonMatch[0]);
+                const parsed = JSON.parse(jsonMatch[0]);
+
+                // ── post-processing: تصحيح أشكال OCR الشائعة ──
+                if (parsed.doc_number) {
+                    parsed.doc_number = parsed.doc_number
+                        .replace(/\b[VU](\d{2,4})\b/g, '7$1')
+                        .replace(/\bA(\d{2,4})\b/g, '8$1')
+                        .replace(/(\d)o(\d)/g, '$10$2');
+                }
+                if (parsed.date) {
+                    parsed.date = parsed.date
+                        .replace(/\br\.r([0-9])/g, '202$1')
+                        .replace(/\b[rR]([0-9]{3})\b/g, '2$1')
+                        .replace(/(\d)o(\d)/g, '$10$2')
+                        .replace(/\bc[-_.][Ee][oO0]\b/g, '2025');
+                }
+                // ────────────────────────────────────────────────
+
+                return parsed;
             }
         }
     } catch (e) {
@@ -1459,6 +1511,7 @@ async function callGeminiVisionClient(file) {
     }
     return null;
 }
+
 
 function normalizeArabicName(name) {
     if (!name) return "";

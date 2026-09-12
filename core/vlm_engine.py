@@ -23,7 +23,7 @@ def load_vlm_config() -> Dict[str, Any]:
     config = {
         "engine": "hybrid",  # "hybrid", "gemini", "local"
         "gemini_api_key": os.environ.get("GEMINI_API_KEY", ""),
-        "model": "gemini-1.5-flash",
+        "model": "gemini-2.0-flash",
         "faculty_default_name": "أحمد لؤي أحمد"
     }
     if os.path.exists(CONFIG_PATH):
@@ -251,7 +251,8 @@ def call_gemini_vlm_api(
     image_path: str,
     api_key: str,
     faculty_name: str = "أحمد لؤي أحمد",
-    timeout_sec: int = 15
+    model: str = "gemini-2.0-flash",
+    timeout_sec: int = 20
 ) -> Optional[Dict[str, Any]]:
     """
     استدعاء نموذج Google Gemini 1.5 Flash لتحليل الوثيقة بصرياً
@@ -272,24 +273,63 @@ def call_gemini_vlm_api(
         elif ext == ".pdf":
             mime_type = "application/pdf"
 
-        prompt = f"""
-أنت خبير قانوني وأكاديمي في تحليل وتدقيق وثائق الجامعات العراقية الرسمية لتقييم أداء التدريسيين (استمارة رقم 21).
-قم بفحص هذه الوثيقة واستخرج بدقة متناهية البيانات بصيغة JSON فقط:
-1. doc_number: العدد الإداري (مثال: هـ.ع/1799 أو م و 8 / 135 أو 7417). انتبه لخط اليد والأرقام العربية.
-2. date: تاريخ الوثيقة (YYYY/MM/DD).
-3. subject: موضوع الوثيقة الصريح المكتوب بعد (م/ أو الموضوع/ ).
-4. recipient: الجهة المعنون إليها الكتاب المكتوبة بعد (إلى/ ).
-5. issuer: الجهة المصدرة (الوزارة، رئاسة الجامعة، العمادة، القسم، النقابة).
-6. matched_faculty_role: دور التدريسي ({faculty_name}) إذا ورد اسمه (رئيس لجنة، عضو، مشرف، باحث أول).
-7. doc_type: نوع الوثيقة (أمر إداري، أمر جامعي، كتاب شكر وتقدير، تأييد حضور مؤتمر، بحث سكوباس).
-8. suggested_axis: المحور المناسب (axis1: التدريس, axis2: البحث العلمي, axis3: التربوي والمجتمعي, axis4: مواطن القوة).
-9. suggested_paragraph: رقم الفقرة داخل المحور (1 إلى 5).
-10. suggested_score: الدرجة المقترحة للوثيقة وفق تعليمات الاستمارة 21.
+        prompt = f"""أنت خبير متخصص في قراءة وتحليل الوثائق الإدارية العراقية الرسمية المكتوبة بخط اليد أو المطبوعة.
+مهمتك: استخراج بيانات الوثيقة بدقة متناهية مع التركيز الخاص على الأرقام المكتوبة بخط اليد.
 
-أرجع فقط كائن JSON خالصاً بدون أي علامات markdown إضافية.
+## دليل تمييز الأرقام العربية المكتوبة بخط اليد:
+الأرقام العربية المشرقية (٠١٢٣٤٥٦٧٨٩) تختلف بصرياً عن الأرقام اللاتينية، وخاصةً بخط اليد:
+
+| الرقم | شكله بخط اليد | يُخلط مع | تمييزه |
+|-------|--------------|----------|--------|
+| ٧ (سبعة) | U أو V مفتوح للأعلى | حرف V أو 1/ | افحص اتجاه الانحناء — مفتوح للأعلى |
+| ٢ (اثنان) | r صغيرة أو خطاف صغير متجه للأمام | حرف r لاتيني | في سياق الأرقام دائماً = ٢ |
+| ٠ (صفر) | دائرة صغيرة بدون ذيل | حرف o اللاتيني | أصغر من ٥ وبدون ذيل |
+| ٥ (خمسة) | دائرة مع ذيل صغير في أسفل اليمين | الصفر ٠ | تميّز بوجود الذيل |
+| ٣ (ثلاثة) | ε أو 3 — مفتوح من الجانبين | ٤ (أربعة) | أصغر وأكثر انفتاحاً |
+| ٤ (أربعة) | ε أكبر أو 3 — أكثر انغلاقاً من أعلى | ٣ (ثلاثة) | أكبر حجماً |
+| ٨ (ثمانية) | A كبيرة أو ع عربية | حرف A لاتيني | في سياق الأرقام = ٨ |
+| ١ (واحد) | خط مائل أو رأسي — أحياناً يشبه / | شرطة مائلة | في سياق الأرقام = ١ |
+| ٦ (ستة) | يشبه 7 لكن مع حلقة في الأسفل | الرقم 7 | افحص وجود الحلقة |
+| ٩ (تسعة) | خطاف معكوس أو q | حرف q | في سياق الأرقام = ٩ |
+
+## تنسيق العدد الإداري العراقي:
+الصيغة: [اختصار الجهة]/[رقم تسلسلي] أو [اختصار].[اختصار]/[رقم]
+أمثلة حقيقية:
+- هـ.ع/739 → قسم هندسة العمارة، العدد 739
+- هـ.ع/1799 → نفس القسم، العدد 1799
+- م.ع/1509 → مساعد رئيس الجامعة للشؤون العلمية
+- د.ت/625 → قسم الدراسات والتخطيط
+- ش.ع/43 → الشؤون العلمية
+- م و 8/130 → مكتب الوزير، الشعبة 8، العدد 130
+- م.ر/51 → مكتب رئيس الجامعة
+- م.ج 9/421 → أمانة مجلس الجامعة
+- س.ت.ي/14/43 → قسم معين، العدد 14/43
+
+## تنسيق التاريخ:
+YYYY/MM/DD حيث السنة 2023-2026 دائماً.
+مثال: 2025/04/14 أو 2025/01/12
+
+## اسم التدريسي المستهدف: {faculty_name}
+ابحث عن هذا الاسم في الوثيقة وحدد دوره إن وجد.
+
+## أرجع JSON فقط بهذه الحقول:
+{{
+  "doc_number": "العدد الإداري الكامل (مثل: هـ.ع/739)",
+  "date": "التاريخ بصيغة YYYY/MM/DD",
+  "subject": "موضوع الوثيقة بعد م/ أو الموضوع/",
+  "recipient": "الجهة المعنون إليها بعد إلى/",
+  "issuer": "الجهة المصدرة (وزارة/جامعة/كلية/قسم)",
+  "matched_faculty_role": "دور التدريسي إن وجد اسمه (رئيس لجنة/عضو/مشرف/باحث)",
+  "doc_type": "نوع الوثيقة (أمر إداري/كتاب شكر/شهادة مشاركة/بحث علمي)",
+  "suggested_axis": "المحور (axis1/axis2/axis3/axis4)",
+  "suggested_paragraph": "رقم الفقرة (1-5)",
+  "suggested_score": "الدرجة المقترحة (رقم)",
+  "is_handwritten": true,
+  "confidence_note": "اذكر هنا أي رقم أو حرف كنت غير متأكد من قراءته بخط اليد"
+}}
 """
 
-        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
         
         payload = {
             "contents": [
@@ -306,13 +346,14 @@ def call_gemini_vlm_api(
                 }
             ],
             "generationConfig": {
-                "temperature": 0.1,
+                "temperature": 0.05,
                 "response_mime_type": "application/json"
             }
         }
         
         req_data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(endpoint, data=req_data, headers={"Content-Type": "application/json"})
+
         
         with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
             if resp.status == 200:
@@ -347,20 +388,49 @@ def scan_document_multimodal(
     config = load_vlm_config()
     api_key = config.get("gemini_api_key", "")
     engine_pref = config.get("engine", "hybrid")
-    
+    gemini_model = config.get("model", "gemini-2.0-flash")
+
     # 1. تجربة Gemini VLM إذا كان مفعلاً ومفتاحه متاح
     if engine_pref in ("hybrid", "gemini") and api_key:
-        vlm_res = call_gemini_vlm_api(file_path, api_key, faculty_name)
+        vlm_res = call_gemini_vlm_api(file_path, api_key, faculty_name, model=gemini_model)
         if vlm_res:
+            # ── تطبيق post-processing على مخرجات Gemini ──
+            from core.document_parser import clean_handwritten_token
+            import re as _re
+
+            # تنظيف وتصحيح العدد
+            raw_num = vlm_res.get("doc_number", "") or ""
+            if raw_num and raw_num != "غير محدد":
+                cleaned_num = clean_handwritten_token(raw_num)
+                # تصحيح أشكال OCR الشائعة في العدد
+                cleaned_num = _re.sub(r'\b[VU](\d{2,4})\b', r'7\1', cleaned_num)
+                cleaned_num = _re.sub(r'\bA(\d{2,4})\b', r'8\1', cleaned_num)
+                cleaned_num = _re.sub(r'(?<=\d)[oO](?=\d)', '0', cleaned_num)
+                vlm_res["doc_number"] = cleaned_num
+
+            # تنظيف وتصحيح التاريخ
+            raw_date = vlm_res.get("date", "") or ""
+            if raw_date and raw_date != "غير محدد":
+                cleaned_date = clean_handwritten_token(raw_date)
+                cleaned_date = _re.sub(r'\br\.r([0-9])', r'202\1', cleaned_date)
+                cleaned_date = _re.sub(r'\b[rR]([0-9]{3})\b', r'2\1', cleaned_date)
+                cleaned_date = _re.sub(r'(?<=\d)[oO](?=\d)', '0', cleaned_date)
+                cleaned_date = _re.sub(r'\bc[-_\.][Ee][oO0]\b', '2025', cleaned_date)
+                # التحقق: هل التاريخ في النطاق المعقول (2020-2030)?
+                year_match = _re.search(r'\b(20[2-3][0-9])\b', cleaned_date)
+                if year_match:
+                    vlm_res["date"] = cleaned_date
+
             doc_num = vlm_res.get("doc_number", "غير محدد")
             dt = vlm_res.get("date", "غير محدد")
             subj = vlm_res.get("subject", "غير محدد")
-            
+
             # احتساب صناديق التظليل
             bboxes = calculate_local_bounding_boxes("", doc_num, dt, subj)
             vlm_res["bounding_boxes"] = bboxes
             vlm_res["ocr_success"] = True
             return vlm_res
+
 
     # 2. التشغيل عبر محرك الرؤية المحلي (Apple Vision OCR + Smart Entity Matching)
     ocr_res = process_document(file_path)
