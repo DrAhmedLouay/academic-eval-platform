@@ -262,7 +262,8 @@ async def get_evidence_catalog():
         try:
             with open(cache_file, "r", encoding="utf-8") as cf:
                 data = json.load(cf)
-                return JSONResponse(data if isinstance(data, dict) else {"success": True, "count": len(items), "indexed_evidence_list": items})
+                items = data.get("indexed_evidence_list", []) if isinstance(data, dict) else (data if isinstance(data, list) else [])
+                return JSONResponse({"success": True, "count": len(items), "indexed_evidence_list": items})
         except Exception:
             pass
 
@@ -271,11 +272,12 @@ async def get_evidence_catalog():
         try:
             with open(static_catalog, "r", encoding="utf-8") as scf:
                 sdata = json.load(scf)
-                return JSONResponse(sdata)
+                sitems = sdata.get("indexed_evidence_list", []) if isinstance(sdata, dict) else (sdata if isinstance(sdata, list) else [])
+                return JSONResponse({"success": True, "count": len(sitems), "indexed_evidence_list": sitems})
         except Exception:
             pass
 
-    return await reprocess_all_attachments()
+    return JSONResponse({"success": True, "count": 0, "indexed_evidence_list": []})
 
 
 @app.post("/api/clear-stuck-evidence")

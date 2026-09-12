@@ -8,15 +8,32 @@ class TestDossierPdf(unittest.TestCase):
         self.client = TestClient(app)
 
     def test_save_audit_status_api(self):
-        res = self.client.post("/api/save-audit-status", json={
-            "ref_code": "REF-AX1-P1-01",
-            "status": "approved",
-            "notes": "تم تدقيق الأمر الإداري ومطابقته رسمياً مع سجلات الكلية."
-        })
-        self.assertEqual(res.status_code, 200)
-        data = res.json()
-        self.assertTrue(data.get("success"))
-        self.assertEqual(data.get("status"), "approved")
+        cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "indexed_results_cache.json")
+        backup_content = None
+        if os.path.exists(cache_file):
+            try:
+                with open(cache_file, "r", encoding="utf-8") as f:
+                    backup_content = f.read()
+            except Exception:
+                backup_content = None
+
+        try:
+            res = self.client.post("/api/save-audit-status", json={
+                "ref_code": "REF-AX1-P1-01",
+                "status": "approved",
+                "notes": "تم تدقيق الأمر الإداري ومطابقته رسمياً مع سجلات الكلية."
+            })
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            self.assertTrue(data.get("success"))
+            self.assertEqual(data.get("status"), "approved")
+        finally:
+            if backup_content is not None:
+                try:
+                    with open(cache_file, "w", encoding="utf-8") as f:
+                        f.write(backup_content)
+                except Exception:
+                    pass
 
     def test_export_dossier_pdf_api(self):
         sample_form = {

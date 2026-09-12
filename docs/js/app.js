@@ -1946,7 +1946,7 @@ async function handleClientSideEvidenceScan(file, target) {
                 `✍️ تم قراءة العدد [${docNumber}] والتاريخ [${docDate}] بخط اليد بالذكاء الاصطناعي` : 
                 `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`;
         } else {
-            const parsed = parseArabicDocumentClient(extractedText, file.name, ax, p);
+            const parsed = parseArabicDocumentClient(extractedText, file.name, ax, p, getCurrentFacultyName());
             docNumber = parsed.doc_number;
             docDate = parsed.date;
             docTitle = parsed.title;
@@ -2090,7 +2090,7 @@ async function processBatchEvidenceScan(filesList) {
                     `✍️ تم قراءة العدد [${docNumber}] والتاريخ [${docDate}] بخط اليد بالذكاء الاصطناعي` : 
                     `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`);
             } else {
-                const parsed = parseArabicDocumentClient(extractedText, file.name, null, null);
+                const parsed = parseArabicDocumentClient(extractedText, file.name, null, null, getCurrentFacultyName());
                 docNumber = parsed.doc_number;
                 docDate = parsed.date;
                 docTitle = parsed.title;
@@ -2124,7 +2124,8 @@ async function processBatchEvidenceScan(filesList) {
                 filename: file.name,
                 handwritten_detected: isHw,
                 handwritten_fields: hwFields,
-                auto_fill_summary: autoFillSummary
+                auto_fill_summary: autoFillSummary,
+                matched_faculty_info: (typeof parsed !== "undefined" && parsed && parsed.matched_faculty_info) || extractFacultyRoleInDocument(extractedText, getCurrentFacultyName())
             };
             applyIndexedItem(item);
         }
@@ -2144,6 +2145,7 @@ async function processBatchEvidenceScan(filesList) {
 
     const payload = new FormData();
     files.forEach(f => payload.append("files", f));
+    payload.append("faculty_name", getCurrentFacultyName());
 
     let controller = null;
     let timeoutId = null;
@@ -2189,7 +2191,7 @@ async function processBatchEvidenceScan(filesList) {
         if (file.name.toLowerCase().endsWith(".pdf")) {
             extractedText = await extractTextFromPdfClient(file);
         }
-        const parsed = parseArabicDocumentClient(extractedText, file.name, null, null);
+        const parsed = parseArabicDocumentClient(extractedText, file.name, null, null, getCurrentFacultyName());
         const counter = getNextCounterForParagraph(parsed.axis, parsed.paragraph);
         const refCode = `REF-${parsed.axis.toUpperCase().replace("AXIS", "AX")}-P${parsed.paragraph}-${String(counter).padStart(2, '0')}`;
         const objectUrl = URL.createObjectURL(file);
@@ -3570,9 +3572,12 @@ function initDropzones() {
     });
 
     fileInput.addEventListener("change", (e) => {
-        if (e.target.files.length > 0) {
+        if (e.target.files.length === 1) {
             processSingleEvidenceScan(e.target.files[0], null);
+        } else if (e.target.files.length > 1) {
+            processBatchEvidenceScan(e.target.files);
         }
+        e.target.value = "";
     });
 }
 
@@ -5179,13 +5184,22 @@ async function loadDraft() {
             const parsed = JSON.parse(saved);
             formData = parsed.formData || (Array.isArray(parsed) ? formData : parsed);
             const items = parsed.indexedEvidenceList || parsed.attachments || (Array.isArray(parsed) ? parsed : []);
-            // تفريغ أي مسودة قديمة كانت محشوة بـ 55 ملفاً افتراضياً لتبدأ الصفحة بحالة نظيفة 0 ملفات
-            const isLegacy55Draft = items.length === 55 || items.some(e => e.ref_code === "REF-AX4-P2-01" && (e.doc_number === "م.ع/17" || e.doc_number === "17"));
-            if (isLegacy55Draft) {
-                console.log("Purging legacy 55-item default catalog from local draft");
-                localStorage.removeItem("faculty_eval_draft_2026_indexed");
-                localStorage.removeItem("faculty_eval_draft_2026");
+            // تفريغ المرفقات الافتراضية السابقة (48 أو 55 ملفاً) لتبدأ الصفحة بحالة نظيفة 0 ملفات وفق التوجيه
+            const hasLegacyDefaults = items.length === 48 || items.length === 55 ||
+                items.some(e => e.ref_code === "REF-AX4-P2-01" && (e.doc_number === "م.ع/17" || e.doc_number === "17")) ||
+                !localStorage.getItem("faculty_eval_catalog_purged_v19");
+
+            if (hasLegacyDefaults) {
+                console.log("Purging legacy 48/55-item default catalog from local draft to ensure fresh start");
+                localStorage.setItem("faculty_eval_catalog_purged_v19", "true");
                 indexedEvidenceList = [];
+                if (parsed && typeof parsed === "object") {
+                    delete parsed.indexedEvidenceList;
+                    delete parsed.attachments;
+                    try {
+                        localStorage.setItem("faculty_eval_draft_2026_indexed", JSON.stringify(parsed));
+                    } catch(e) {}
+                }
             } else {
                 const hasStuckOrCorrupted = items.some(e => 
                     !e.doc_number || e.doc_number === "غير محدد" || e.doc_number === "-" ||
