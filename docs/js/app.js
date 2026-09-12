@@ -4181,7 +4181,7 @@ async function exportDocx() {
         console.warn("Backend Word export unavailable, generating client-side Word document:", err);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-file-word"></i> تحميل Word (.docx)`;
+        btn.innerHTML = `<i class="fa-solid fa-file-word"></i> تحميل الاستمارة Word (.docx)`;
     }
 
     // بديل فوري وتلقائي دون أي نوافذ تنبيه: توليد ملف Word المتكامل وتنزيله مباشرة
@@ -4222,7 +4222,7 @@ async function exportPdf() {
         console.warn("Backend PDF export unavailable, falling back to browser print:", err);
     } finally {
         btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-file-pdf"></i> تحميل PDF`;
+        btn.innerHTML = `<i class="fa-solid fa-file-pdf"></i> تحميل الاستمارة PDF (.pdf)`;
     }
 
     // بديل فوري وفعال: فتح نافذة الطباعة / الحفظ بصيغة PDF الرسمية
@@ -4254,7 +4254,7 @@ async function exportDossierPdf() {
             downloadBlob(blob, `تصدير_الاستمارة_والمرفقات_${teacherName}.pdf`);
             showToast("تم إنشاء وتنزيل الاستمارة والمرفقات (PDF) مع الفهرس التفاعلي بنجاح! 📚");
             btn.disabled = false;
-            btn.innerHTML = `<i class="fa-solid fa-file-export"></i> تصدير الاستمارة والمرفقات`;
+            btn.innerHTML = `<i class="fa-solid fa-file-export"></i> تصدير الاستمارة والمرفقات (PDF)`;
             return;
         }
     } catch (err) {
@@ -4262,7 +4262,7 @@ async function exportDossierPdf() {
     }
 
     btn.disabled = false;
-    btn.innerHTML = `<i class="fa-solid fa-file-export"></i> تصدير الاستمارة والمرفقات`;
+    btn.innerHTML = `<i class="fa-solid fa-file-export"></i> تصدير الاستمارة والمرفقات (PDF)`;
 
     // بناء نافذة طباعة مخصصة تعرض الاستمارة وفهرس الأدلة بصيغة PDF
     openDossierPrintWindow();
