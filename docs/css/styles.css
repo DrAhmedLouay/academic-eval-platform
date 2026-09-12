@@ -181,74 +181,167 @@ body {
 .rating-جيد { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
 .rating-ضعيف { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
 
-/* تبويبات المنصة - عرض كامل لكافة المحاور والخيارات بدون مسطرة أو شريط تمرير */
+/* ==========================================================================
+   مسطرة التبويبات والمحاور الرئيسية - مسطرة موحدة في سطر واحد مميز
+   ========================================================================== */
 .tabs-nav {
     max-width: 1400px;
     margin: 1.25rem auto 0 auto;
-    padding: 0 1.5rem;
+    padding: 0.35rem 0.4rem;
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
-    overflow: visible;
-    border-bottom: 2px solid var(--border-color);
+    flex-wrap: nowrap; /* مسطرة أفقية موحدة - تمنع نزول أي تبويب إلى سطر ثانٍ */
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 0.3rem;
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.tabs-nav::-webkit-scrollbar {
+    display: none;
 }
 
 .tab-btn {
-    flex: 1 1 auto;
-    min-width: fit-content;
-    padding: 0.65rem 0.85rem;
-    font-size: 0.86rem;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0.65rem 0.35rem;
+    font-size: clamp(0.72rem, 0.8vw, 0.86rem);
     font-weight: 700;
-    background: #f8fafc;
+    background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-bottom: 3px solid transparent;
-    border-radius: 0.5rem 0.5rem 0 0;
-    color: var(--text-muted);
+    border-radius: 0.5rem;
+    color: #475569;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.2s ease;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.45rem;
+    gap: 0.35rem;
     text-align: center;
+    position: relative;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
+.tab-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ألوان مميزة لأيقونات المحاور في المسطرة */
+.tab-btn[data-tab="tab-personal"] i { color: #2563eb; }
+.tab-btn[data-tab="tab-axis1"] i { color: #0284c7; }
+.tab-btn[data-tab="tab-axis2"] i { color: #7c3aed; }
+.tab-btn[data-tab="tab-axis3"] i { color: #d97706; }
+.tab-btn[data-tab="tab-axis45"] i { color: #dc2626; }
+.tab-btn[data-tab="tab-summary"] i { color: #4f46e5; }
+
 .tab-btn:hover {
-    color: var(--primary);
-    background: #eff6ff;
-    border-color: #bfdbfe;
+    color: #0f172a;
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 .tab-btn.active {
     color: var(--primary);
-    border-color: var(--border-color);
-    border-bottom-color: var(--primary);
-    background: white;
-    box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.04);
+    border-color: var(--primary);
+    border-bottom: 3px solid var(--primary);
+    background: #ffffff;
+    box-shadow: 0 3px 8px rgba(37, 99, 235, 0.14);
 }
 
-@media (max-width: 1100px) {
+/* ==========================================================================
+   تمييز خاص واستثنائي لتبويب "فهرس الأدلة"
+   ========================================================================== */
+.tab-btn.tab-btn-evidence,
+.tab-btn[data-tab="tab-ocr"] {
+    background: #ecfdf5;
+    border: 1.5px solid #86efac;
+    color: #166534;
+    font-weight: 800;
+}
+
+.tab-btn.tab-btn-evidence i,
+.tab-btn[data-tab="tab-ocr"] i {
+    color: #15803d;
+    font-size: 0.92rem;
+}
+
+.tab-btn.tab-btn-evidence:hover,
+.tab-btn[data-tab="tab-ocr"]:hover {
+    background: #dcfce7;
+    border-color: #4ade80;
+    color: #14532d;
+    box-shadow: 0 2px 7px rgba(22, 163, 74, 0.16);
+}
+
+.tab-btn.tab-btn-evidence.active,
+.tab-btn[data-tab="tab-ocr"].active {
+    background: #ffffff;
+    border-color: #16a34a;
+    border-bottom: 3px solid #16a34a;
+    color: #15803d;
+    box-shadow: 0 3px 10px rgba(22, 163, 74, 0.22);
+}
+
+/* شارة عدد المرفقات داخل فهرس الأدلة */
+.tab-evidence-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 0.45rem;
+    font-size: 0.74rem;
+    font-weight: 800;
+    border-radius: 999px;
+    background: #15803d;
+    color: #ffffff;
+    line-height: 1;
+    margin-right: 0.2rem;
+    box-shadow: 0 1px 3px rgba(21, 128, 61, 0.35);
+    transition: transform 0.2s ease;
+}
+
+.tab-btn[data-tab="tab-ocr"]:hover .tab-evidence-badge {
+    transform: scale(1.1);
+    background: #166534;
+}
+
+.tab-btn[data-tab="tab-ocr"].active .tab-evidence-badge {
+    background: #16a34a;
+}
+
+/* استجابة الشاشات الصغيرة مع الحفاظ الصارم على المسطرة الأفقية */
+@media (max-width: 1200px) {
     .tabs-nav {
-        gap: 0.3rem;
+        gap: 0.25rem;
+        padding: 0.3rem;
     }
     .tab-btn {
-        padding: 0.55rem 0.6rem;
-        font-size: 0.82rem;
-        gap: 0.35rem;
-    }
-}
-
-@media (max-width: 850px) {
-    .tab-btn {
-        flex: 1 1 calc(33.33% - 0.3rem);
-        min-width: 120px;
+        padding: 0.55rem 0.25rem;
+        font-size: 0.76rem;
+        gap: 0.25rem;
     }
 }
 
-@media (max-width: 550px) {
+@media (max-width: 900px) {
+    .tabs-nav {
+        overflow-x: auto;
+        padding: 0.35rem;
+        justify-content: flex-start;
+    }
     .tab-btn {
-        flex: 1 1 calc(50% - 0.3rem);
+        flex: 0 0 auto;
+        min-width: fit-content;
+        padding: 0.55rem 0.75rem;
+        font-size: 0.8rem;
     }
 }
 

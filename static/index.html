@@ -125,28 +125,28 @@
         <div id="global-warnings-box" style="display: none;"></div>
     </div>
 
-    <!-- التبويبات الرئيسية -->
-    <nav class="tabs-nav">
-        <button class="tab-btn active" data-tab="tab-personal">
-            <i class="fa-solid fa-id-card"></i> البيانات الرئيسة (ص1)
+    <!-- التبويبات الرئيسية (مسطرة موحدة في سطر واحد لكافة المحاور) -->
+    <nav class="tabs-nav" aria-label="أقسام الاستمارة والمحاور">
+        <button class="tab-btn active" data-tab="tab-personal" title="البيانات الرئيسة (الصفحة 1)">
+            <i class="fa-solid fa-id-card"></i> <span>البيانات الرئيسة (ص1)</span>
         </button>
-        <button class="tab-btn" data-tab="tab-axis1">
-            <i class="fa-solid fa-chalkboard-user"></i> المحور الأول: التدريس (50%)
+        <button class="tab-btn" data-tab="tab-axis1" title="المحور الأول: التدريس (الوزن 50%)">
+            <i class="fa-solid fa-chalkboard-user"></i> <span>المحور الأول: التدريس (50%)</span>
         </button>
-        <button class="tab-btn" data-tab="tab-axis2">
-            <i class="fa-solid fa-microscope"></i> المحور الثاني: النشاط العلمي (30%)
+        <button class="tab-btn" data-tab="tab-axis2" title="المحور الثاني: النشاط العلمي (الوزن 30%)">
+            <i class="fa-solid fa-microscope"></i> <span>المحور الثاني: النشاط العلمي (30%)</span>
         </button>
-        <button class="tab-btn" data-tab="tab-axis3">
-            <i class="fa-solid fa-award"></i> المحور الثالث: التربوي (20%)
+        <button class="tab-btn" data-tab="tab-axis3" title="المحور الثالث: الجانب التربوي والمجتمعي (الوزن 20%)">
+            <i class="fa-solid fa-award"></i> <span>المحور الثالث: التربوي (20%)</span>
         </button>
-        <button class="tab-btn" data-tab="tab-axis45">
-            <i class="fa-solid fa-shield-halved"></i> مواطن القوة والعقوبات
+        <button class="tab-btn" data-tab="tab-axis45" title="مواطن القوة والعقوبات الانضباطية">
+            <i class="fa-solid fa-shield-halved"></i> <span>مواطن القوة والعقوبات</span>
         </button>
-        <button class="tab-btn" data-tab="tab-ocr">
-            <i class="fa-solid fa-folder-tree"></i> فهرس الأدلة (<span id="attachments-count">0</span>)
+        <button class="tab-btn tab-btn-evidence" data-tab="tab-ocr" title="فهرس الأدلة والمرفقات المستخرجة">
+            <i class="fa-solid fa-folder-tree"></i> <span>فهرس الأدلة</span> <span class="tab-evidence-badge" id="attachments-count">0</span>
         </button>
-        <button class="tab-btn" data-tab="tab-summary">
-            <i class="fa-solid fa-file-signature"></i> النتائج والمصادقة
+        <button class="tab-btn" data-tab="tab-summary" title="النتائج والمصادقة والدرجة النهائية">
+            <i class="fa-solid fa-file-signature"></i> <span>النتائج والمصادقة</span>
         </button>
     </nav>
 
