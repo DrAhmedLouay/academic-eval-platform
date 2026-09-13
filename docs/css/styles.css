@@ -965,11 +965,11 @@ body {
 /* تنسيقات خاصة بالطباعة */
 @page {
     size: A4 portrait;
-    margin: 2.0cm 1.5cm;
-    margin-top: 2.0cm;
-    margin-bottom: 2.0cm;
-    margin-left: 1.5cm;
-    margin-right: 1.5cm;
+    margin: 20mm 15mm;
+    margin-top: 20mm;
+    margin-bottom: 20mm;
+    margin-left: 15mm;
+    margin-right: 15mm;
 }
 
 @media print {

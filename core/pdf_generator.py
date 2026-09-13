@@ -11,6 +11,7 @@ import tempfile
 from typing import Dict, Any, List, Optional
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
+from reportlab.lib.units import cm, mm
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak, KeepTogether, Image as RLImage
 )
@@ -173,7 +174,7 @@ def create_form_21_pdf(data: Dict[str, Any], output_path: str, attachments: List
         rightMargin=20,
         leftMargin=20,
         topMargin=20,
-        bottomMargin=20
+        bottomMargin=20 * mm
     )
 
     styles = getSampleStyleSheet()
@@ -909,15 +910,14 @@ def create_form_21_pdf(data: Dict[str, Any], output_path: str, attachments: List
 
 
 def convert_image_to_a4_pdf(image_path: str, output_pdf_path: str, ref_code: str = "", title: str = "") -> str:
-    """تحويل صورة الوثيقة الثبوتية إلى صفحة PDF بحجم A4 بهوامش 2 سم من الأعلى والأسفل و 1.5 سم من الجانبين"""
-    from reportlab.lib.units import cm
+    """تحويل صورة الوثيقة الثبوتية إلى صفحة PDF بحجم A4 بهوامش 20 ملم (2 سم) من الأعلى والأسفل و 15 ملم (1.5 سم) من الجانبين"""
     doc = SimpleDocTemplate(
         output_pdf_path,
         pagesize=A4,
-        leftMargin=1.5 * cm,
-        rightMargin=1.5 * cm,
-        topMargin=2.0 * cm,
-        bottomMargin=2.0 * cm
+        leftMargin=15 * mm,
+        rightMargin=15 * mm,
+        topMargin=20 * mm,
+        bottomMargin=20 * mm
     )
     story = []
     

@@ -4409,11 +4409,11 @@ function openDossierPrintWindow() {
 <style>
   @page {
     size: A4 portrait;
-    margin: 2.0cm 1.5cm;
-    margin-top: 2.0cm;
-    margin-bottom: 2.0cm;
-    margin-left: 1.5cm;
-    margin-right: 1.5cm;
+    margin: 20mm 15mm;
+    margin-top: 20mm;
+    margin-bottom: 20mm;
+    margin-left: 15mm;
+    margin-right: 15mm;
   }
   @media print {
     .no-print-bar { display: none !important; }
@@ -4566,7 +4566,7 @@ function openDossierPrintWindow() {
     max-width: 210mm;
     margin: 15px auto;
     background: white;
-    padding: 2.0cm 1.5cm;
+    padding: 20mm 15mm;
     box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     border-radius: 4px;
     box-sizing: border-box;
