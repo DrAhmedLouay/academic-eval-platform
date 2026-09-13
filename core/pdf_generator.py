@@ -945,17 +945,38 @@ def convert_image_to_a4_pdf(image_path: str, output_pdf_path: str, ref_code: str
     story.append(Spacer(1, 6))
     
     try:
-        # حساب أبعاد الصورة لتلائم صفحة A4 بهوامش 2 سم أعلى وأسفل و 1.5 سم جانبين (عرض 510 × ارتفاع 680 كحد أقصى)
+        # حساب أبعاد الصورة لتلائم صفحة A4 مفروشة ضمن الهوامش (عرض 510 × ارتفاع 650 كحد أقصى) وأسفلها الـ caption
         from PIL import Image as PILImage
         with PILImage.open(image_path) as im:
             w, h = im.size
         
-        max_w, max_h = 510.0, 600.0
+        max_w, max_h = 510.0, 650.0
         ratio = min(max_w / w, max_h / h)
         disp_w = w * ratio
         disp_h = h * ratio
         
         story.append(RLImage(image_path, width=disp_w, height=disp_h))
+        story.append(Spacer(1, 4))
+        
+        # تذييل و Caption المرفق أسفل الصورة مباشرة ضمن حدود الصفحة
+        caption_style = ParagraphStyle(
+            'DocCaption',
+            fontName=FONT_NAME,
+            fontSize=7.5,
+            leading=10,
+            alignment=1, # Center
+            textColor=colors.HexColor("#1E293B")
+        )
+        caption_text = f"المصبار التوثيقي المعتمد (استمارة 21) — رمز المرفق: [{ref_code}] | بيان الوثيقة: {title[:75]}"
+        caption_table = Table([[Paragraph(ar(caption_text), caption_style)]], colWidths=[510])
+        caption_table.setStyle(TableStyle([
+            ('LINEABOVE', (0, 0), (-1, -1), 1, colors.HexColor("#0F2942")),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        story.append(caption_table)
     except Exception as e:
         story.append(Paragraph(ar(f"تعذر تحميل صورة الوثيقة: {e}"), ParagraphStyle('DocErr', fontName=FONT_NAME, fontSize=9, textColor=colors.red)))
         

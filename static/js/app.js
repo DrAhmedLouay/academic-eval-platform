@@ -4393,10 +4393,10 @@ function openDossierPrintWindow() {
                 `}
             </div>
 
-            <!-- تذييل الصفحة الرسمي -->
+            <!-- تذييل و Caption المرفق أسفل الصورة مباشرة -->
             <div class="doc-page-footer-strip">
-                <div>منصة تقييم أداء أعضاء الهيئة التدريسية (استمارة 21) — المصبار التوثيقي المعتمد | التدريسي: ${teacherName}</div>
-                <div>الرمز: ${refCode} | صفحة وثيقة (${idx + 1})</div>
+                <div>المصبار التوثيقي المعتمد (استمارة 21) — بيان الوثيقة: ${docTitle}</div>
+                <div>رمز المرفق: [${refCode}] | وثيقة رقم (${idx + 1} من ${indexedEvidenceList.length})</div>
             </div>
         </div>`;
     });
@@ -4463,7 +4463,7 @@ function openDossierPrintWindow() {
       break-inside: avoid-page !important;
       box-sizing: border-box !important;
       height: auto !important;
-      max-height: 235mm !important;
+      max-height: 250mm !important;
       min-height: 0 !important;
       overflow: hidden !important;
       display: block !important;
@@ -4473,8 +4473,8 @@ function openDossierPrintWindow() {
     }
     .doc-page-header-strip {
       flex-shrink: 0 !important;
-      padding-bottom: 3px !important;
-      margin-bottom: 3px !important;
+      padding-bottom: 2px !important;
+      margin-bottom: 2px !important;
       border-bottom: 2px solid #0f2942 !important;
       page-break-after: avoid !important;
       break-after: avoid !important;
@@ -4485,14 +4485,16 @@ function openDossierPrintWindow() {
       display: flex !important;
       justify-content: center !important;
       align-items: center !important;
+      width: 100% !important;
       min-height: 0 !important;
-      max-height: 155mm !important;
+      max-height: 222mm !important;
       height: auto !important;
       overflow: hidden !important;
-      padding: 2px !important;
-      margin: 3px 0 !important;
+      padding: 0 !important;
+      margin: 2px 0 !important;
       border: 1px solid #cbd5e1 !important;
       border-radius: 4px !important;
+      background: #ffffff !important;
       page-break-before: avoid !important;
       break-before: avoid !important;
       page-break-after: avoid !important;
@@ -4501,28 +4503,31 @@ function openDossierPrintWindow() {
       break-inside: avoid !important;
     }
     .doc-rendered-image {
-      max-height: 150mm !important;
+      max-height: 218mm !important;
       max-width: 100% !important;
       width: auto !important;
       height: auto !important;
       object-fit: contain !important;
       display: block !important;
+      margin: 0 auto !important;
       page-break-inside: avoid !important;
       break-inside: avoid !important;
     }
     .doc-page-footer-strip {
       flex-shrink: 0 !important;
-      padding-top: 3px !important;
-      margin-top: 3px !important;
-      border-top: 1px solid #cbd5e1 !important;
+      padding-top: 2px !important;
+      margin-top: 2px !important;
+      border-top: 1.5px solid #0f2942 !important;
       page-break-before: avoid !important;
       break-before: avoid !important;
       page-break-inside: avoid !important;
       break-inside: avoid !important;
       display: flex !important;
       justify-content: space-between !important;
-      font-size: 7pt !important;
-      color: #64748b !important;
+      align-items: center !important;
+      font-size: 7.5pt !important;
+      font-weight: 700 !important;
+      color: #1e293b !important;
     }
   }
   * { box-sizing: border-box; }
@@ -4748,7 +4753,7 @@ function openDossierPrintWindow() {
     break-inside: avoid-page;
     box-sizing: border-box;
     height: auto;
-    max-height: 235mm;
+    max-height: 250mm;
     overflow: hidden;
     display: block;
     position: relative;
@@ -4836,11 +4841,12 @@ function openDossierPrintWindow() {
     background: #ffffff;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
-    padding: 4px;
+    padding: 2px;
     margin: 3px 0;
     overflow: hidden;
     box-sizing: border-box;
-    max-height: 155mm;
+    width: 100%;
+    max-height: 222mm;
     page-break-before: avoid;
     break-before: avoid;
     page-break-after: avoid;
@@ -4850,12 +4856,13 @@ function openDossierPrintWindow() {
   }
   .doc-rendered-image {
     max-width: 100%;
-    max-height: 150mm;
+    max-height: 218mm;
     width: auto;
     height: auto;
     display: block;
     object-fit: contain;
     border-radius: 4px;
+    margin: 0 auto;
     page-break-inside: avoid;
     break-inside: avoid;
   }
@@ -4892,13 +4899,15 @@ function openDossierPrintWindow() {
   }
 
   .doc-page-footer-strip {
-    border-top: 1px solid #cbd5e1;
+    border-top: 1.5px solid #0f2942;
     padding-top: 3px;
     margin-top: 3px;
     display: flex;
     justify-content: space-between;
-    font-size: 7pt;
-    color: #64748b;
+    align-items: center;
+    font-size: 7.5pt;
+    font-weight: 700;
+    color: #1e293b;
     flex-shrink: 0;
     page-break-before: avoid;
     break-before: avoid;
