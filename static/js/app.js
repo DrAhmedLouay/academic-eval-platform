@@ -4456,56 +4456,73 @@ function openDossierPrintWindow() {
     .doc-attachment-page {
       page-break-before: always !important;
       break-before: page !important;
-      page-break-after: avoid !important;
-      break-after: avoid !important;
+      page-break-after: auto !important;
+      break-after: auto !important;
       page-break-inside: avoid !important;
       break-inside: avoid !important;
       break-inside: avoid-page !important;
       box-sizing: border-box !important;
-      height: 250mm !important;
-      max-height: 250mm !important;
+      height: auto !important;
+      max-height: 235mm !important;
       min-height: 0 !important;
       overflow: hidden !important;
-      display: flex !important;
-      flex-direction: column !important;
-      justify-content: space-between !important;
+      display: block !important;
       margin: 0 !important;
       padding: 0 !important;
       border: none !important;
     }
+    .doc-page-header-strip {
+      flex-shrink: 0 !important;
+      padding-bottom: 3px !important;
+      margin-bottom: 3px !important;
+      border-bottom: 2px solid #0f2942 !important;
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
     .doc-display-container {
-      flex: 1 1 auto !important;
-      min-height: 0 !important;
-      max-height: 190mm !important;
-      height: auto !important;
-      overflow: hidden !important;
       display: flex !important;
       justify-content: center !important;
       align-items: center !important;
+      min-height: 0 !important;
+      max-height: 155mm !important;
+      height: auto !important;
+      overflow: hidden !important;
       padding: 2px !important;
-      margin: 2px 0 !important;
+      margin: 3px 0 !important;
       border: 1px solid #cbd5e1 !important;
       border-radius: 4px !important;
+      page-break-before: avoid !important;
+      break-before: avoid !important;
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
     .doc-rendered-image {
-      max-height: 185mm !important;
+      max-height: 150mm !important;
       max-width: 100% !important;
       width: auto !important;
       height: auto !important;
       object-fit: contain !important;
       display: block !important;
-    }
-    .doc-page-header-strip {
-      flex-shrink: 0 !important;
-      padding-bottom: 4px !important;
-      margin-bottom: 4px !important;
-      border-bottom: 2px solid #0f2942 !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
     .doc-page-footer-strip {
       flex-shrink: 0 !important;
       padding-top: 3px !important;
       margin-top: 3px !important;
       border-top: 1px solid #cbd5e1 !important;
+      page-break-before: avoid !important;
+      break-before: avoid !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      display: flex !important;
+      justify-content: space-between !important;
+      font-size: 7pt !important;
+      color: #64748b !important;
     }
   }
   * { box-sizing: border-box; }
@@ -4724,21 +4741,20 @@ function openDossierPrintWindow() {
   .doc-attachment-page {
     page-break-before: always;
     break-before: page;
-    page-break-after: avoid;
-    break-after: avoid;
+    page-break-after: auto;
+    break-after: auto;
     page-break-inside: avoid;
     break-inside: avoid;
     break-inside: avoid-page;
     box-sizing: border-box;
-    height: 250mm;
-    max-height: 250mm;
+    height: auto;
+    max-height: 235mm;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+    display: block;
     position: relative;
     padding: 0;
-    margin-top: 15px;
+    margin-top: 25px;
+    margin-bottom: 10px;
   }
   .doc-page-header-strip {
     border-bottom: 2px solid #0f2942;
@@ -4814,7 +4830,6 @@ function openDossierPrintWindow() {
   }
 
   .doc-display-container {
-    flex: 1 1 auto;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -4822,19 +4837,27 @@ function openDossierPrintWindow() {
     border: 1px solid #cbd5e1;
     border-radius: 6px;
     padding: 4px;
-    margin: 2px 0;
+    margin: 3px 0;
     overflow: hidden;
     box-sizing: border-box;
-    max-height: 195mm;
+    max-height: 155mm;
+    page-break-before: avoid;
+    break-before: avoid;
+    page-break-after: avoid;
+    break-after: avoid;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
   .doc-rendered-image {
     max-width: 100%;
-    max-height: 190mm;
+    max-height: 150mm;
     width: auto;
     height: auto;
     display: block;
     object-fit: contain;
     border-radius: 4px;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   /* بطاقة بديلة للوثائق عند تعذر عرض الصورة المباشرة */
@@ -4871,12 +4894,16 @@ function openDossierPrintWindow() {
   .doc-page-footer-strip {
     border-top: 1px solid #cbd5e1;
     padding-top: 3px;
-    margin-top: 2px;
+    margin-top: 3px;
     display: flex;
     justify-content: space-between;
     font-size: 7pt;
     color: #64748b;
     flex-shrink: 0;
+    page-break-before: avoid;
+    break-before: avoid;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 </style>
 </head>

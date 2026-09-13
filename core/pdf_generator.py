@@ -950,7 +950,7 @@ def convert_image_to_a4_pdf(image_path: str, output_pdf_path: str, ref_code: str
         with PILImage.open(image_path) as im:
             w, h = im.size
         
-        max_w, max_h = 510.0, 650.0
+        max_w, max_h = 510.0, 600.0
         ratio = min(max_w / w, max_h / h)
         disp_w = w * ratio
         disp_h = h * ratio
