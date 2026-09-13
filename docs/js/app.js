@@ -4319,6 +4319,15 @@ function openDossierPrintWindow() {
         </tr>`;
     });
 
+    if (!evidenceRows) {
+        evidenceRows = `
+        <tr>
+            <td colspan="8" style="text-align: center; padding: 25px; color: #64748b; font-size: 10pt;">
+                لا توجد وثائق أو مرفقات مفهرسة حتى الآن.
+            </td>
+        </tr>`;
+    }
+
     const totalScore = indexedEvidenceList.reduce((s, e) => s + (parseFloat(e.suggested_score) || 0), 0).toFixed(1);
 
     // 2. بناء صفحات الوثائق والمرفقات الأصلية مع وسم رمز المرفق البارز في أعلى يسار الصفحة
@@ -4408,12 +4417,14 @@ function openDossierPrintWindow() {
   }
   @media print {
     .no-print-bar { display: none !important; }
-    body {
+    html, body {
+      height: auto !important;
+      min-height: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
-      padding: 0 !important;
-      margin: 0 !important;
-      background: white !important;
     }
     .print-page-wrapper {
       max-width: 100% !important;
@@ -4423,13 +4434,78 @@ function openDossierPrintWindow() {
       box-shadow: none !important;
       border: none !important;
       border-radius: 0 !important;
+      background: white !important;
+    }
+    .docs-master-table {
+      page-break-after: auto !important;
+      break-after: auto !important;
+    }
+    .docs-master-table tr {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+    }
+    .signatures-section {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      page-break-after: auto !important;
+      break-after: auto !important;
+      margin-top: 14px !important;
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
     }
     .doc-attachment-page {
       page-break-before: always !important;
       break-before: page !important;
-      margin-top: 0 !important;
-      padding-top: 0 !important;
-      border-top: none !important;
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      break-inside: avoid-page !important;
+      box-sizing: border-box !important;
+      height: 250mm !important;
+      max-height: 250mm !important;
+      min-height: 0 !important;
+      overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+    }
+    .doc-display-container {
+      flex: 1 1 auto !important;
+      min-height: 0 !important;
+      max-height: 190mm !important;
+      height: auto !important;
+      overflow: hidden !important;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      padding: 2px !important;
+      margin: 2px 0 !important;
+      border: 1px solid #cbd5e1 !important;
+      border-radius: 4px !important;
+    }
+    .doc-rendered-image {
+      max-height: 185mm !important;
+      max-width: 100% !important;
+      width: auto !important;
+      height: auto !important;
+      object-fit: contain !important;
+      display: block !important;
+    }
+    .doc-page-header-strip {
+      flex-shrink: 0 !important;
+      padding-bottom: 4px !important;
+      margin-bottom: 4px !important;
+      border-bottom: 2px solid #0f2942 !important;
+    }
+    .doc-page-footer-strip {
+      flex-shrink: 0 !important;
+      padding-top: 3px !important;
+      margin-top: 3px !important;
+      border-top: 1px solid #cbd5e1 !important;
     }
   }
   * { box-sizing: border-box; }
@@ -4503,14 +4579,16 @@ function openDossierPrintWindow() {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2.5px solid #0f2942;
-    padding-bottom: 12px;
-    margin-bottom: 14px;
+    border-bottom: 2px solid #0f2942;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
   .inst-col-right {
     text-align: right;
-    font-size: 9pt;
-    line-height: 1.45;
+    font-size: 8.5pt;
+    line-height: 1.4;
     color: #1e293b;
     font-weight: 600;
   }
@@ -4518,25 +4596,25 @@ function openDossierPrintWindow() {
     text-align: center;
   }
   .inst-col-center h1 {
-    font-size: 14.5pt;
+    font-size: 13.5pt;
     font-weight: 900;
     color: #0f2942;
-    margin: 0 0 4px 0;
+    margin: 0 0 3px 0;
   }
   .inst-col-center .sub-head {
-    font-size: 10.5pt;
+    font-size: 9.5pt;
     font-weight: 800;
     color: #1e3a8a;
     background: #e0f2fe;
     display: inline-block;
-    padding: 3px 16px;
+    padding: 2px 14px;
     border-radius: 999px;
     border: 1px solid #bae6fd;
   }
   .inst-col-left {
     text-align: left;
-    font-size: 8.5pt;
-    line-height: 1.45;
+    font-size: 8pt;
+    line-height: 1.4;
     color: #475569;
   }
 
@@ -4544,13 +4622,15 @@ function openDossierPrintWindow() {
   .meta-profile-box {
     background: #f8fafc;
     border: 1.5px solid #cbd5e1;
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 16px;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
     display: grid;
     grid-template-columns: 2fr 1.5fr 1.5fr;
-    gap: 8px 16px;
-    font-size: 9.5pt;
+    gap: 6px 14px;
+    font-size: 9pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
   .profile-field span { font-weight: 800; color: #0f2942; }
 
@@ -4558,76 +4638,84 @@ function openDossierPrintWindow() {
   .docs-master-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 8.5pt;
-    margin-top: 6px;
+    font-size: 8pt;
+    margin-top: 4px;
   }
   .docs-master-table th {
     background: #0f2942;
     color: white;
-    padding: 8px 4px;
+    padding: 6px 4px;
     text-align: center;
     font-weight: 800;
     border: 1px solid #0f2942;
-    font-size: 8.5pt;
+    font-size: 8pt;
   }
   .docs-master-table td {
     border: 1px solid #cbd5e1;
-    padding: 6px 5px;
+    padding: 5px 4px;
     text-align: center;
     vertical-align: middle;
     color: #1e293b;
   }
   .docs-master-table tr:nth-child(even) { background: #f8fafc; }
+  .docs-master-table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
   
   .tbl-ref-stamp {
     display: inline-block;
     background: #0f172a;
     color: #facc15;
     border: 1.5px solid #facc15;
-    padding: 2px 6px;
-    border-radius: 5px;
+    padding: 1px 5px;
+    border-radius: 4px;
     font-weight: 900;
-    font-size: 8.5pt;
+    font-size: 8pt;
     font-family: 'Courier New', monospace;
     letter-spacing: 0.5px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
   }
   .tbl-status-badge {
     background: #ecfdf5;
     color: #166534;
     border: 1px solid #86efac;
-    padding: 2px 5px;
+    padding: 1px 4px;
     border-radius: 4px;
     font-weight: 700;
-    font-size: 7.5pt;
+    font-size: 7pt;
     white-space: nowrap;
   }
   .total-summary-row {
     background: #e0f2fe !important;
     font-weight: 900;
     color: #0369a1;
-    font-size: 9.5pt;
+    font-size: 9pt;
   }
 
   /* حقول المصادقات والتواقيع */
   .signatures-section {
-    margin-top: 24px;
+    margin-top: 14px;
+    margin-bottom: 0;
+    padding-bottom: 0;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+    gap: 12px;
     text-align: center;
-    font-size: 9pt;
+    font-size: 8.5pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
   .sig-col {
     border: 1px dashed #94a3b8;
-    border-radius: 8px;
-    padding: 10px 8px;
+    border-radius: 6px;
+    padding: 8px 6px;
     background: #f8fafc;
   }
   .sig-col .sig-title {
     font-weight: 800;
     color: #0f2942;
-    margin-bottom: 34px;
+    margin-bottom: 28px;
   }
 
   /* ========================================================================
@@ -4635,49 +4723,64 @@ function openDossierPrintWindow() {
      ======================================================================== */
   .doc-attachment-page {
     page-break-before: always;
-    min-height: 250mm;
+    break-before: page;
+    page-break-after: avoid;
+    break-after: avoid;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    break-inside: avoid-page;
     box-sizing: border-box;
+    height: 250mm;
+    max-height: 250mm;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     position: relative;
-    padding-top: 6px;
+    padding: 0;
+    margin-top: 15px;
   }
   .doc-page-header-strip {
-    border-bottom: 2.5px solid #0f2942;
-    padding-bottom: 10px;
-    margin-bottom: 12px;
+    border-bottom: 2px solid #0f2942;
+    padding-bottom: 4px;
+    margin-bottom: 4px;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    min-height: 60px;
     position: relative;
+    flex-shrink: 0;
   }
   .doc-header-meta {
     flex: 1;
     text-align: right;
-    padding-left: 175px; /* ترك مساحة مخصصة للوسم البارز في أقصى اليسار */
+    padding-left: 145px; /* ترك مساحة مخصصة للوسم البارز في أقصى اليسار */
   }
   .doc-header-main-title {
-    font-size: 11pt;
+    font-size: 9.5pt;
     font-weight: 800;
     color: #0f2942;
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
+    gap: 6px;
+    margin-bottom: 2px;
+    line-height: 1.3;
   }
   .doc-badge-seq {
     background: #1e3a8a;
     color: white;
-    font-size: 7.5pt;
-    padding: 2px 7px;
-    border-radius: 4px;
+    font-size: 7pt;
+    padding: 1px 6px;
+    border-radius: 3px;
     font-weight: 700;
+    white-space: nowrap;
   }
   .doc-header-sub-meta {
-    font-size: 8.5pt;
+    font-size: 7.5pt;
     color: #475569;
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 14px;
+    gap: 2px 10px;
+    line-height: 1.3;
   }
 
   /* وسم رمز المرفق في أعلى يسار الصفحة - لون مميز وخلفية مميزة جداً */
@@ -4686,90 +4789,94 @@ function openDossierPrintWindow() {
     top: 0px;
     left: 0px;
     background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
-    border: 2.5px solid #facc15; /* إطار ذهبي فاقع */
-    border-radius: 8px;
-    padding: 5px 14px;
+    border: 2px solid #facc15; /* إطار ذهبي فاقع */
+    border-radius: 6px;
+    padding: 3px 10px;
     text-align: center;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35);
-    min-width: 155px;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.3);
+    min-width: 135px;
     z-index: 100;
   }
   .stamp-title-text {
-    font-size: 7.5pt;
+    font-size: 6.5pt;
     font-weight: 700;
     color: #93c5fd;
     letter-spacing: 0.5px;
-    margin-bottom: 1px;
+    margin-bottom: 0px;
   }
   .stamp-code-text {
-    font-size: 13pt;
+    font-size: 11pt;
     font-weight: 900;
     color: #facc15; /* لون ذهبي ناصع ومميز */
     font-family: 'Courier New', monospace, sans-serif;
-    letter-spacing: 1px;
+    letter-spacing: 0.5px;
     text-shadow: 0 1px 2px rgba(0,0,0,0.5);
   }
 
   .doc-display-container {
+    flex: 1 1 auto;
     display: flex;
     justify-content: center;
     align-items: center;
-    min-height: 170mm;
     background: #ffffff;
     border: 1px solid #cbd5e1;
     border-radius: 6px;
-    padding: 8px;
-    margin-bottom: 8px;
+    padding: 4px;
+    margin: 2px 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    max-height: 195mm;
   }
   .doc-rendered-image {
     max-width: 100%;
-    max-height: 180mm;
+    max-height: 190mm;
     width: auto;
     height: auto;
     display: block;
     object-fit: contain;
     border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   }
 
   /* بطاقة بديلة للوثائق عند تعذر عرض الصورة المباشرة */
   .doc-fallback-sheet {
     text-align: center;
-    padding: 30px 20px;
-    max-width: 85%;
+    padding: 14px 12px;
+    max-width: 90%;
     border: 2px dashed #94a3b8;
-    border-radius: 10px;
+    border-radius: 8px;
     background: #f8fafc;
   }
-  .fallback-icon { font-size: 38pt; margin-bottom: 8px; }
-  .doc-fallback-sheet h3 { font-size: 13pt; color: #0f2942; margin-top: 0; }
-  .doc-fallback-sheet p { font-size: 9.5pt; color: #334155; margin: 4px 0; }
+  .fallback-icon { font-size: 26pt; margin-bottom: 4px; }
+  .doc-fallback-sheet h3 { font-size: 11pt; color: #0f2942; margin: 0 0 4px 0; }
+  .doc-fallback-sheet p { font-size: 8pt; color: #334155; margin: 2px 0; }
   .fallback-summary {
     background: #e2e8f0;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 9pt;
-    margin-top: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 7.5pt;
+    margin-top: 6px;
   }
   .fallback-audit-seal {
-    margin-top: 20px;
+    margin-top: 8px;
     display: inline-block;
     background: #ecfdf5;
     color: #15803d;
     border: 1.5px solid #16a34a;
-    padding: 6px 16px;
+    padding: 3px 10px;
     border-radius: 999px;
     font-weight: 800;
-    font-size: 9.5pt;
+    font-size: 8pt;
   }
 
   .doc-page-footer-strip {
     border-top: 1px solid #cbd5e1;
-    padding-top: 6px;
+    padding-top: 3px;
+    margin-top: 2px;
     display: flex;
     justify-content: space-between;
-    font-size: 7.5pt;
+    font-size: 7pt;
     color: #64748b;
+    flex-shrink: 0;
   }
 </style>
 </head>
@@ -4867,16 +4974,42 @@ function openDossierPrintWindow() {
     <!-- ==================================================================== -->
     <!-- الصفحات اللاحقة: كافة صور ووثائق المرفقات مع وسم رمز المرفق البارز -->
     <!-- ==================================================================== -->
-    ${documentPagesHtml}
-
+    ${documentPagesHtml.trim()}
 </div>
 
 <script>
 window.onload = function() {
-    // تفعيل الطباعة التلقائية بعد اكتمال التحميل بمهلة قصيرة
-    setTimeout(function() {
-        window.print();
-    }, 600);
+    function triggerPrintWhenReady() {
+        var images = Array.from(document.images);
+        var loadedCount = 0;
+        var total = images.length;
+        if (total === 0) {
+            setTimeout(function() { window.print(); }, 250);
+            return;
+        }
+        var done = false;
+        function onDone() {
+            if (done) return;
+            done = true;
+            setTimeout(function() { window.print(); }, 250);
+        }
+        function checkImg() {
+            loadedCount++;
+            if (loadedCount >= total) {
+                onDone();
+            }
+        }
+        images.forEach(function(img) {
+            if (img.complete) {
+                checkImg();
+            } else {
+                img.addEventListener('load', checkImg);
+                img.addEventListener('error', checkImg);
+            }
+        });
+        setTimeout(onDone, 2000);
+    }
+    triggerPrintWhenReady();
 };
 <\/script>
 </body>

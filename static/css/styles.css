@@ -976,20 +976,30 @@ body {
     .main-header, .sticky-scoreboard, .tabs-nav, .quick-actions, .ocr-dropzone, .btn, .initiative-announcement-bar, .platform-footer {
         display: none !important;
     }
-    body {
+    html, body {
         background: white !important;
         padding: 0 !important;
         margin: 0 !important;
+        height: auto !important;
+        min-height: 0 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
     .tab-pane {
         display: block !important;
-        page-break-after: always;
+        page-break-after: auto !important;
+        break-after: auto !important;
+    }
+    .tab-pane:empty {
+        display: none !important;
     }
     .form-card {
         border: none !important;
         box-shadow: none !important;
         padding: 0 !important;
-        margin: 0 !important;
+        margin: 0 0 1rem 0 !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
     }
 }
 
