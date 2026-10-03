@@ -49,15 +49,15 @@ def save_vlm_config(config: Dict[str, Any]) -> bool:
 def normalize_arabic_name(name: str) -> str:
     """
     تسوية وتوحيد الأسماء العربية للبحث المرن متجاوزاً اختلافات الهمزات،
-    الألقاب العلمية، والألف المقصورة والتنوين والتطويل.
+    الألقاب العلمية، والألف المقصورة والتنوين والتطويل مع دعم الحروف المعكوسة.
     """
     if not name:
         return ""
     text = name.strip()
     # تجريد التشكيل والتطويل
     text = re.sub(r'[\u064B-\u065F\u0640]', '', text)
-    # إزالة الألقاب العلمية والرتب الشائعة
-    text = re.sub(r'(?:أ\.د\.|أ\.م\.د\.|م\.د\.|م\.م\.|د\.|\bدكتور|\bأستاذ|\bمدرس|\bمساعد|\bالمهندس|\bالمعماري|\bالسيد|\bالسيدة)\b', ' ', text)
+    # إزالة الألقاب العلمية والرتب الشائعة بكافة صورها (بما في ذلك المعكوسة مثل . د.م أو . م.م)
+    text = re.sub(r'(?:أ\.د\.|أ\.م\.د\.|م\.د\.|م\.م\.|د\.|\.\s*د\.م\.ا|\.\s*د\.م|\.\s*م\.م|\.\s*د\.ا|\bدكتور|\bأستاذ|\bمدرس|\bمساعد|\bالمهندس|\bالمعماري|\bالسيد|\bالسيدة)\b', ' ', text)
     # توحيد الهمزات
     text = re.sub(r'[أإآٱ]', 'ا', text)
     # توحيد الياء والهمزة على نبرة
@@ -74,115 +74,244 @@ def normalize_arabic_name(name: str) -> str:
 def extract_faculty_role_in_order(text: str, faculty_name: str) -> Optional[Dict[str, Any]]:
     """
     البحث الذكي المتقدم عن اسم التدريسي في الأوامر الإدارية والجداول وقوائم اللجان
-    وتحديد دوره وصفته (رئيس لجنة، عضو ومقرر، عضو لجنة، مشرف، محاضر، مشارك، مكرم).
+    وتحديد دوره وصفته (رئيس لجنة، عضو ومقرر، عضو لجنة، مشرف، محاضر، مشارك، مكرم، تدريسي مقرر)
+    مع معالجة متقدمة للجداول، والأرقام الملحقة بالاسم، والأسماء المترجمة للإنجليزية.
     """
     if not text or not faculty_name:
         return None
-    
+
     norm_target = normalize_arabic_name(faculty_name)
     target_tokens = [p for p in norm_target.split() if len(p) >= 2]
     if not target_tokens:
         return None
-    
-    min_matches = min(len(target_tokens), 2) if len(target_tokens) >= 2 else 1
-    
+
+    unique_target_tokens = list(dict.fromkeys(target_tokens))
+
+    # توليد بدائل الاسم بالإنجليزية للوثائق المنشورة والشهادات الدولية
+    en_variants = []
+    # تحويل بسيط للاسم الشائع (مثال: أحمد لؤي أحمد -> Ahmed Louay Ahmed)
+    if "احمد" in norm_target and "لوي" in norm_target:
+        en_variants.extend([
+            "ahmed louay ahmed", "ahmed louay", "ahmed louai", "ahmad luay",
+            "ahmed, ahmed louay", "ahmed, a. l.", "a. l. ahmed", "ahmed l. ahmed"
+        ])
+    else:
+        # اشتقاق عام من الأحرف الإنجليزية للهدف
+        en_name = re.sub(r'[^a-zA-Z\s]', '', faculty_name).strip().lower()
+        if len(en_name) >= 4:
+            en_variants.append(en_name)
+
     lines = [l.strip() for l in text.split('\n') if l.strip()]
     total_lines = len(lines)
-    
+
+    best_candidate = None
+    best_score = 0.0
+
     for idx, line in enumerate(lines):
         norm_line = normalize_arabic_name(line)
-        matches = sum(1 for tok in target_tokens if tok in norm_line)
-        
-        if matches >= min_matches:
-            # استخراج رقم التسلسل إن وجد في بداية السطر أو الجدول
-            order_index = None
-            seq_match = re.search(r'^(?:\|\s*)?(\d+)[\.\-\)\s\|]', line) or re.search(r'ت\s*[:\.]?\s*(\d+)', line)
-            if seq_match:
-                order_index = seq_match.group(1)
-                
-            # استخراج اللقب العلمي
-            academic_rank = "تدريسي"
-            if re.search(r'أ\.د\.|أستاذ دكتور|\bأستاذ\b', line):
-                academic_rank = "أستاذ"
-            elif re.search(r'أ\.م\.د\.|أستاذ مساعد', line):
-                academic_rank = "أستاذ مساعد"
-            elif re.search(r'م\.د\.|مدرس دكتور|\bمدرس\b', line):
-                academic_rank = "مدرس"
-            elif re.search(r'م\.م\.|مدرس مساعد', line):
-                academic_rank = "مدرس مساعد"
-            elif re.search(r'\bدكتور\b|د\.', line):
-                academic_rank = "دكتور"
-            
-            # فحص السطر المباشر أولاً ثم السطور المجاورة لمعرفة الدور
-            context_window = " ".join(lines[max(0, idx - 1): min(total_lines, idx + 2)])
-            target_str = line if any(k in line for k in ["رئيساً", "رئيسا", "عضواً", "عضو", "مقرراً", "مقرر", "مشرفاً", "مشرف", "محاضراً", "شكر", "مشارك"]) else context_window
-            
-            role = "عضو لجنة"
+        line_lower = line.lower()
+
+        score = 0.0
+
+        # 1. مطابقة الاسم الثلاثي/الرباعي الكامل بدقة 100%
+        if norm_target in norm_line:
+            score = 1.0
+        # 2. مطابقة الاسم بالإنجليزية في البحوث والشهادات الدولية
+        elif any(v in line_lower for v in en_variants):
+            score = 0.98
+        # 3. مطابقة الاسم الثنائي (مثل: أحمد لؤي)
+        elif len(unique_target_tokens) >= 2 and ' '.join(unique_target_tokens[:2]) in norm_line:
+            score = 0.92
+        # 4. وجود كافة الكلمات المفتاحية الفريدة للاسم في السطر
+        elif len(unique_target_tokens) >= 2 and all(tok in norm_line for tok in unique_target_tokens):
+            score = 0.88
+        # 5. الاسم المقلوب في ملفات PDF التي تعكس الحروف العربية
+        elif any(tok[::-1] in line for tok in unique_target_tokens if len(tok) >= 3):
+            score = 0.82
+
+        if score > best_score:
+            best_score = score
+            best_candidate = (idx, line, score)
+
+    # إذا لم نحقق عتبة تطابق قوية، نتجنب الإسناد الخاطئ
+    if not best_candidate or best_score < 0.80:
+        return None
+
+    idx, line, _ = best_candidate
+
+    # ── استخراج رقم التسلسل في الجدول أو القائمة ──
+    order_index = None
+    # في بداية السطر (مثل 1- أو 1. أو | 35 | أو ت: 35)
+    seq_start = re.search(r'^(?:\|\s*)?(\d+)[\.\-\)\s\|]', line) or re.search(r'ت\s*[:\.]?\s*(\d+)', line)
+    if seq_start:
+        order_index = seq_start.group(1)
+    else:
+        # في نهاية السطر ملتصقاً بالاسم (مثل: م.د. احمد لؤي احمد35)
+        seq_end = re.search(r'(\d{1,3})$', line.strip())
+        if seq_end:
+            order_index = seq_end.group(1)
+        elif idx > 0 and re.match(r'^\d{1,3}$', lines[idx - 1].strip()):
+            order_index = lines[idx - 1].strip()
+
+    # ── استخراج اللقب العلمي (مع مراعاة الصيغ المعكوسة مثل . د.م) ──
+    academic_rank = "تدريسي"
+    if re.search(r'أ\.د\.|أستاذ دكتور|\bأستاذ\b|\.\s*د\.ا', line):
+        academic_rank = "أستاذ"
+    elif re.search(r'أ\.م\.د\.|أستاذ مساعد|\.\s*د\.م\.ا', line):
+        academic_rank = "أستاذ مساعد"
+    elif re.search(r'م\.د\.|مدرس دكتور|\bمدرس\b|\.\s*د\.م', line):
+        academic_rank = "مدرس"
+    elif re.search(r'م\.م\.|مدرس مساعد|\.\s*م\.م', line):
+        academic_rank = "مدرس مساعد"
+    elif re.search(r'\bدكتور\b|د\.', line):
+        academic_rank = "دكتور"
+
+    # ── فحص نافذة السياق (3 أسطر قبل و 3 أسطر بعد) لمعرفة الصفة والدور ──
+    context_window = " ".join(lines[max(0, idx - 3): min(total_lines, idx + 4)])
+    target_str = line if any(k in line for k in ["رئيساً", "رئيسا", "عضواً", "عضو", "مقرراً", "مقرر", "مشرفاً", "مشرف", "محاضراً", "شكر", "مشارك", "مسؤول"]) else context_window
+
+    # تحديد طبيعة الوثيقة العامة
+    is_teaching_schedule = any(k in text for k in ["جدول التكليفات", "التكليفات التدريسية", "جدول الدراسات العليا", "جدول فرع", "المقررات الدراسية", "جدول الدروس"])
+    is_thank_you = any(k in text for k in ["شكر وتقدير", "شكرنا وتقديرنا", "توجيه الشكر", "نوجه شكرنا"])
+    is_exam_committee = any(k in text for k in ["لجنة امتحانية", "الامتحانية", "امتحانات"])
+    is_supervision = any(k in text for k in ["مشرفاً", "مشرف", "إشراف", "اشراف", "أطروحة", "رسالة"])
+    is_international_paper = any(k in text for k in ["Scopus", "Clarivate", "DOI:", "CiteScore", "Article", "Journal"])
+
+    role = "عضو لجنة"
+    score = 20.0
+    p_target = "1"
+    axis_target = "axis3"
+
+    # 1. رئيس لجنة أو رئيس فرع / فريق
+    if any(k in target_str for k in ["رئيساً", "رئيس اللجنة", "رئيس لجنة", "رئيسا", "رئيس الفريق", "برئاسة"]):
+        if any(k in text for k in ["وزار", "وزارة", "مركزية", "الجامعة"]) or is_exam_committee:
+            role = "رئيس لجنة مركزية / امتحانية"
+            score = 40.0
+        else:
+            role = "رئيس لجنة"
+            score = 30.0
+        axis_target = "axis3"
+        p_target = "1"
+
+    # 2. مقرر لجنة أو عضو ومقرر
+    elif any(k in target_str for k in ["عضو ومقرر", "عضواً ومقرراً", "عضوا ومقررا", "مقرر اللجنة", "مقرراً", "مقررا"]):
+        role = "عضو ومقرر"
+        score = 25.0
+        axis_target = "axis3"
+        p_target = "1"
+
+    # 3. مسؤول مرحلة دراسية في القسم
+    elif "مسؤول المرحلة" in target_str:
+        role = "مسؤول مرحلة دراسية"
+        score = 25.0
+        axis_target = "axis1"
+        p_target = "1"
+
+    # 4. جدول التكليفات التدريسية والمقررات الدراسية
+    elif is_teaching_schedule and not is_thank_you:
+        role = "تدريسي مقرر دراسي"
+        score = 20.0
+        axis_target = "axis1"
+        p_target = "1"
+
+    # 5. عضو لجنة امتحانية
+    elif is_exam_committee or "امتحانية" in target_str:
+        role = "عضو لجنة امتحانية"
+        score = 30.0
+        axis_target = "axis3"
+        p_target = "1"
+
+    # 6. مناقشة مشاريع التخرج أو السمنار
+    elif any(k in target_str for k in ["مشاريع تخرج", "مشروع تخرج", "مناقشة مشاريع", "سمنار"]):
+        role = "عضو لجنة مناقشة مشاريع التخرج"
+        score = 25.0
+        axis_target = "axis3"
+        p_target = "1"
+
+    # 7. الإشراف الأكاديمي على الدراسات العليا
+    elif is_supervision:
+        if "دكتوراه" in target_str:
+            role = "مشرف على أطروحة دكتوراه"
+            score = 30.0
+        else:
+            role = "مشرف على رسالة ماجستير"
             score = 20.0
-            p_target = "1"
-            
-            if any(k in target_str for k in ["رئيساً", "رئيس اللجنة", "رئيس لجنة", "رئيسا", "رئيس الفريق"]):
-                role = "رئيس لجنة"
-                score = 30.0
-                p_target = "1"
-            elif any(k in target_str for k in ["عضو ومقرر", "عضواً ومقرراً", "عضوا ومقررا", "مقرر اللجنة", "مقرراً", "مقررا"]):
-                role = "عضو ومقرر"
-                score = 25.0
-                p_target = "1"
-            elif any(k in target_str for k in ["لجنة امتحانية", "امتحانية", "الامتحانية"]):
-                role = "عضو لجنة امتحانية"
-                score = 30.0
-                p_target = "1"
-            elif any(k in target_str for k in ["مشاريع تخرج", "مشروع تخرج", "مناقشة مشاريع"]):
-                role = "عضو لجنة مناقشة مشاريع التخرج"
-                score = 30.0
-                p_target = "1"
-            elif any(k in target_str for k in ["مشرفاً", "مشرف", "إشراف", "اشراف", "أطروحة", "رسالة"]):
-                role = "مشرف على دراسات عليا"
-                score = 15.0
-                p_target = "3"
-            elif any(k in target_str for k in ["محاضراً", "محاضر", "إلقاء محاضرة", "القاء محاضرة", "مدرب"]):
-                role = "محاضر في دورة تعليم مستمر"
-                score = 10.0
-                p_target = "2"
-            elif any(k in target_str for k in ["شكر وتقدير", "شكرنا وتقديرنا", "توجيه الشكر", "نوجه شكرنا"]):
-                role = "مكرم بكتاب شكر وتقدير"
-                score = 15.0
-                p_target = "3"
-            elif any(k in target_str for k in ["شهادة مشاركة", "حضور", "مشارك", "مشاركة"]):
-                role = "مشارك في مؤتمر أو ورشة"
-                score = 5.0
-                p_target = "2"
-            elif any(k in target_str for k in ["عضواً", "عضو", "أعضاء", "عضوية"]):
-                role = "عضو لجنة"
-                score = 20.0
-                p_target = "1"
-            
-            # توليد سطر مُميَّز بصيغة HTML للعرض البصري
-            highlighted_line = line
-            # محاولة إحاطة اسم التدريسي بـ mark
-            for tok in faculty_name.split():
-                if len(tok) >= 3 and tok in highlighted_line:
-                    highlighted_line = highlighted_line.replace(tok, f'<mark class="faculty-name-highlight">{tok}</mark>')
-                    break
-            if '<mark' not in highlighted_line:
-                highlighted_line = f'<mark class="faculty-name-highlight">{line}</mark>'
-                
-            approx_top = min(85.0, max(25.0, 30.0 + (float(idx) / max(total_lines, 1)) * 50.0))
-            
-            return {
-                "matched_name": faculty_name,
-                "detected_line": line,
-                "highlighted_line": highlighted_line,
-                "role": role,
-                "academic_rank": academic_rank,
-                "order_index": order_index,
-                "suggested_score": score,
-                "suggested_paragraph": p_target,
-                "approx_top_pct": approx_top
-            }
-            
-    return None
+        axis_target = "axis2"
+        p_target = "3"
+
+    # 8. كتب الشكر والتقدير
+    elif is_thank_you:
+        role = "مكرم بكتاب شكر وتقدير"
+        if any(k in text for k in ["وزير", "الوزير"]):
+            score = 20.0
+        elif any(k in text for k in ["جامعة", "الجامعة", "رئيس الجامعة", "رئيس جامعة", "وكيل"]):
+            score = 15.0
+        elif any(k in text for k in ["عميد", "العميد", "مدير عام"]):
+            score = 10.0
+        else:
+            score = 5.0
+        axis_target = "axis3"
+        p_target = "3"
+
+    # 9. التعليم المستمر وإلقاء المحاضرات
+    elif any(k in target_str for k in ["محاضراً", "محاضر", "إلقاء محاضرة", "القاء محاضرة", "مدرب"]):
+        role = "محاضر في دورة تعليم مستمر"
+        score = 10.0
+        axis_target = "axis3"
+        p_target = "2"
+
+    # 10. المشاركة والحضور في المؤتمرات والورش
+    elif any(k in target_str for k in ["شهادة مشاركة", "حضور", "مشارك", "مشاركة", "تأييد حضور"]):
+        role = "مشارك في مؤتمر أو ورشة"
+        score = 5.0
+        axis_target = "axis3"
+        p_target = "2"
+
+    # 11. النشر العلمي والبحوث الدولية (Scopus / Clarivate)
+    elif is_international_paper:
+        role = "باحث"
+        score = 35.0
+        axis_target = "axis2"
+        p_target = "1"
+
+    # 12. عضو لجنة عامة
+    elif any(k in target_str for k in ["عضواً", "عضو", "أعضاء", "عضوية"]):
+        role = "عضو لجنة"
+        score = 20.0
+        axis_target = "axis3"
+        p_target = "1"
+
+    # ── توليد السطر المظلل بصرياً بعلامة mark ──
+    highlighted_line = line
+    marked = False
+    for tok in faculty_name.split():
+        if len(tok) >= 3 and tok in highlighted_line:
+            highlighted_line = highlighted_line.replace(tok, f'<mark class="faculty-name-highlight">{tok}</mark>')
+            marked = True
+            break
+    if not marked:
+        for en_v in en_variants:
+            if en_v in highlighted_line.lower():
+                highlighted_line = re.sub(re.escape(en_v), f'<mark class="faculty-name-highlight">{en_v}</mark>', highlighted_line, flags=re.I)
+                marked = True
+                break
+    if not marked:
+        highlighted_line = f'<mark class="faculty-name-highlight">{line}</mark>'
+
+    approx_top = min(85.0, max(25.0, 30.0 + (float(idx) / max(total_lines, 1)) * 50.0))
+
+    return {
+        "matched_name": faculty_name,
+        "detected_line": line,
+        "highlighted_line": highlighted_line,
+        "role": role,
+        "academic_rank": academic_rank,
+        "order_index": order_index,
+        "suggested_axis": axis_target,
+        "suggested_score": score,
+        "suggested_paragraph": p_target,
+        "approx_top_pct": approx_top
+    }
 
 
 def calculate_local_bounding_boxes(

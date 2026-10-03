@@ -248,6 +248,12 @@ def extract_dates(text: str, filename: str = "") -> List[HandwrittenString]:
             seen.add(formatted)
             dates.append(HandwrittenString(formatted, is_handwritten=is_hw))
 
+    # دالة مساعدة لترتيب التواريخ بحيث تكون التواريخ الكاملة (يوم/شهر/سنة) في المقدمة دائماً
+    def finalize_dates(d_list: List[HandwrittenString]) -> List[HandwrittenString]:
+        return sorted(d_list, key=lambda d: (
+            0 if len(re.split(r'[/\-_]', str(d))) == 3 and not re.match(r'^\d{4}[/\-]\d{4}$', str(d)) else 1
+        ))
+
     # 1. فحص التواريخ المكتوبة بأسماء الأشهر العربية باليد (مثال: 14 نيسان 2025)
     month_names_pattern = '|'.join(sorted(ARABIC_MONTHS.keys(), key=lambda x: -len(x)))
     textual_date_pat = rf'(\b(?:0?[1-9]|[12][0-9]|3[01]))\s*(?:من\s*)?({month_names_pattern})\s*(?:سنة\s*|عام\s*)?(202[0-9])'
@@ -341,7 +347,7 @@ def extract_dates(text: str, filename: str = "") -> List[HandwrittenString]:
             if fn_date and fn_date not in seen:
                 add_date(fn_date, is_hw=False)
 
-    return dates
+    return finalize_dates(dates)
 
 
 def infer_department_abbreviation(lines: List[str]) -> str:
@@ -408,17 +414,12 @@ def clean_handwritten_doc_number(raw_line: str, dept_hint: str = "", next_line: 
     line = normalize_arabic_text(raw_line)
     dept_hint = dept_hint or ""
 
-    # 0. فصل الحروف العربية عن الحروف اللاتينية المتصلة بها خطأ في OCR (مثل هRef -> ه Ref)
-    line = re.sub(r'([\u0600-\u06FF])([A-Za-z])', r'\1 \2', line)
-    line = re.sub(r'([A-Za-z])([\u0600-\u06FF])', r'\1 \2', line)
-
-    # 1. إزالة كلمة 'العدد' أو مرادفاتها في بداية السطر حتى مع أخطاء OCR الشائعة (سد: أو العد: أو سـد:)
-    line = re.sub(r'^(?:العدد|الـعـدد|رقم|الرقم|عدد|العد|الـعد|سد|سـد)\s*[:/=-]?\s*', '', line.strip())
-
-    # 2. إزالة التسميات الإنجليزية الثنائية مثل Ref. أو No: أو Date: أو Rer:
-    # 2. إزالة التسميات الإنجليزية الثنائية مثل Ref. أو No: أو Date: أو Rer: أو Bel:
-    line = re.sub(r'(?i)\b(?:ref|no|date|rer|bel|rel)\b[\.:]*', ' ', line)
-    line = re.sub(r'(?i)\bR[0-9e]\b[\.:]*', ' ', line)
+    STOP_CODES = {
+        'في', 'من', 'عن', 'إلى', 'الى', 'على', 'عدد', 'العدد', 'رقم', 'الرقم',
+        'بتاريخ', 'تاريخ', 'سنة', 'عام', 'يوم', 'شهر', 'ذا', 'ذي', 'ذو', 'تلك',
+        'امتحانية', 'دائمية', 'مؤقتة', 'مركزية', 'وزارية', 'جامعية', 'كلية', 'قسم',
+        'شعبة', 'وحدة', 'فرع', 'لجنة', 'امر', 'أمر', 'قرار', 'كتاب'
+    }
 
     # معالجة مكتب الوزير المكتوب كـ 2و أو ٢و
     line = re.sub(r'\b[2٢]\s*و\b', 'م و', line)
@@ -474,6 +475,9 @@ def clean_handwritten_doc_number(raw_line: str, dept_hint: str = "", next_line: 
         line = re.sub(r'\b(?:مش|م)\s+', 'ش.ع/', line)
         line = re.sub(r'\b(?:مش|م)\b', 'ش.ع', line)
 
+    # إزالة تشويش ثنائية اللغة الإنجليزية (Ref, NO, Rer, Rel, Bel, R2)
+    line = re.sub(r'(?i)\b(?:Ref|REF|Rer|Rel|Bel|No|NO|R\d)\b[\.:]?', ' ', line)
+
     # 5. تنظيف السلاش والنقاط
     line = re.sub(r'\s*[/]\s*', '/', line)
     line = re.sub(r'\s*[\.]\s*', '.', line)
@@ -515,15 +519,17 @@ def clean_handwritten_doc_number(raw_line: str, dept_hint: str = "", next_line: 
             return HandwrittenString(f"م.ج/{serial}", is_handwritten=True)
         elif clean_code in ['ص', 'ق', 'أ', 'ت']:
             return HandwrittenString(f"{serial}/{code}", is_handwritten=True)
-        elif len(clean_code) == 2 and not '.' in code:
+        elif len(clean_code) == 2 and not '.' in code and clean_code not in STOP_CODES and not clean_code.endswith('ية'):
             return HandwrittenString(f"{clean_code[0]}.{clean_code[1]}/{serial}", is_handwritten=True)
-        return HandwrittenString(f"{serial}/{code}", is_handwritten=True)
+        elif clean_code not in STOP_CODES and not clean_code.endswith('ية'):
+            return HandwrittenString(f"{serial}/{code}", is_handwritten=True)
 
     # 7. إزالة تشويش الشهر المنفرد في نهاية السطر الناتج عن تداخل سطر التاريخ أسفله فقط إن تطابق
     m_trail = re.search(r'/([1-9])$', line.strip())
     if m_trail and next_line:
+        next_clean = normalize_arabic_text(next_line)
         d_val = m_trail.group(1)
-        if re.search(r'[/_\-\s]' + d_val + r'[/_\-\s]', next_line):
+        if re.search(r'[/_\-\s]' + d_val + r'[/_\-\s]', next_clean):
             line = re.sub(r'/' + d_val + r'$', '', line.strip())
     line = line.strip()
 
@@ -565,9 +571,10 @@ def clean_handwritten_doc_number(raw_line: str, dept_hint: str = "", next_line: 
                 return HandwrittenString(f"ش.ع/{div_num}", is_handwritten=True)
             return HandwrittenString(f"ش.ع/{serial}", is_handwritten=True)
 
-        if div_num:
-            return HandwrittenString(f"{letters} {div_num} / {serial}", is_handwritten=True)
-        return HandwrittenString(f"{letters}/{serial}", is_handwritten=True)
+        if clean_code not in STOP_CODES and not clean_code.endswith('ية'):
+            if div_num:
+                return HandwrittenString(f"{letters} {div_num} / {serial}", is_handwritten=True)
+            return HandwrittenString(f"{letters}/{serial}", is_handwritten=True)
 
     # الصيغة 2: حروف عربية ثم مسافة ثم رقم تسلسلي (مثل ه 734 أو ش ع 43 أو هـ 1799)
     m2 = re.search(r'([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4})\s*[:\s]\s*(\d{2,6}(?:[/]\d+)*)', line)
@@ -576,7 +583,23 @@ def clean_handwritten_doc_number(raw_line: str, dept_hint: str = "", next_line: 
         serial = m2.group(2).strip()
         clean_code = letters.replace(".", "").replace(" ", "")
         if letters in ["العدد", "عدد", "رقم", "العد", "سد"]:
-            return HandwrittenString(serial, is_handwritten=True)
+            if "هـ.ع" in line:
+                return HandwrittenString(f"هـ.ع/{serial}", is_handwritten=True)
+            if "م.ع" in line:
+                return HandwrittenString(f"م.ع/{serial}", is_handwritten=True)
+            if "ش.ع" in line:
+                return HandwrittenString(f"ش.ع/{serial}", is_handwritten=True)
+            if "د.ت" in line:
+                return HandwrittenString(f"د.ت/{serial}", is_handwritten=True)
+            if "أ.م" in line:
+                return HandwrittenString(f"أ.م/{serial}", is_handwritten=True)
+            if "م.ر" in line:
+                return HandwrittenString(f"م.ر/{serial}", is_handwritten=True)
+            m3_cand = re.search(r'(\d{2,6})\s*(?:[/]|\s+)\s*([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4})', line)
+            if m3_cand and any(k in m3_cand.group(2) for k in ["ه", "م", "ش", "د", "أ"]):
+                pass
+            else:
+                return HandwrittenString(serial, is_handwritten=True)
         elif letters in ["ه", "هـ"]:
             letters = dept_hint or "هـ.ع"
         elif clean_code in ["مش", "شع", "ش"]:
@@ -628,11 +651,11 @@ def clean_handwritten_doc_number(raw_line: str, dept_hint: str = "", next_line: 
         return HandwrittenString(serial, is_handwritten=True)
 
     # الصيغة 5: رقم تسلسلي بسيط من 2 إلى 6 خانات
-    line_body = re.sub(r'^(?:العدد|الـعـدد|رقم|الرقم|عدد|العد|الـعد|سد|سـد)\s*[:/=-]?\s*', '', raw_line).strip()
+    line_body = re.sub(r'^(?:العدد|الـعـدد|رقم|الرقم|عدد|العد|الـعد|سد|سـد)\s*[:/=-]?\s*', '', line).strip()
     m4 = re.search(r'\b(\d{2,6})\b', line_body)
     if m4:
         serial = m4.group(1).strip()
-        if dept_hint == "هـ.ع" and any(c in line_body for c in ["ه", "هـ", "ع"]):
+        if (dept_hint == "هـ.ع" or any(c in line_body for c in ["ه", "هـ"])) and any(c in line_body for c in ["ه", "هـ", "ع"]):
             return HandwrittenString(f"هـ.ع/{serial}", is_handwritten=True)
         return HandwrittenString(serial, is_handwritten=True)
 
@@ -720,14 +743,22 @@ def extract_document_number(text: str, filename: str = "") -> Optional[Handwritt
         if m_sub:
             return HandwrittenString(f"submission {m_sub.group(1)}", is_handwritten=False)
 
-    # 3. نمط الأوامر الإدارية والجامعية الصريحة في المتن (مثل أمر جامعي ذي العدد د.ت/46)
-    order_pat = r'(?:أمر إداري|أمر جامعي|امر اداري|امر جامعي)\s*(?:رقم|المرقم|بالعدد|ذي العدد)?\s*([0-9A-Za-z\u0600-\u06FF/\-_!|\\\. ]+)'
+    # 3. نمط الأوامر الإدارية والجامعية والوزارية الصريحة في المتن (مثل أمر وزاري ذي العدد 9988 أو أمر جامعي ذي العدد د.ت/46)
+    order_pat = r'(?:أمر إداري|أمر جامعي|أمر وزاري|امر اداري|امر جامعي|امر وزاري|كتاب شكر|قرار مجلس)\s*(?:رقم|المرقم|بالعدد|ذي العدد)?\s*([0-9A-Za-z\u0600-\u06FF/\-_!|\\\. ]+)'
     m_order = re.search(order_pat, norm_text)
     if m_order:
         raw_val = m_order.group(1)
+        raw_val = re.split(r'\s+(?:في|بتاريخ|تاريخ|date)\b', raw_val, flags=re.I)[0].strip()
         res_order = clean_handwritten_doc_number(raw_val, dept_hint)
         if res_order:
             return res_order
+
+    # 3.ب نمط No: أو Ref: متبوعاً بنقاط وأرقام (الوثائق الرسمية ثنائية اللغة)
+    m_no_en = re.search(r'(?:No|Ref)\s*[\.:]\s*[\.\s\-_:=]*(\d{1,6}(?:[/]\d+)*)', norm_text, re.IGNORECASE)
+    if m_no_en:
+        f_num = m_no_en.group(1).strip()
+        if not re.match(r'^(?:19|20)\d\d$', f_num) and len(f_num) <= 6:
+            return HandwrittenString(f_num, is_handwritten=True)
 
     # 4. أرقام الشهادات والزمالات الدولية بالإنجليزية (مثل Fellowship reference PR075557)
     m_fellow = re.search(r'(?:Fellowship\s*reference|Certificate\s*No|License\s*No)[\s:]*([A-Z0-9\-]+)', norm_text, re.IGNORECASE)
@@ -1039,7 +1070,36 @@ def parse_academic_document(text: str, filename: str = "") -> Dict[str, Any]:
         }
 
     # -------------------------------------------------------------------------
-    # 7. الإشراف والتقويم العلمي ومناقشة الدراسات العليا
+    # 7. الجداول والتكليفات التدريسية والمقررات (Teaching Assignments)
+    # -------------------------------------------------------------------------
+    if any(k in combined_text for k in ["جدول تكليفات", "التكليفات التدريسية", "تكليفات", "جدول الدراسات العليا", "جدول فرع", "المقررات الدراسية", "جدول الدروس", "الكادر التدريسي", "مهام تدريسية", "نصاب"]):
+        score = 20.0
+        desc = "جدول توزيع الدروس الأسبوعي أو أمر تكليف تدريسي (20 درجة)"
+        return {
+            "document_type": "course_schedule",
+            "type_arabic": "جدول توزيع مقررات دراسية / أمر تكليف تدريسي",
+            "suggested_axis": "axis1",
+            "suggested_paragraph": "1",
+            "axis_name": "المحور الأول: جودة التدريس والتعليم والالتزام الوظيفي",
+            "paragraph_name": "المقررات الدراسية التي تولى تدريسها ونوعها (القصوى 20 درجة)",
+            "issuer": "القسم العلمي / رئاسة القسم",
+            "recipient": recipient or "غير محدد",
+            "subject": subject,
+            "document_number": doc_number or "أمر تكليف",
+            "date": primary_date,
+            "title": subject if any(w in subject for w in ["جدول", "تكليف", "مقرر", "دراسات"]) else "جدول التكليفات والمقررات الدراسية",
+            "suggested_score": score,
+            "justification": desc,
+            "extracted_data": {
+                "dates": dates,
+                "doc_number": doc_number,
+                "recipient": recipient,
+                "subject": subject
+            }
+        }
+
+    # -------------------------------------------------------------------------
+    # 8. الإشراف والتقويم العلمي ومناقشة الدراسات العليا
     # -------------------------------------------------------------------------
     if any(k in combined_text for k in ["إشراف", "اشراف", "اطروحة", "أطروحة", "رسالة ماجستير", "تقويم علمي", "تقويم لغوي", "مشروع تخرج", "المشرف", "مناقشة مشاريع"]):
         if "دكتوراه" in combined_text:
@@ -1135,34 +1195,6 @@ def parse_academic_document(text: str, filename: str = "") -> Dict[str, Any]:
             }
         }
 
-    # -------------------------------------------------------------------------
-    # 9. الجداول والتكليفات التدريسية والمقررات (Teaching Assignments)
-    # -------------------------------------------------------------------------
-    if any(k in combined_text for k in ["جدول", "مقرر", "مقررات", "تكليفات", "نصاب", "مهام تدريسية", "دراسات عليا", "دراسات اولية", "فصل دراسي"]):
-        score = 20.0
-        desc = "جدول توزيع الدروس الأسبوعي أو أمر تكليف تدريسي (20 درجة)"
-        return {
-            "document_type": "course_schedule",
-            "type_arabic": "جدول توزيع مقررات دراسية / أمر تكليف تدريسي",
-            "suggested_axis": "axis1",
-            "suggested_paragraph": "1",
-            "axis_name": "المحور الأول: جودة التدريس والتعليم والالتزام الوظيفي",
-            "paragraph_name": "المقررات الدراسية التي تولى تدريسها ونوعها (القصوى 20 درجة)",
-            "issuer": "القسم العلمي / الكلية",
-            "recipient": recipient or "غير محدد",
-            "subject": subject,
-            "document_number": doc_number or "جدول رسمي",
-            "date": primary_date,
-            "title": subject if subject and subject != "وثيقة رسمية داعمة" else "جدول التكليفات والمقررات الدراسية",
-            "suggested_score": score,
-            "justification": desc,
-            "extracted_data": {
-                "dates": dates,
-                "doc_number": doc_number,
-                "recipient": recipient,
-                "subject": subject
-            }
-        }
 
     # -------------------------------------------------------------------------
     # 10. الأوامر الإدارية والجامعية واللجان (Committees)
@@ -1255,11 +1287,21 @@ def deep_scan_and_index_document(
     واستخراج الحقول التخصصية وتوليد كائن تحديث حقول الاستمارة تلقائياً
     مع كشف التكرار وصناديق التظليل البصري والربط مع سكوباس.
     """
+    from core.vlm_engine import calculate_local_bounding_boxes, extract_faculty_role_in_order
+    from core.scopus_crossref import extract_doi, match_offline_journal
+
     parsed = parse_academic_document(text, filename)
+    matched_role_info = extract_faculty_role_in_order(text, faculty_name)
     
-    # إذا حدد المستخدم المحور والفقرة مباشرة من زر الإسناد الخاص بالفقرة
-    axis = target_axis or parsed["suggested_axis"]
-    paragraph = str(target_paragraph or parsed["suggested_paragraph"])
+    # إذا حدد المستخدم المحور والفقرة مباشرة من زر الإسناد الخاص بالفقرة، وإلا نعتمد النتيجة الذكية للتدريسي
+    if matched_role_info and not target_axis:
+        axis = matched_role_info.get("suggested_axis") or parsed["suggested_axis"]
+        paragraph = str(matched_role_info.get("suggested_paragraph") or parsed["suggested_paragraph"])
+        score_delta = matched_role_info.get("suggested_score", parsed["suggested_score"])
+    else:
+        axis = target_axis or parsed["suggested_axis"]
+        paragraph = str(target_paragraph or parsed["suggested_paragraph"])
+        score_delta = parsed["suggested_score"]
     
     dates = extract_dates(text, filename)
     doc_number = extract_document_number(text, filename)
@@ -1276,7 +1318,6 @@ def deep_scan_and_index_document(
 
     field_updates = {}
     auto_fill_summary = []
-    score_delta = parsed["suggested_score"]
 
     # =========================================================================
     # استخراج وتعبئة الحقول بحسب الفقرة المستهدفة
@@ -1403,8 +1444,8 @@ def deep_scan_and_index_document(
         if paragraph == "1":
             # اللجان الدائمية والمؤقتة والامتحانية
             c_type = parsed.get("extracted_data", {}).get("committee_type", "لجنة مؤقتة")
-            awarded = parsed["suggested_score"]
-            role = "رئيس اللجنة" if "رئيس" in text and "عضو" not in text else "عضو اللجنة"
+            awarded = score_delta
+            role = matched_role_info.get("role") if matched_role_info else ("رئيس اللجنة" if "رئيس" in text and "عضو" not in text else "عضو اللجنة")
 
             field_updates = {
                 "action": "add_committee",
@@ -1521,18 +1562,11 @@ def deep_scan_and_index_document(
     from core.vlm_engine import calculate_local_bounding_boxes, extract_faculty_role_in_order
     from core.scopus_crossref import extract_doi, match_offline_journal
     
-    # مطابقة اسم التدريسي في الأوامر والجداول واللجان
-    matched_role_info = extract_faculty_role_in_order(text, faculty_name)
+    # إدراج إشعار التعرف على اسم التدريسي في ملخص الفهرسة
     if matched_role_info:
-        # إذا كانت الوثيقة لجنة وتحدد دور التدريسي، نعدل الدرجة المستحقة فورياً
-        if axis == "axis3" and str(paragraph) == "1":
-            score_delta = matched_role_info["suggested_score"]
-            if "score_value" in field_updates:
-                field_updates["score_value"] = score_delta
-            if "item" in field_updates and isinstance(field_updates["item"], dict):
-                field_updates["item"]["score"] = score_delta
-                field_updates["item"]["role"] = matched_role_info["role"]
-        auto_fill_summary.insert(0, f"🎯 تم تمييز اسم التدريسي ({matched_role_info['matched_name']}) في قائمة/جدول الوثيقة بصفة [{matched_role_info['role']}].")
+        seq_str = f" بالتسلسل [{matched_role_info['order_index']}]" if matched_role_info.get("order_index") else ""
+        rank_str = f" بلقب ({matched_role_info['academic_rank']})" if matched_role_info.get("academic_rank") and matched_role_info["academic_rank"] != "تدريسي" else ""
+        auto_fill_summary.insert(0, f"🎯 تم تمييز اسم التدريسي ({matched_role_info['matched_name']}){seq_str}{rank_str} بصفة [{matched_role_info['role']}].")
 
     primary_dt_str = str(dates[0]) if dates else "2025/2026"
     bboxes = calculate_local_bounding_boxes(text, str(doc_number), primary_dt_str, subject_title, matched_role_info)

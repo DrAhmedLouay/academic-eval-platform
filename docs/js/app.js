@@ -981,8 +981,9 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
     // 7. إزالة تشويش الشهر المنفرد في نهاية السطر الناتج عن تداخل سطر التاريخ
     const mTrail = line.match(/\/([1-9])$/);
     if (mTrail && nextLine) {
+        const nextClean = normalizeArabicTextClient(nextLine);
         const dVal = mTrail[1];
-        if (new RegExp(`[/_\\-\\s]${dVal}[/_\\-\\s]`).test(nextLine)) {
+        if (new RegExp(`[/_\\-\\s]${dVal}[/_\\-\\s]`).test(nextClean)) {
             line = line.replace(new RegExp(`/${dVal}$`), "").trim();
         }
     }
@@ -1045,7 +1046,18 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
         const serial = m2[2].trim();
         const cleanCode = letters.replace(/[\.\s]/g, "");
         if (["العدد", "عدد", "رقم", "العد", "سد"].includes(letters)) {
-            return { value: serial, is_handwritten: true };
+            if (line.includes("هـ.ع")) return { value: `هـ.ع/${serial}`, is_handwritten: true };
+            if (line.includes("م.ع")) return { value: `م.ع/${serial}`, is_handwritten: true };
+            if (line.includes("ش.ع")) return { value: `ش.ع/${serial}`, is_handwritten: true };
+            if (line.includes("د.ت")) return { value: `د.ت/${serial}`, is_handwritten: true };
+            if (line.includes("أ.م")) return { value: `أ.م/${serial}`, is_handwritten: true };
+            if (line.includes("م.ر")) return { value: `م.ر/${serial}`, is_handwritten: true };
+            const m3Cand = line.match(/(\d{2,6})\s*(?:[/]|\s+)\s*([أ-ي](?:[\s\.][أ-ي]|[أ-ي]){0,4})/);
+            if (m3Cand && /[همشدأ]/.test(m3Cand[2])) {
+                // let m3 handle it
+            } else {
+                return { value: serial, is_handwritten: true };
+            }
         } else if (letters === "ه" || letters === "هـ") {
             letters = deptHint || "هـ.ع";
         } else if (cleanCode === "مش" || cleanCode === "شع" || cleanCode === "ش") {
@@ -1106,11 +1118,11 @@ function cleanHandwrittenDocNumberClient(rawLine, deptHint, nextLine) {
     }
 
     // الصيغة 5: رقم تسلسلي بسيط من 2 إلى 6 خانات
-    const lineBody = rawLine.replace(/^(?:العدد|الـعـدد|رقم|الرقم|عدد|العد|الـعد|سد|سـد)\s*[:/=-]?\s*/i, "").trim();
+    const lineBody = line.replace(/^(?:العدد|الـعـدد|رقم|الرقم|عدد|العد|الـعد|سد|سـد)\s*[:/=-]?\s*/i, "").trim();
     const m4 = lineBody.match(/\b(\d{2,6})\b/);
     if (m4) {
         const serial = m4[1].trim();
-        if (deptHint === "هـ.ع" && /[ههـع]/.test(lineBody)) {
+        if ((deptHint === "هـ.ع" || /[ههـ]/.test(lineBody)) && /[ههـع]/.test(lineBody)) {
             return { value: `هـ.ع/${serial}`, is_handwritten: true };
         }
         return { value: serial, is_handwritten: true };
@@ -1516,12 +1528,19 @@ async function callGeminiVisionClient(file) {
 function normalizeArabicName(name) {
     if (!name) return "";
     let text = String(name).trim();
+    // تجريد التشكيل والتطويل
     text = text.replace(/[\u064B-\u065F\u0640]/g, '');
-    text = text.replace(/(?:أ\.د\.|أ\.م\.د\.|م\.د\.|م\.م\.|د\.|\bدكتور|\bأستاذ|\bمدرس|\bمساعد|\bالمهندس|\bالمعماري|\bالسيد|\bالسيدة)\b/g, ' ');
+    // إزالة الألقاب العلمية والرتب الشائعة بكافة صورها (بما في ذلك المعكوسة مثل . د.م أو . م.م)
+    text = text.replace(/(?:أ\.د\.|أ\.م\.د\.|م\.د\.|م\.م\.|د\.|\.\s*د\.م\.ا|\.\s*د\.م|\.\s*م\.م|\.\s*د\.ا|\bدكتور|\bأستاذ|\bمدرس|\bمساعد|\bالمهندس|\bالمعماري|\bالسيد|\bالسيدة)\b/g, ' ');
+    // توحيد الهمزات
     text = text.replace(/[أإآٱ]/g, 'ا');
+    // توحيد الياء والهمزة على نبرة
     text = text.replace(/[ىئ]/g, 'ي');
+    // توحيد الواو والهمزة على واو
     text = text.replace(/ؤ/g, 'و');
+    // توحيد التاء المربوطة
     text = text.replace(/ة/g, 'ه');
+    // تنظيف الفواصل والرموز
     text = text.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()\[\]|]/g, ' ');
     return text.replace(/\s+/g, ' ').trim();
 }
@@ -1555,102 +1574,251 @@ function extractFacultyRoleInDocument(text, facultyName) {
     const targetTokens = normTarget.split(/\s+/).filter(t => t.length >= 2);
     if (!targetTokens.length) return null;
 
-    const minMatches = targetTokens.length >= 2 ? Math.min(targetTokens.length, 2) : 1;
+    // إزالة التكرار من كلمات اسم الهدف لضمان عدم التطابق الخاطئ
+    const uniqueTargetTokens = Array.from(new Set(targetTokens));
+
+    // توليد بدائل الاسم بالإنجليزية للوثائق والبحوث المنشورة والشهادات الدولية
+    const enVariants = [];
+    if (normTarget.includes("احمد") && normTarget.includes("لوي")) {
+        enVariants.push(
+            "ahmed louay ahmed", "ahmed louay", "ahmed louai", "ahmad luay",
+            "ahmed, ahmed louay", "ahmed, a. l.", "a. l. ahmed", "ahmed l. ahmed"
+        );
+    } else {
+        const enName = targetName.replace(/[^a-zA-Z\s]/g, '').trim().toLowerCase();
+        if (enName.length >= 4) {
+            enVariants.push(enName);
+        }
+    }
+
     const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     const totalLines = lines.length;
+
+    let bestCandidate = null;
+    let bestScore = 0.0;
 
     for (let idx = 0; idx < lines.length; idx++) {
         const line = lines[idx];
         const normLine = normalizeArabicName(line);
-        const matches = targetTokens.filter(tok => normLine.includes(tok)).length;
+        const lineLower = line.toLowerCase();
 
-        if (matches >= minMatches) {
-            let orderIndex = null;
-            const seqMatch = line.match(/^(?:\|\s*)?(\d+)[\.\-\)\s\|]/) || line.match(/ت\s*[:\.]?\s*(\d+)/);
-            if (seqMatch) orderIndex = seqMatch[1];
+        let score = 0.0;
 
-            let academicRank = "تدريسي";
-            if (/أ\.د\.|أستاذ دكتور|\bأستاذ\b/.test(line)) academicRank = "أستاذ";
-            else if (/أ\.م\.د\.|أستاذ مساعد/.test(line)) academicRank = "أستاذ مساعد";
-            else if (/م\.د\.|مدرس دكتور|\bمدرس\b/.test(line)) academicRank = "مدرس";
-            else if (/م\.م\.|مدرس مساعد/.test(line)) academicRank = "مدرس مساعد";
-            else if (/\bدكتور\b|د\./.test(line)) academicRank = "دكتور";
+        // 1. مطابقة الاسم الثلاثي/الرباعي الكامل بدقة 100%
+        if (normLine.includes(normTarget)) {
+            score = 1.0;
+        }
+        // 2. مطابقة الاسم بالإنجليزية في البحوث والشهادات الدولية
+        else if (enVariants.some(v => lineLower.includes(v))) {
+            score = 0.98;
+        }
+        // 3. مطابقة الاسم الثنائي (مثل: أحمد لؤي)
+        else if (uniqueTargetTokens.length >= 2 && normLine.includes(uniqueTargetTokens.slice(0, 2).join(' '))) {
+            score = 0.92;
+        }
+        // 4. وجود كافة الكلمات المفتاحية الفريدة للاسم في السطر
+        else if (uniqueTargetTokens.length >= 2 && uniqueTargetTokens.every(tok => normLine.includes(tok))) {
+            score = 0.88;
+        }
+        // 5. الاسم المقلوب في ملفات PDF التي تعكس الحروف العربية
+        else if (uniqueTargetTokens.some(tok => tok.length >= 3 && line.includes(tok.split('').reverse().join('')))) {
+            score = 0.82;
+        }
 
-            const contextWindow = lines.slice(Math.max(0, idx - 1), Math.min(totalLines, idx + 2)).join(" ");
-            const targetStr = /رئيساً|رئيسا|عضواً|عضو|مقرراً|مقرر|مشرفاً|مشرف|محاضراً|شكر|مشارك/.test(line) ? line : contextWindow;
-
-            let role = "عضو لجنة";
-            let score = 20.0;
-            let pTarget = "1";
-
-            if (/رئيساً|رئيس اللجنة|رئيس لجنة|رئيسا|رئيس الفريق/.test(targetStr)) {
-                role = "رئيس لجنة";
-                score = 30.0;
-                pTarget = "1";
-            } else if (/عضو ومقرر|عضواً ومقرراً|عضوا ومقررا|مقرر اللجنة|مقرراً|مقررا/.test(targetStr)) {
-                role = "عضو ومقرر";
-                score = 25.0;
-                pTarget = "1";
-            } else if (/لجنة امتحانية|امتحانية|الامتحانية/.test(targetStr)) {
-                role = "عضو لجنة امتحانية";
-                score = 30.0;
-                pTarget = "1";
-            } else if (/مشاريع تخرج|مشروع تخرج|مناقشة مشاريع/.test(targetStr)) {
-                role = "عضو لجنة مناقشة مشاريع التخرج";
-                score = 30.0;
-                pTarget = "1";
-            } else if (/مشرفاً|مشرف|إشراف|اشراف|أطروحة|رسالة/.test(targetStr)) {
-                role = "مشرف على دراسات عليا";
-                score = 15.0;
-                pTarget = "3";
-            } else if (/محاضراً|محاضر|إلقاء محاضرة|القاء محاضرة|مدرب/.test(targetStr)) {
-                role = "محاضر في دورة تعليم مستمر";
-                score = 10.0;
-                pTarget = "2";
-            } else if (/شكر وتقدير|شكرنا وتقديرنا|توجيه الشكر|نوجه شكرنا/.test(targetStr)) {
-                role = "مكرم بكتاب شكر وتقدير";
-                score = 15.0;
-                pTarget = "3";
-            } else if (/شهادة مشاركة|حضور|مشارك|مشاركة/.test(targetStr)) {
-                role = "مشارك في مؤتمر أو ورشة";
-                score = 5.0;
-                pTarget = "2";
-            } else if (/عضواً|عضو|أعضاء|عضوية/.test(targetStr)) {
-                role = "عضو لجنة";
-                score = 20.0;
-                pTarget = "1";
-            }
-
-            let highlightedLine = line;
-            const targetParts = targetName.split(/\s+/).filter(p => p.length >= 3);
-            let marked = false;
-            for (const tp of targetParts) {
-                if (highlightedLine.includes(tp)) {
-                    highlightedLine = highlightedLine.replace(tp, `<mark class="faculty-name-highlight">${tp}</mark>`);
-                    marked = true;
-                    break;
-                }
-            }
-            if (!marked) {
-                highlightedLine = `<mark class="faculty-name-highlight">${line}</mark>`;
-            }
-
-            const approxTop = Math.min(85.0, Math.max(25.0, 30.0 + (idx / Math.max(totalLines, 1)) * 50.0));
-
-            return {
-                matched_name: targetName,
-                detected_line: line,
-                highlighted_line: highlightedLine,
-                role: role,
-                academic_rank: academicRank,
-                order_index: orderIndex,
-                suggested_score: score,
-                suggested_paragraph: pTarget,
-                approx_top_pct: approxTop
-            };
+        if (score > bestScore) {
+            bestScore = score;
+            bestCandidate = { idx, line, score };
         }
     }
-    return null;
+
+    // إذا لم نحقق عتبة تطابق قوية، نتجنب الإسناد الخاطئ
+    if (!bestCandidate || bestScore < 0.80) {
+        return null;
+    }
+
+    const idx = bestCandidate.idx;
+    const line = bestCandidate.line;
+
+    // استخراج رقم التسلسل في الجدول أو القائمة
+    let orderIndex = null;
+    const seqStart = line.match(/^(?:\|\s*)?(\d+)[\.\-\)\s\|]/) || line.match(/ت\s*[:\.]?\s*(\d+)/);
+    if (seqStart) {
+        orderIndex = seqStart[1];
+    } else {
+        const seqEnd = line.trim().match(/(\d{1,3})$/);
+        if (seqEnd) {
+            orderIndex = seqEnd[1];
+        } else if (idx > 0 && /^\d{1,3}$/.test(lines[idx - 1].trim())) {
+            orderIndex = lines[idx - 1].trim();
+        }
+    }
+
+    // استخراج اللقب العلمي (مع مراعاة الصيغ المعكوسة مثل . د.م)
+    let academicRank = "تدريسي";
+    if (/أ\.د\.|أستاذ دكتور|\bأستاذ\b|\.\s*د\.ا/.test(line)) academicRank = "أستاذ";
+    else if (/أ\.م\.د\.|أستاذ مساعد|\.\s*د\.م\.ا/.test(line)) academicRank = "أستاذ مساعد";
+    else if (/م\.د\.|مدرس دكتور|\bمدرس\b|\.\s*د\.م/.test(line)) academicRank = "مدرس";
+    else if (/م\.م\.|مدرس مساعد|\.\s*م\.م/.test(line)) academicRank = "مدرس مساعد";
+    else if (/\bدكتور\b|د\./.test(line)) academicRank = "دكتور";
+
+    // فحص نافذة السياق (3 أسطر قبل و 3 أسطر بعد) لمعرفة الصفة والدور
+    const contextWindow = lines.slice(Math.max(0, idx - 3), Math.min(totalLines, idx + 4)).join(" ");
+    const targetStr = /رئيساً|رئيسا|عضواً|عضو|مقرراً|مقرر|مشرفاً|مشرف|محاضراً|شكر|مشارك|مسؤول/.test(line) ? line : contextWindow;
+
+    // تحديد طبيعة الوثيقة العامة
+    const isTeachingSchedule = /جدول التكليفات|التكليفات التدريسية|جدول الدراسات العليا|جدول فرع|المقررات الدراسية|جدول الدروس/.test(text);
+    const isThankYou = /شكر وتقدير|شكرنا وتقديرنا|توجيه الشكر|نوجه شكرنا/.test(text);
+    const isExamCommittee = /لجنة امتحانية|الامتحانية|امتحانات/.test(text);
+    const isSupervision = /مشرفاً|مشرف|إشراف|اشراف|أطروحة|رسالة/.test(text);
+    const isInternationalPaper = /Scopus|Clarivate|DOI:|CiteScore|Article|Journal/i.test(text);
+
+    let role = "عضو لجنة";
+    let score = 20.0;
+    let pTarget = "1";
+    let axisTarget = "axis3";
+
+    // 1. رئيس لجنة أو رئيس فرع / فريق
+    if (/رئيساً|رئيس اللجنة|رئيس لجنة|رئيسا|رئيس الفريق|برئاسة/.test(targetStr)) {
+        if (/وزار|وزارة|مركزية|الجامعة/.test(text) || isExamCommittee) {
+            role = "رئيس لجنة مركزية / امتحانية";
+            score = 40.0;
+        } else {
+            role = "رئيس لجنة";
+            score = 30.0;
+        }
+        axisTarget = "axis3";
+        pTarget = "1";
+    }
+    // 2. مقرر لجنة أو عضو ومقرر
+    else if (/عضو ومقرر|عضواً ومقرراً|عضوا ومقررا|مقرر اللجنة|مقرراً|مقررا/.test(targetStr)) {
+        role = "عضو ومقرر";
+        score = 25.0;
+        axisTarget = "axis3";
+        pTarget = "1";
+    }
+    // 3. مسؤول مرحلة دراسية في القسم
+    else if (targetStr.includes("مسؤول المرحلة")) {
+        role = "مسؤول مرحلة دراسية";
+        score = 25.0;
+        axisTarget = "axis1";
+        pTarget = "1";
+    }
+    // 4. جدول التكليفات التدريسية والمقررات الدراسية
+    else if (isTeachingSchedule && !isThankYou) {
+        role = "تدريسي مقرر دراسي";
+        score = 20.0;
+        axisTarget = "axis1";
+        pTarget = "1";
+    }
+    // 5. عضو لجنة امتحانية
+    else if (isExamCommittee || targetStr.includes("امتحانية")) {
+        role = "عضو لجنة امتحانية";
+        score = 30.0;
+        axisTarget = "axis3";
+        pTarget = "1";
+    }
+    // 6. مناقشة مشاريع التخرج أو السمنار
+    else if (/مشاريع تخرج|مشروع تخرج|مناقشة مشاريع|سمنار/.test(targetStr)) {
+        role = "عضو لجنة مناقشة مشاريع التخرج";
+        score = 25.0;
+        axisTarget = "axis3";
+        pTarget = "1";
+    }
+    // 7. الإشراف الأكاديمي على الدراسات العليا
+    else if (isSupervision) {
+        if (targetStr.includes("دكتوراه")) {
+            role = "مشرف على أطروحة دكتوراه";
+            score = 30.0;
+        } else {
+            role = "مشرف على رسالة ماجستير";
+            score = 20.0;
+        }
+        axisTarget = "axis2";
+        pTarget = "3";
+    }
+    // 8. كتب الشكر والتقدير
+    else if (isThankYou) {
+        role = "مكرم بكتاب شكر وتقدير";
+        if (/وزير|الوزير/.test(text)) {
+            score = 20.0;
+        } else if (/جامعة|الجامعة|رئيس الجامعة|رئيس جامعة|وكيل/.test(text)) {
+            score = 15.0;
+        } else if (/عميد|العميد|مدير عام/.test(text)) {
+            score = 10.0;
+        } else {
+            score = 5.0;
+        }
+        axisTarget = "axis3";
+        pTarget = "3";
+    }
+    // 9. التعليم المستمر وإلقاء المحاضرات
+    else if (/محاضراً|محاضر|إلقاء محاضرة|القاء محاضرة|مدرب/.test(targetStr)) {
+        role = "محاضر في دورة تعليم مستمر";
+        score = 10.0;
+        axisTarget = "axis3";
+        pTarget = "2";
+    }
+    // 10. المشاركة والحضور في المؤتمرات والورش
+    else if (/شهادة مشاركة|حضور|مشارك|مشاركة|تأييد حضور/.test(targetStr)) {
+        role = "مشارك في مؤتمر أو ورشة";
+        score = 5.0;
+        axisTarget = "axis3";
+        pTarget = "2";
+    }
+    // 11. النشر العلمي والبحوث الدولية (Scopus / Clarivate)
+    else if (isInternationalPaper) {
+        role = "باحث";
+        score = 35.0;
+        axisTarget = "axis2";
+        pTarget = "1";
+    }
+    // 12. عضو لجنة عامة
+    else if (/عضواً|عضو|أعضاء|عضوية/.test(targetStr)) {
+        role = "عضو لجنة";
+        score = 20.0;
+        axisTarget = "axis3";
+        pTarget = "1";
+    }
+
+    // توليد السطر المظلل بصرياً بعلامة mark
+    let highlightedLine = line;
+    let marked = false;
+    const targetParts = targetName.split(/\s+/).filter(p => p.length >= 3);
+    for (const tp of targetParts) {
+        if (highlightedLine.includes(tp)) {
+            highlightedLine = highlightedLine.replace(tp, `<mark class="faculty-name-highlight">${tp}</mark>`);
+            marked = true;
+            break;
+        }
+    }
+    if (!marked) {
+        for (const enV of enVariants) {
+            if (highlightedLine.toLowerCase().includes(enV)) {
+                const re = new RegExp(enV.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+                highlightedLine = highlightedLine.replace(re, `<mark class="faculty-name-highlight">$&</mark>`);
+                marked = true;
+                break;
+            }
+        }
+    }
+    if (!marked) {
+        highlightedLine = `<mark class="faculty-name-highlight">${line}</mark>`;
+    }
+
+    const approxTop = Math.min(85.0, Math.max(25.0, 30.0 + (idx / Math.max(totalLines, 1)) * 50.0));
+
+    return {
+        matched_name: targetName,
+        detected_line: line,
+        highlighted_line: highlightedLine,
+        role: role,
+        academic_rank: academicRank,
+        order_index: orderIndex,
+        suggested_axis: axisTarget,
+        suggested_score: score,
+        suggested_paragraph: pTarget,
+        approx_top_pct: approxTop
+    };
 }
 
 function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph, facultyName) {
@@ -1698,15 +1866,21 @@ function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph, 
         autoFillSummary += `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`;
     }
 
-    let ax = targetAxis || (facMatch && facMatch.role && facMatch.role.includes("مشرف") ? "axis2" : "axis3");
+    let ax = targetAxis || (facMatch && facMatch.suggested_axis ? facMatch.suggested_axis : "axis3");
     let p = targetParagraph ? String(targetParagraph) : (facMatch ? facMatch.suggested_paragraph : "1");
     let docType = "وثيقة إثبات رسمية";
-    let suggestedScore = facMatch ? facMatch.suggested_score : 10.0;
+    let suggestedScore = (facMatch && typeof facMatch.suggested_score === "number") ? facMatch.suggested_score : 10.0;
     let axisName = "المحور الثالث: الجانب التربوي والتطويري";
     let paragraphName = "الأنشطة الأكاديمية";
 
     if (!targetAxis) {
-        if (/بحث|scopus|clarivate|journal|مستوعب|doi|impact/i.test(raw)) {
+        if (/جدول التكليفات|التكليفات التدريسية|جدول الدراسات العليا|جدول فرع|المقررات الدراسية|جدول الدروس/i.test(raw)) {
+            ax = "axis1"; p = "1";
+            docType = "جدول تكليفات تدريسية ومقررات";
+            suggestedScore = 20.0;
+            axisName = "المحور الأول: جودة التدريس والتعليم والالتزام الوظيفي";
+            paragraphName = "1. المقررات التي قام بتدريسها";
+        } else if (/بحث|scopus|clarivate|journal|مستوعب|doi|impact/i.test(raw)) {
             ax = "axis2"; p = "1";
             docType = "بحث علمي منشور بمستوعب عالمي";
             suggestedScore = 60.0;

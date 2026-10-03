@@ -406,19 +406,16 @@ def process_document(file_path: str) -> Dict[str, Any]:
         except Exception as e:
             return {"success": False, "has_text": False, "text": "", "error": str(e)}
 
-    # 1. المحرك الأساسي: Apple Vision Framework عالي الدقة (يدعم العربية وخط اليد)
-    if APPLE_VISION_AVAILABLE and ext in [".pdf", ".jpg", ".jpeg", ".png", ".webp", ".bmp"]:
-        vis_res = extract_text_with_apple_vision(file_path, max_pages=3)
-        if vis_res.get("has_text"):
-            return vis_res
-
-    # 2. المحرك الاحتياطي (Fallback)
+    # معالجة ملفات PDF عبر الفحص الشامل للطبقة النصية ودمج خط اليد للترويسة ومسح الصفحات عند الحاجة
     if ext == ".pdf":
-        result = extract_text_from_pdf(file_path)
-        if not result.get("has_text") and RAPID_OCR_AVAILABLE:
-            result["warning"] = "الملف ممسوح ضوئياً كصورة بدون طبقة نصوص مدمجة"
-        return result
-    elif ext in [".jpg", ".jpeg", ".png", ".webp", ".bmp"]:
+        return extract_text_from_pdf(file_path)
+
+    # معالجة الصور عبر محرك Apple Vision عالي الدقة مع الرجوع الاحتياطي لـ RapidOCR
+    if ext in [".jpg", ".jpeg", ".png", ".webp", ".bmp"]:
+        if APPLE_VISION_AVAILABLE:
+            vis_res = extract_text_with_apple_vision(file_path, max_pages=1)
+            if vis_res.get("has_text"):
+                return vis_res
         return extract_text_from_image(file_path)
     else:
         return {
