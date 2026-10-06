@@ -1111,6 +1111,7 @@ app.mount("/exports", StaticFiles(directory=EXPORTS_DIR), name="exports")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 app.mount("/js", StaticFiles(directory=os.path.join(STATIC_DIR, "js")), name="js")
 app.mount("/css", StaticFiles(directory=os.path.join(STATIC_DIR, "css")), name="css")
+app.mount("/data", StaticFiles(directory=os.path.join(STATIC_DIR, "data")), name="data")
 
 
 @app.get("/")
