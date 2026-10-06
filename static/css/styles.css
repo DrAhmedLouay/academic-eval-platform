@@ -1541,3 +1541,13 @@ body.auditor-active .evidence-table td.auditor-col {
     from { opacity: 0; transform: translateY(-2px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* نوافذ المصادقة ولوحة المشرف */
+#auth-modal, #admin-dashboard-modal {
+    z-index: 2500 !important;
+}
+
+#auth-modal.active, #admin-dashboard-modal.active {
+    display: flex !important;
+}
+

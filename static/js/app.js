@@ -266,6 +266,10 @@ function updateScoreStatusBadges() {
 window.updateScoreStatusBadges = updateScoreStatusBadges;
 window.syncEvidenceWithScores = syncEvidenceWithScores;
 
+// متغيرات حالة المستخدم والمشرف
+var currentAuthUser = null;
+var cachedAdminUsers = [];
+
 // ============================================================================
 // تهيئة التطبيق عند تحميل الصفحة
 // ============================================================================
@@ -6405,8 +6409,7 @@ window.exportDossierPdf = exportDossierPdf;
 // ============================================================================
 // نظام إدارة المستخدمين والمصادقة وإحصائيات لوحة تحكم المشرف (Admin & Auth)
 // ============================================================================
-let currentAuthUser = null;
-let cachedAdminUsers = [];
+// (currentAuthUser و cachedAdminUsers معرفان في بداية الملف)
 
 function getAuthToken() {
     try {
@@ -6576,15 +6579,22 @@ function updateAuthUI(user) {
 
 function openAuthModal(defaultTab = "login") {
     const modal = document.getElementById("auth-modal");
-    if (!modal) return;
+    if (!modal) {
+        console.error("Modal #auth-modal not found in DOM");
+        return;
+    }
     switchAuthTab(defaultTab);
     clearAuthAlert();
     modal.classList.add("active");
+    modal.style.display = "flex";
 }
 
 function closeAuthModal() {
     const modal = document.getElementById("auth-modal");
-    if (modal) modal.classList.remove("active");
+    if (modal) {
+        modal.classList.remove("active");
+        modal.style.display = "none";
+    }
     clearAuthAlert();
     const loginPwd = document.getElementById("login-password");
     if (loginPwd) loginPwd.value = "";
@@ -6849,12 +6859,16 @@ function openAdminDashboardModal() {
     const modal = document.getElementById("admin-dashboard-modal");
     if (!modal) return;
     modal.classList.add("active");
+    modal.style.display = "flex";
     loadAdminDashboardStats();
 }
 
 function closeAdminDashboardModal() {
     const modal = document.getElementById("admin-dashboard-modal");
-    if (modal) modal.classList.remove("active");
+    if (modal) {
+        modal.classList.remove("active");
+        modal.style.display = "none";
+    }
 }
 
 async function loadAdminDashboardStats() {
@@ -7154,8 +7168,13 @@ function initAuthAndAnalytics() {
 // تصدير دوال المصادقة والمشرف لـ window للاستخدام المباشر
 window.openAuthModal = openAuthModal;
 window.closeAuthModal = closeAuthModal;
+window.switchAuthTab = switchAuthTab;
+window.handleLoginSubmit = handleLoginSubmit;
+window.handleRegisterSubmit = handleRegisterSubmit;
 window.openAdminDashboardModal = openAdminDashboardModal;
 window.closeAdminDashboardModal = closeAdminDashboardModal;
+window.loadAdminDashboardStats = loadAdminDashboardStats;
 window.handleLogout = handleLogout;
+
 
 
