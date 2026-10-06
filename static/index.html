@@ -1860,7 +1860,10 @@
                         <span style="font-size: 0.78rem; color: #94a3b8;">المشرف العام للمنصة: <strong id="admin-modal-username" style="color: #fbbf24;">drahmedlouay</strong></span>
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline" id="btn-admin-reset-users" onclick="resetPlatformTestUsers()" style="color: #fca5a5; border-color: #ef4444; padding: 5px 12px; font-size: 0.82rem; background: rgba(239,68,68,0.15); cursor: pointer;" title="تصفير وحذف جميع الحسابات التجريبية والإبقاء فقط على حساب المشرف drahmedlouay">
+                        <i class="fa-solid fa-user-xmark"></i> تصفير الحسابات
+                    </button>
                     <button type="button" class="btn btn-outline" id="btn-admin-reset-visits" onclick="resetPlatformVisits()" style="color: #fca5a5; border-color: #ef4444; padding: 5px 12px; font-size: 0.82rem; background: rgba(239,68,68,0.15); cursor: pointer;" title="تصفير وإعادة تعيين إجمالي عداد وسجلات الزيارات">
                         <i class="fa-solid fa-trash-can"></i> تصفير الزيارات
                     </button>

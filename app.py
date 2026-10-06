@@ -22,7 +22,7 @@ from core.docx_generator import create_form_21_docx
 from core.pdf_generator import create_form_21_pdf
 from core.auth_db import (
     register_user, authenticate_user, get_user_by_session, delete_session,
-    log_visit, clear_all_visits, get_admin_analytics, is_admin_account
+    log_visit, clear_all_visits, clear_all_test_users, get_admin_analytics, is_admin_account
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -175,6 +175,23 @@ async def api_admin_reset_visits(request: Request):
     clear_all_visits()
     stats = get_admin_analytics()
     return {"success": True, "message": "تم تصفير سجلات الزيارات بنجاح", "analytics": stats, **stats}
+
+
+@app.post("/api/admin/reset-users")
+async def api_admin_reset_users(request: Request):
+    """تصفير وحذف جميع الحسابات التجريبية والافتراضية والإبقاء فقط على حساب المشرف drahmedlouay"""
+    user = get_current_user_from_request(request)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="عذراً، هذا الإجراء مخصص حصرياً للمشرف العام (drahmedlouay).")
+    deleted_count = clear_all_test_users()
+    stats = get_admin_analytics()
+    return {
+        "success": True,
+        "message": f"تم تصفير الحسابات الافتراضية بنجاح (تم حذف {deleted_count} حساب)",
+        "deleted_count": deleted_count,
+        "analytics": stats,
+        **stats
+    }
 
 
 class EvaluationRequest(BaseModel):

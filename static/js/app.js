@@ -6909,6 +6909,53 @@ async function resetPlatformVisits() {
     }
 }
 
+async function resetPlatformTestUsers() {
+    if (!currentAuthUser || !currentAuthUser.is_admin) {
+        showToast("عذراً، هذا الإجراء متاح حصرياً للمشرف العام drahmedlouay 🔒");
+        return;
+    }
+
+    if (!confirm("هل أنت متأكد من رغبتك في تصفير وحذف جميع الحسابات الافتراضية والتجريبية؟\nسيتم الإبقاء فقط على حساب المشرف العام drahmedlouay.")) {
+        return;
+    }
+
+    try {
+        const resp = await authFetch("/api/admin/reset-users", {
+            method: "POST"
+        });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+            showToast(data.message || "تم تصفير الحسابات الافتراضية بنجاح 👤");
+            loadAdminDashboardStats();
+            return;
+        } else {
+            showToast(data.detail || "تعذر تصفير الحسابات");
+        }
+    } catch (e) {
+        // وضع العرض الثابت عند عدم توفر خادم FastAPI
+        const totalUsersEl = document.getElementById("stat-total-users");
+        const tableCountEl = document.getElementById("admin-users-table-count");
+        if (totalUsersEl) totalUsersEl.textContent = "1";
+        if (tableCountEl) tableCountEl.textContent = "1";
+        cachedAdminUsers = [
+            {
+                id: 1,
+                username: "drahmedlouay",
+                email: "drahmedlouay@uotechnology.edu.iq",
+                full_name: "أ.م.د. أحمد لؤي أحمد",
+                college: "الجامعة التكنولوجية",
+                department: "قسم هندسة العمارة",
+                role: "admin",
+                is_admin: true,
+                created_at: "2026-09-01T10:00:00",
+                last_login: new Date().toISOString()
+            }
+        ];
+        renderAdminUsersTable(cachedAdminUsers);
+        showToast("تم تصفير الحسابات الافتراضية بنجاح وحفظ حساب المشرف 👤");
+    }
+}
+
 async function loadAdminDashboardStats() {
     const totalUsersEl = document.getElementById("stat-total-users");
     const totalVisitsEl = document.getElementById("stat-total-visits");
@@ -6952,12 +6999,12 @@ async function loadAdminDashboardStats() {
         // Fallback demo statistics if offline / GitHub Pages
     }
 
-    // عرض بيانات نموذجية عند عدم الاتصال بالسيرفر
+    // عرض بيانات خالية عند عدم الاتصال بالسيرفر (تصفير الإحصائيات والإبقاء على حساب المشرف فقط)
     const fallbackStats = {
-        total_users: 12,
-        total_visits: 348,
-        unique_visitors: 45,
-        visits_today: 18,
+        total_users: 1,
+        total_visits: 0,
+        unique_visitors: 0,
+        visits_today: 0,
         users: [
             {
                 id: 1,
@@ -6970,42 +7017,10 @@ async function loadAdminDashboardStats() {
                 is_admin: true,
                 created_at: "2026-09-01T10:00:00",
                 last_login: new Date().toISOString()
-            },
-            {
-                id: 2,
-                username: "prof_mustafa",
-                email: "mustafa.ali@uokufa.edu.iq",
-                full_name: "أ.د. مصطفى علي حسين",
-                college: "جامعة الكوفة",
-                department: "كلية الهندسة - قسم الكهرباء",
-                role: "faculty",
-                is_admin: false,
-                created_at: "2026-09-15T11:20:00",
-                last_login: "2026-10-05T14:30:00"
-            },
-            {
-                id: 3,
-                username: "dr_sara_hassan",
-                email: "sara.h@uobaghdad.edu.iq",
-                full_name: "م.د. سارة حسن جاسم",
-                college: "جامعة بغداد",
-                department: "كلية العلوم - قسم الحاسوب",
-                role: "faculty",
-                is_admin: false,
-                created_at: "2026-09-20T09:15:00",
-                last_login: "2026-10-06T08:45:00"
             }
         ],
-        daily_visits: [
-            { day: "2026-10-06", count: 42, unique_ips: 14 },
-            { day: "2026-10-05", count: 85, unique_ips: 26 },
-            { day: "2026-10-04", count: 64, unique_ips: 19 },
-            { day: "2026-10-03", count: 78, unique_ips: 22 }
-        ],
-        recent_visits: [
-            { id: 1, timestamp: new Date().toISOString(), path: "/", ip: "127.0.0.1", user: "أ.م.د. أحمد لؤي أحمد" },
-            { id: 2, timestamp: new Date(Date.now() - 3600000).toISOString(), path: "/api/export/pdf", ip: "192.168.1.15", user: "أ.د. مصطفى علي حسين" }
-        ]
+        daily_visits: [],
+        recent_visits: []
     };
 
     if (totalUsersEl) totalUsersEl.textContent = fallbackStats.total_users;
@@ -7155,6 +7170,7 @@ function initAuthAndAnalytics() {
     safeAddListener("admin-modal-dismiss-btn", "click", closeAdminDashboardModal);
     safeAddListener("btn-admin-refresh", "click", loadAdminDashboardStats);
     safeAddListener("btn-admin-reset-visits", "click", resetPlatformVisits);
+    safeAddListener("btn-admin-reset-users", "click", resetPlatformTestUsers);
 
     // إغلاق لوحة المشرف عند النقر على الخلفية
     safeAddListener("admin-dashboard-modal", "click", (e) => {
@@ -7214,6 +7230,7 @@ window.openAdminDashboardModal = openAdminDashboardModal;
 window.closeAdminDashboardModal = closeAdminDashboardModal;
 window.loadAdminDashboardStats = loadAdminDashboardStats;
 window.resetPlatformVisits = resetPlatformVisits;
+window.resetPlatformTestUsers = resetPlatformTestUsers;
 window.handleLogout = handleLogout;
 
 

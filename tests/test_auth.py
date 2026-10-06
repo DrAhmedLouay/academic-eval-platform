@@ -2,11 +2,23 @@
 اختبارات وحدة المصادقة ونظام المشرف وإحصائيات الزيارات
 منصة استمارة تقييم أداء الهيئة التدريسية (استمارة 21)
 """
+import os
+import tempfile
 import unittest
+
+# تهيئة قاعدة بيانات اختبار مؤقتة ومعزولة تماماً لمنع تلويث قاعدة البيانات الرئيسية
+_test_db_file = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+_test_db_path = _test_db_file.name
+_test_db_file.close()
+os.environ["ACADEMIC_DB_PATH"] = _test_db_path
+
 from core.auth_db import (
-    register_user, authenticate_user, get_user_by_session, delete_session,
-    log_visit, get_admin_analytics, is_admin_account, verify_password, hash_password
+    init_database, register_user, authenticate_user, get_user_by_session, delete_session,
+    log_visit, clear_all_visits, clear_all_test_users, get_admin_analytics,
+    is_admin_account, verify_password, hash_password
 )
+
+init_database()
 
 
 class TestAuthenticationAndAdmin(unittest.TestCase):
@@ -79,6 +91,16 @@ class TestAuthenticationAndAdmin(unittest.TestCase):
         self.assertIn("users", stats)
         self.assertGreaterEqual(stats["total_users"], 1)
         self.assertGreaterEqual(stats["total_visits"], 1)
+
+    def test_clear_all_test_users(self):
+        import uuid
+        uid = uuid.uuid4().hex[:6]
+        register_user(f"dummy_{uid}", f"dummy_{uid}@test.com", "DummyPass123", "أستاذ تجريبي")
+        deleted = clear_all_test_users()
+        self.assertGreaterEqual(deleted, 1)
+        stats = get_admin_analytics()
+        self.assertEqual(stats["total_users"], 1)
+        self.assertEqual(stats["users"][0]["username"], "drahmedlouay")
 
 
 class TestAuthAPIEndpoints(unittest.TestCase):
@@ -169,6 +191,59 @@ class TestAuthAPIEndpoints(unittest.TestCase):
         # محاولة تصفير الزيارات من مستخدم عادي -> 403
         reset_res = self.client.post("/api/admin/reset-visits", headers={"Authorization": f"Bearer {user_token}"})
         self.assertEqual(reset_res.status_code, 403)
+
+    def test_api_reset_users_by_admin(self):
+        # تسجيل الدخول كمسؤول
+        res = self.client.post("/api/auth/login", json={
+            "identifier": "drahmedlouay",
+            "password": "drahmedlouay2026"
+        })
+        self.assertEqual(res.status_code, 200)
+        admin_token = res.json()["token"]
+
+        # تسجيل مستخدم تجريبي
+        import uuid
+        uid = uuid.uuid4().hex[:6]
+        reg_res = self.client.post("/api/auth/register", json={
+            "username": f"dummy_api_{uid}",
+            "email": f"dummy_api_{uid}@uotechnology.edu.iq",
+            "password": "TestPassword123",
+            "full_name": "مستخدم تجريبي"
+        })
+        self.assertEqual(reg_res.status_code, 200)
+
+        # تصفير الحسابات التجريبية
+        reset_res = self.client.post("/api/admin/reset-users", headers={"Authorization": f"Bearer {admin_token}"})
+        self.assertEqual(reset_res.status_code, 200)
+        r_data = reset_res.json()
+        self.assertTrue(r_data["success"])
+        self.assertEqual(r_data["total_users"], 1)
+        self.assertEqual(r_data["users"][0]["username"], "drahmedlouay")
+
+    def test_api_reset_users_by_regular_user_forbidden(self):
+        import uuid
+        uid = uuid.uuid4().hex[:6]
+        res = self.client.post("/api/auth/register", json={
+            "username": f"prof_forbidden_{uid}",
+            "email": f"prof_forbidden_{uid}@uotechnology.edu.iq",
+            "password": "TestPassword123",
+            "full_name": "أستاذ باحث"
+        })
+        self.assertEqual(res.status_code, 200)
+        user_token = res.json()["token"]
+
+        # محاولة تصفير الحسابات من مستخدم عادي -> 403
+        reset_res = self.client.post("/api/admin/reset-users", headers={"Authorization": f"Bearer {user_token}"})
+        self.assertEqual(reset_res.status_code, 403)
+
+
+def tearDownModule():
+    """حذف ملف قاعدة بيانات الاختبار المؤقتة بعد انتهاء جميع الفحوصات"""
+    if os.path.exists(_test_db_path):
+        try:
+            os.remove(_test_db_path)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

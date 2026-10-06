@@ -14,14 +14,19 @@ from typing import Dict, Any, List, Optional, Tuple
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "data")
-DB_PATH = os.path.join(DATA_DIR, "academic_platform.db")
+DB_PATH = os.environ.get("ACADEMIC_DB_PATH", os.path.join(DATA_DIR, "academic_platform.db"))
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
 
+def get_db_path() -> str:
+    """الحصول على مسار قاعدة البيانات الحالي مع دعم متغير البيئة للاختبارات"""
+    return os.environ.get("ACADEMIC_DB_PATH", DB_PATH)
+
+
 def get_db_connection() -> sqlite3.Connection:
     """الحصول على اتصال بقاعدة بيانات SQLite مع دعم القواميس"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(get_db_path())
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -413,6 +418,26 @@ def clear_all_visits() -> bool:
     conn.commit()
     conn.close()
     return True
+
+
+def clear_all_test_users() -> int:
+    """حذف جميع الحسابات التجريبية والافتراضية والإبقاء فقط على حساب المشرف العام drahmedlouay"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    DELETE FROM users
+    WHERE LOWER(username) != 'drahmedlouay'
+      AND LOWER(email) NOT LIKE '%drahmedlouay%'
+    """)
+    deleted_count = cursor.rowcount
+    # تنظيف الجلسات اليتيمة
+    cursor.execute("""
+    DELETE FROM sessions
+    WHERE user_id NOT IN (SELECT id FROM users)
+    """)
+    conn.commit()
+    conn.close()
+    return deleted_count
 
 
 def get_admin_analytics() -> Dict[str, Any]:

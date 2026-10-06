@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="stylesheet" href="css/styles.css?v=20260914_v23">
+    <link rel="stylesheet" href="/static/css/styles.css?v=20260914_v23">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -1860,7 +1860,10 @@
                         <span style="font-size: 0.78rem; color: #94a3b8;">المشرف العام للمنصة: <strong id="admin-modal-username" style="color: #fbbf24;">drahmedlouay</strong></span>
                     </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline" id="btn-admin-reset-users" onclick="resetPlatformTestUsers()" style="color: #fca5a5; border-color: #ef4444; padding: 5px 12px; font-size: 0.82rem; background: rgba(239,68,68,0.15); cursor: pointer;" title="تصفير وحذف جميع الحسابات التجريبية والإبقاء فقط على حساب المشرف drahmedlouay">
+                        <i class="fa-solid fa-user-xmark"></i> تصفير الحسابات
+                    </button>
                     <button type="button" class="btn btn-outline" id="btn-admin-reset-visits" onclick="resetPlatformVisits()" style="color: #fca5a5; border-color: #ef4444; padding: 5px 12px; font-size: 0.82rem; background: rgba(239,68,68,0.15); cursor: pointer;" title="تصفير وإعادة تعيين إجمالي عداد وسجلات الزيارات">
                         <i class="fa-solid fa-trash-can"></i> تصفير الزيارات
                     </button>
@@ -2025,7 +2028,7 @@
         })();
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="data/evidence_catalog.js?v=20261006_v26"></script>
-    <script src="js/app.js?v=20261006_v26"></script>
+    <script src="/static/data/evidence_catalog.js?v=20261006_v26"></script>
+    <script src="/static/js/app.js?v=20261006_v26"></script>
 </body>
 </html>
