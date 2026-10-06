@@ -405,6 +405,16 @@ def log_visit(ip_address: str, user_agent: str = "", path: str = "/", user_id: O
     return visit_id
 
 
+def clear_all_visits() -> bool:
+    """تصفير وإعادة تعيين سجلات وإحصائيات الزيارات بالكامل للمنصة"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM visits")
+    conn.commit()
+    conn.close()
+    return True
+
+
 def get_admin_analytics() -> Dict[str, Any]:
     """
     استخراج تحليلات وإحصائيات شاملة للمشرف العام:

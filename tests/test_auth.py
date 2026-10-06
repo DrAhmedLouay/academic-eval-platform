@@ -134,6 +134,43 @@ class TestAuthAPIEndpoints(unittest.TestCase):
         stats_res = self.client.get("/api/admin/stats", headers={"Authorization": f"Bearer {user_token}"})
         self.assertEqual(stats_res.status_code, 403)
 
+    def test_api_reset_visits_by_admin(self):
+        # تسجيل الدخول كمسؤول
+        res = self.client.post("/api/auth/login", json={
+            "identifier": "drahmedlouay",
+            "password": "drahmedlouay2026"
+        })
+        self.assertEqual(res.status_code, 200)
+        admin_token = res.json()["token"]
+
+        # تسجيل زيارة
+        self.client.post("/api/analytics/track-visit", json={"path": "/test-reset"})
+
+        # تصفير الزيارات
+        reset_res = self.client.post("/api/admin/reset-visits", headers={"Authorization": f"Bearer {admin_token}"})
+        self.assertEqual(reset_res.status_code, 200)
+        r_data = reset_res.json()
+        self.assertTrue(r_data["success"])
+        self.assertEqual(r_data["total_visits"], 0)
+        self.assertEqual(r_data["unique_visitors"], 0)
+
+    def test_api_reset_visits_by_regular_user_forbidden(self):
+        import uuid
+        uid = uuid.uuid4().hex[:6]
+        res = self.client.post("/api/auth/register", json={
+            "username": f"prof_reset_{uid}",
+            "email": f"prof_reset_{uid}@uotechnology.edu.iq",
+            "password": "TestPassword123",
+            "full_name": "أستاذ باحث"
+        })
+        self.assertEqual(res.status_code, 200)
+        user_token = res.json()["token"]
+
+        # محاولة تصفير الزيارات من مستخدم عادي -> 403
+        reset_res = self.client.post("/api/admin/reset-visits", headers={"Authorization": f"Bearer {user_token}"})
+        self.assertEqual(reset_res.status_code, 403)
+
 
 if __name__ == "__main__":
     unittest.main()
+

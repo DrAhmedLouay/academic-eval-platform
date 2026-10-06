@@ -6871,6 +6871,44 @@ function closeAdminDashboardModal() {
     }
 }
 
+async function resetPlatformVisits() {
+    if (!currentAuthUser || !currentAuthUser.is_admin) {
+        showToast("عذراً، هذا الإجراء متاح حصرياً للمشرف العام drahmedlouay 🔒");
+        return;
+    }
+
+    if (!confirm("هل أنت متأكد من رغبتك في تصفير إجمالي زيارات المنصة وسجلاتها بالكامل؟\nسيتم مسح سجلات الزيارات وتصفير العداد إلى 0.")) {
+        return;
+    }
+
+    try {
+        const resp = await authFetch("/api/admin/reset-visits", {
+            method: "POST"
+        });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+            showToast("تم تصفير عداد وسجلات زيارات المنصة بنجاح 🔄");
+            loadAdminDashboardStats();
+            return;
+        } else {
+            showToast(data.detail || "تعذر تصفير الزيارات");
+        }
+    } catch (e) {
+        // وضع العرض الثابت عند عدم توفر خادم FastAPI
+        const totalVisitsEl = document.getElementById("stat-total-visits");
+        const uniqueIpsEl = document.getElementById("stat-unique-ips");
+        const todayVisitsEl = document.getElementById("stat-today-visits");
+        if (totalVisitsEl) totalVisitsEl.textContent = "0";
+        if (uniqueIpsEl) uniqueIpsEl.textContent = "0";
+        if (todayVisitsEl) todayVisitsEl.textContent = "0";
+        const dailyTbody = document.getElementById("admin-daily-visits-tbody");
+        if (dailyTbody) dailyTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #64748b; padding: 0.85rem;">تم تصفير سجلات الزيارات بنجاح</td></tr>';
+        const recentTbody = document.getElementById("admin-recent-visits-tbody");
+        if (recentTbody) recentTbody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: #64748b; padding: 0.85rem;">تم تصفير سجلات الزيارات بنجاح</td></tr>';
+        showToast("تم تصفير إحصائيات الزيارات بنجاح 🔄");
+    }
+}
+
 async function loadAdminDashboardStats() {
     const totalUsersEl = document.getElementById("stat-total-users");
     const totalVisitsEl = document.getElementById("stat-total-visits");
@@ -7116,6 +7154,7 @@ function initAuthAndAnalytics() {
     safeAddListener("admin-modal-close-btn", "click", closeAdminDashboardModal);
     safeAddListener("admin-modal-dismiss-btn", "click", closeAdminDashboardModal);
     safeAddListener("btn-admin-refresh", "click", loadAdminDashboardStats);
+    safeAddListener("btn-admin-reset-visits", "click", resetPlatformVisits);
 
     // إغلاق لوحة المشرف عند النقر على الخلفية
     safeAddListener("admin-dashboard-modal", "click", (e) => {
@@ -7174,6 +7213,7 @@ window.handleRegisterSubmit = handleRegisterSubmit;
 window.openAdminDashboardModal = openAdminDashboardModal;
 window.closeAdminDashboardModal = closeAdminDashboardModal;
 window.loadAdminDashboardStats = loadAdminDashboardStats;
+window.resetPlatformVisits = resetPlatformVisits;
 window.handleLogout = handleLogout;
 
 
