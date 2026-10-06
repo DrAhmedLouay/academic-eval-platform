@@ -6434,6 +6434,7 @@ function getLocalUsersDb() {
             email: "drahmedlouay@uotechnology.edu.iq",
             password: "drahmedlouay2026",
             full_name: "أ.م.د. أحمد لؤي أحمد",
+            university: "الجامعة التكنولوجية",
             college: "الجامعة التكنولوجية",
             department: "قسم هندسة العمارة",
             academic_rank: "أستاذ مساعد",
@@ -6482,7 +6483,8 @@ function registerLocalUser(userData) {
         email: uEmail,
         password: userData.password || "",
         full_name: userData.full_name || uName,
-        college: userData.college || "الجامعة التكنولوجية",
+        university: userData.university || userData.college || "الجامعة التكنولوجية",
+        college: userData.college || userData.university || "الجامعة التكنولوجية",
         department: userData.department || "قسم هندسة العمارة",
         academic_rank: userData.academic_rank || "تدريسي",
         role: isAdm ? "admin" : "faculty",
@@ -6957,6 +6959,7 @@ async function handleRegisterSubmit() {
     const fullName = (document.getElementById("reg-fullname")?.value || "").trim();
     const username = (document.getElementById("reg-username")?.value || "").trim();
     const email = (document.getElementById("reg-email")?.value || "").trim();
+    const university = (document.getElementById("reg-university")?.value || document.getElementById("reg-college")?.value || "").trim();
     const college = (document.getElementById("reg-college")?.value || "").trim();
     const department = (document.getElementById("reg-department")?.value || "").trim();
     const password = document.getElementById("reg-password")?.value || "";
@@ -6992,7 +6995,8 @@ async function handleRegisterSubmit() {
                 email,
                 password,
                 full_name: fullName,
-                college: college || "الجامعة التكنولوجية",
+                university: university || "الجامعة التكنولوجية",
+                college: college || university || "الجامعة التكنولوجية",
                 department: department || "قسم هندسة العمارة"
             })
         });
@@ -7010,7 +7014,8 @@ async function handleRegisterSubmit() {
                 email,
                 password,
                 full_name: fullName,
-                college: college || "الجامعة التكنولوجية",
+                university: university || "الجامعة التكنولوجية",
+                college: college || university || "الجامعة التكنولوجية",
                 department: department || "قسم هندسة العمارة"
             });
 
@@ -7029,7 +7034,8 @@ async function handleRegisterSubmit() {
             email,
             password,
             full_name: fullName,
-            college: college || "الجامعة التكنولوجية",
+            university: university || "الجامعة التكنولوجية",
+            college: college || university || "الجامعة التكنولوجية",
             department: department || "قسم هندسة العمارة"
         });
 
@@ -7141,6 +7147,7 @@ async function resetPlatformTestUsers() {
                 email: "drahmedlouay@uotechnology.edu.iq",
                 password: "drahmedlouay2026",
                 full_name: "أ.م.د. أحمد لؤي أحمد",
+                university: "الجامعة التكنولوجية",
                 college: "الجامعة التكنولوجية",
                 department: "قسم هندسة العمارة",
                 academic_rank: "أستاذ مساعد",
@@ -7189,7 +7196,7 @@ async function loadAdminDashboardStats() {
     const tbody = document.getElementById("admin-users-tbody");
 
     if (tbody) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #64748b; padding: 1.5rem;"><i class="fa-solid fa-spinner fa-spin"></i> جارٍ جلب الإحصائيات المحدثة من قاعدة البيانات...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #64748b; padding: 1.5rem;"><i class="fa-solid fa-spinner fa-spin"></i> جارٍ جلب الإحصائيات المحدثة من قاعدة البيانات...</td></tr>';
     }
 
     try {
@@ -7253,7 +7260,7 @@ function renderAdminUsersTable(users) {
     if (!tbody) return;
 
     if (!users || users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #64748b; padding: 1.25rem;">لا يوجد مستخدمين مسجلين يطابقون البحث</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #64748b; padding: 1.25rem;">لا يوجد مستخدمين مسجلين يطابقون البحث</td></tr>';
         return;
     }
 
@@ -7268,13 +7275,17 @@ function renderAdminUsersTable(users) {
             ? formatDateTimeDisplay(u.last_login)
             : '<span style="color: #94a3b8;">لم يسجل بعد</span>';
 
+        const uniName = u.university || (u.college && !u.college.includes("كلية") ? u.college : "الجامعة التكنولوجية");
+        const deptOrCollege = u.department || (u.college && u.college !== uniName ? u.college : "-");
+
         rowsHtml += `
             <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='white'">
                 <td style="padding: 9px 10px; font-weight: 700; color: #64748b;">${u.id || (idx + 1)}</td>
                 <td style="padding: 9px 10px; font-weight: 800; color: #0f172a;">${escapeHtml(u.full_name)}</td>
                 <td style="padding: 9px 10px; font-family: monospace; font-size: 0.88rem; color: #1e40af; font-weight: 700;">@${escapeHtml(u.username)}</td>
                 <td style="padding: 9px 10px; color: #334155;">${escapeHtml(u.email)}</td>
-                <td style="padding: 9px 10px; color: #475569; font-size: 0.8rem;">${escapeHtml(u.department || u.college || "-")}</td>
+                <td style="padding: 9px 10px; font-weight: 700; color: #1d4ed8; font-size: 0.82rem;"><i class="fa-solid fa-building-columns" style="color: #3b82f6; margin-left: 4px;"></i>${escapeHtml(uniName)}</td>
+                <td style="padding: 9px 10px; color: #475569; font-size: 0.8rem;">${escapeHtml(deptOrCollege)}</td>
                 <td style="padding: 9px 10px;">${roleBadge}</td>
                 <td style="padding: 9px 10px; color: #64748b; font-size: 0.78rem;">${formatDateDisplay(u.created_at)}</td>
                 <td style="padding: 9px 10px; color: #475569; font-size: 0.78rem;">${lastLoginFormatted}</td>
@@ -7403,9 +7414,10 @@ function initAuthAndAnalytics() {
                 const fn = (u.full_name || "").toLowerCase();
                 const un = (u.username || "").toLowerCase();
                 const em = (u.email || "").toLowerCase();
+                const uni = (u.university || "").toLowerCase();
                 const dep = (u.department || "").toLowerCase();
                 const col = (u.college || "").toLowerCase();
-                return fn.includes(query) || un.includes(query) || em.includes(query) || dep.includes(query) || col.includes(query);
+                return fn.includes(query) || un.includes(query) || em.includes(query) || uni.includes(query) || dep.includes(query) || col.includes(query);
             });
             renderAdminUsersTable(filtered);
         });

@@ -90,6 +90,7 @@ def init_database():
         email TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         full_name TEXT NOT NULL,
+        university TEXT DEFAULT 'الجامعة التكنولوجية',
         college TEXT DEFAULT '',
         department TEXT DEFAULT '',
         academic_rank TEXT DEFAULT 'تدريسي',
@@ -98,6 +99,12 @@ def init_database():
         last_login TEXT
     )
     """)
+
+    # ترقية الجداول القديمة إن وجدت لإضافة حقل الجامعة
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN university TEXT DEFAULT 'الجامعة التكنولوجية'")
+    except sqlite3.OperationalError:
+        pass
 
     # جدول جلسات تسجيل الدخول
     cursor.execute("""
@@ -139,13 +146,14 @@ def init_database():
         now_iso = datetime.now().isoformat()
         admin_pwd_hash = hash_password("drahmedlouay2026")
         cursor.execute("""
-        INSERT INTO users (username, email, password_hash, full_name, college, department, academic_rank, role, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO users (username, email, password_hash, full_name, university, college, department, academic_rank, role, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             "drahmedlouay",
             "drahmedlouay@uotechnology.edu.iq",
             admin_pwd_hash,
             "أ.م.د. أحمد لؤي أحمد",
+            "الجامعة التكنولوجية",
             "الجامعة التكنولوجية",
             "قسم هندسة العمارة",
             "أستاذ مساعد",
@@ -164,7 +172,8 @@ def register_user(
     full_name: str,
     college: str = "الجامعة التكنولوجية",
     department: str = "قسم هندسة العمارة",
-    academic_rank: str = "تدريسي"
+    academic_rank: str = "تدريسي",
+    university: str = "الجامعة التكنولوجية"
 ) -> Dict[str, Any]:
     """
     تسجيل مستخدم جديد في المنصة
@@ -173,6 +182,8 @@ def register_user(
     username = (username or "").strip().lower()
     email = (email or "").strip().lower()
     full_name = (full_name or "").strip()
+    university = (university or "").strip() or (college or "").strip() or "الجامعة التكنولوجية"
+    college = (college or "").strip() or university
 
     if not email or "@" not in email:
         return {"success": False, "error": "يرجى إدخال بريد إلكتروني صحيح"}
@@ -201,9 +212,9 @@ def register_user(
                 user_id = existing_admin["id"]
                 cursor.execute("""
                 UPDATE users
-                SET password_hash = ?, full_name = ?, role = 'admin', college = ?, department = ?, academic_rank = ?
+                SET password_hash = ?, full_name = ?, role = 'admin', university = ?, college = ?, department = ?, academic_rank = ?
                 WHERE id = ?
-                """, (pwd_hash, full_name, college, department, academic_rank, user_id))
+                """, (pwd_hash, full_name, university, college, department, academic_rank, user_id))
                 conn.commit()
                 token = create_session(user_id)
                 user_info = get_user_by_id(user_id)
@@ -222,9 +233,9 @@ def register_user(
             return {"success": False, "error": "اسم المستخدم مستخدم مسبقاً، يرجى اختيار اسم مستخدم آخر"}
 
         cursor.execute("""
-        INSERT INTO users (username, email, password_hash, full_name, college, department, academic_rank, role, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (username, email, pwd_hash, full_name, college, department, academic_rank, role, now_iso))
+        INSERT INTO users (username, email, password_hash, full_name, university, college, department, academic_rank, role, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (username, email, pwd_hash, full_name, university, college, department, academic_rank, role, now_iso))
         user_id = cursor.lastrowid
         conn.commit()
 
@@ -253,7 +264,7 @@ def authenticate_user(identifier: str, password: str) -> Dict[str, Any]:
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT id, username, email, password_hash, full_name, college, department, academic_rank, role
+    SELECT id, username, email, password_hash, full_name, university, college, department, academic_rank, role
     FROM users
     WHERE lower(email) = ? OR lower(username) = ?
     """, (ident, ident))
@@ -281,6 +292,7 @@ def authenticate_user(identifier: str, password: str) -> Dict[str, Any]:
         "username": row["username"],
         "email": row["email"],
         "full_name": row["full_name"],
+        "university": row["university"] if ("university" in row.keys() and row["university"]) else (row["college"] or "الجامعة التكنولوجية"),
         "college": row["college"],
         "department": row["department"],
         "academic_rank": row["academic_rank"],
@@ -317,7 +329,7 @@ def get_user_by_session(token: str) -> Optional[Dict[str, Any]]:
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-    SELECT u.id, u.username, u.email, u.full_name, u.college, u.department, u.academic_rank, u.role, u.created_at, u.last_login, s.expires_at
+    SELECT u.id, u.username, u.email, u.full_name, u.university, u.college, u.department, u.academic_rank, u.role, u.created_at, u.last_login, s.expires_at
     FROM sessions s
     JOIN users u ON s.user_id = u.id
     WHERE s.token = ?
@@ -340,6 +352,7 @@ def get_user_by_session(token: str) -> Optional[Dict[str, Any]]:
         "username": row["username"],
         "email": row["email"],
         "full_name": row["full_name"],
+        "university": row["university"] if ("university" in row.keys() and row["university"]) else (row["college"] or "الجامعة التكنولوجية"),
         "college": row["college"],
         "department": row["department"],
         "academic_rank": row["academic_rank"],
@@ -355,7 +368,7 @@ def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-    SELECT id, username, email, full_name, college, department, academic_rank, role, created_at, last_login
+    SELECT id, username, email, full_name, university, college, department, academic_rank, role, created_at, last_login
     FROM users WHERE id = ?
     """, (user_id,))
     row = cursor.fetchone()
@@ -368,6 +381,7 @@ def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
         "username": row["username"],
         "email": row["email"],
         "full_name": row["full_name"],
+        "university": row["university"] if ("university" in row.keys() and row["university"]) else (row["college"] or "الجامعة التكنولوجية"),
         "college": row["college"],
         "department": row["department"],
         "academic_rank": row["academic_rank"],
@@ -466,7 +480,7 @@ def get_admin_analytics() -> Dict[str, Any]:
 
     # 4. قائمة المستخدمين المسجلين
     cursor.execute("""
-    SELECT id, username, email, full_name, college, department, academic_rank, role, created_at, last_login
+    SELECT id, username, email, full_name, university, college, department, academic_rank, role, created_at, last_login
     FROM users
     ORDER BY id DESC
     """)
@@ -479,6 +493,7 @@ def get_admin_analytics() -> Dict[str, Any]:
             "username": u["username"],
             "email": u["email"],
             "full_name": u["full_name"],
+            "university": u["university"] if ("university" in u.keys() and u["university"]) else (u["college"] or "الجامعة التكنولوجية"),
             "college": u["college"],
             "department": u["department"],
             "academic_rank": u["academic_rank"],

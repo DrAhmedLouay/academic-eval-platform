@@ -54,6 +54,7 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
     full_name: Optional[str] = None
+    university: Optional[str] = "الجامعة التكنولوجية"
     college: Optional[str] = "الجامعة التكنولوجية"
     department: Optional[str] = "قسم هندسة العمارة"
     academic_rank: Optional[str] = "تدريسي"
@@ -89,9 +90,10 @@ async def api_register(data: RegisterRequest, response: Response, request: Reque
         email=data.email,
         password=data.password,
         full_name=data.full_name or "",
-        college=data.college or "الجامعة التكنولوجية",
+        college=data.college or data.university or "الجامعة التكنولوجية",
         department=data.department or "قسم هندسة العمارة",
-        academic_rank=data.academic_rank or "تدريسي"
+        academic_rank=data.academic_rank or "تدريسي",
+        university=data.university or data.college or "الجامعة التكنولوجية"
     )
     if not res.get("success"):
         return JSONResponse(status_code=400, content=res)

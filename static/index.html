@@ -1803,12 +1803,18 @@
                         </label>
                         <input type="email" id="reg-email" class="form-control" placeholder="drahmedlouay@uotechnology.edu.iq" required autocomplete="email" style="width: 100%; border-radius: 8px;">
                     </div>
+                    <div class="form-group" style="margin-bottom: 0.75rem;">
+                        <label style="display: block; font-weight: 700; font-size: 0.84rem; margin-bottom: 0.35rem; color: #1e293b;">
+                            الجامعة
+                        </label>
+                        <input type="text" id="reg-university" class="form-control" placeholder="الجامعة التكنولوجية" value="الجامعة التكنولوجية" style="width: 100%; border-radius: 8px;">
+                    </div>
                     <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.75rem;">
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="display: block; font-weight: 700; font-size: 0.82rem; margin-bottom: 0.35rem; color: #1e293b;">
-                                الكلية / الجامعة
+                                الكلية / المعهد
                             </label>
-                            <input type="text" id="reg-college" class="form-control" placeholder="الجامعة التكنولوجية" style="width: 100%; border-radius: 8px;">
+                            <input type="text" id="reg-college" class="form-control" placeholder="كلية الهندسة" style="width: 100%; border-radius: 8px;">
                         </div>
                         <div class="form-group" style="margin-bottom: 0;">
                             <label style="display: block; font-weight: 700; font-size: 0.82rem; margin-bottom: 0.35rem; color: #1e293b;">
@@ -1930,7 +1936,7 @@
                             سجل المستخدمين المسجلين في المنصة (<span id="admin-users-table-count" style="font-weight: 800; color: #2563eb;">0</span>)
                         </h4>
                         <div style="position: relative; min-width: 240px;">
-                            <input type="text" id="admin-user-search-input" class="form-control" placeholder="بحث بالاسم أو الايميل أو القسم..." style="font-size: 0.82rem; padding: 6px 26px 6px 10px; width: 100%; border-radius: 6px;">
+                            <input type="text" id="admin-user-search-input" class="form-control" placeholder="بحث بالاسم أو الايميل أو الجامعة أو القسم..." style="font-size: 0.82rem; padding: 6px 26px 6px 10px; width: 100%; border-radius: 6px;">
                             <i class="fa-solid fa-magnifying-glass" style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.8rem;"></i>
                         </div>
                     </div>
@@ -1942,6 +1948,7 @@
                                     <th style="padding: 8px 10px;">الاسم الأكاديمي</th>
                                     <th style="padding: 8px 10px;">اسم المستخدم</th>
                                     <th style="padding: 8px 10px;">البريد الإلكتروني</th>
+                                    <th style="padding: 8px 10px;">الجامعة</th>
                                     <th style="padding: 8px 10px;">القسم / الكلية</th>
                                     <th style="padding: 8px 10px;">الدور</th>
                                     <th style="padding: 8px 10px;">تاريخ التسجيل</th>
@@ -1950,7 +1957,7 @@
                             </thead>
                             <tbody id="admin-users-tbody">
                                 <tr>
-                                    <td colspan="8" style="text-align: center; color: #64748b; padding: 1.25rem;">جارٍ تحميل المستخدمين...</td>
+                                    <td colspan="9" style="text-align: center; color: #64748b; padding: 1.25rem;">جارٍ تحميل المستخدمين...</td>
                                 </tr>
                             </tbody>
                         </table>

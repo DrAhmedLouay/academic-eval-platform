@@ -44,19 +44,22 @@ class TestAuthenticationAndAdmin(unittest.TestCase):
         email = f"user_{uid}@uotechnology.edu.iq"
         pwd = "Password@123"
 
-        reg_res = register_user(username, email, pwd, "د. محمد علي")
+        reg_res = register_user(username, email, pwd, "د. محمد علي", university="جامعة بغداد")
         self.assertTrue(reg_res["success"])
         self.assertEqual(reg_res["user"]["role"], "faculty")
+        self.assertEqual(reg_res["user"]["university"], "جامعة بغداد")
         self.assertFalse(reg_res["user"]["is_admin"])
 
         # تسجيل الدخول بالبريد
         auth_email = authenticate_user(email, pwd)
         self.assertTrue(auth_email["success"])
         self.assertEqual(auth_email["user"]["username"], username)
+        self.assertEqual(auth_email["user"]["university"], "جامعة بغداد")
 
         # تسجيل الدخول باسم المستخدم
         auth_user = authenticate_user(username, pwd)
         self.assertTrue(auth_user["success"])
+        self.assertEqual(auth_user["user"]["university"], "جامعة بغداد")
 
         # فحص كلمة المرور الخاطئة
         auth_wrong = authenticate_user(username, "wrong_pwd")
@@ -68,6 +71,7 @@ class TestAuthenticationAndAdmin(unittest.TestCase):
         self.assertTrue(auth_res["success"])
         self.assertTrue(auth_res["user"]["is_admin"])
         self.assertEqual(auth_res["user"]["role"], "admin")
+        self.assertEqual(auth_res["user"]["university"], "الجامعة التكنولوجية")
 
     def test_session_management(self):
         auth_res = authenticate_user("drahmedlouay", "drahmedlouay2026")
@@ -77,6 +81,7 @@ class TestAuthenticationAndAdmin(unittest.TestCase):
         user_info = get_user_by_session(token)
         self.assertIsNotNone(user_info)
         self.assertEqual(user_info["username"], "drahmedlouay")
+        self.assertEqual(user_info["university"], "الجامعة التكنولوجية")
 
         # حذف الجلسة
         self.assertTrue(delete_session(token))
@@ -88,6 +93,9 @@ class TestAuthenticationAndAdmin(unittest.TestCase):
         self.assertIn("total_users", stats)
         self.assertIn("total_visits", stats)
         self.assertIn("unique_visitors", stats)
+        self.assertIn("users", stats)
+        if stats["users"]:
+            self.assertIn("university", stats["users"][0])
         self.assertIn("users", stats)
         self.assertGreaterEqual(stats["total_users"], 1)
         self.assertGreaterEqual(stats["total_visits"], 1)
