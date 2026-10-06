@@ -9,7 +9,7 @@ import uuid
 import shutil
 import json
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +20,10 @@ from core.document_parser import parse_academic_document, deep_scan_and_index_do
 from core.scoring_engine import calculate_evaluation
 from core.docx_generator import create_form_21_docx
 from core.pdf_generator import create_form_21_pdf
+from core.auth_db import (
+    register_user, authenticate_user, get_user_by_session, delete_session,
+    log_visit, get_admin_analytics, is_admin_account
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
@@ -32,7 +36,7 @@ os.makedirs(STATIC_DIR, exist_ok=True)
 
 app = FastAPI(
     title="منصة تقييم أداء الهيئة التدريسية - استمارة 21",
-    description="منصة تفاعلية ذكية لملء ومعالجة استمارة تقييم الأداء السنوي مع قارئ OCR وتصدير Word و PDF",
+    description="منصة تفاعلية ذكية لملء ومعالجة استمارة تقييم الأداء السنوي مع قارئ OCR وتصدير Word و PDF ونظام إدارة المستخدمين والمشرف",
     version="2.0.0"
 )
 
@@ -43,6 +47,123 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class RegisterRequest(BaseModel):
+    username: Optional[str] = None
+    email: str
+    password: str
+    full_name: Optional[str] = None
+    college: Optional[str] = "الجامعة التكنولوجية"
+    department: Optional[str] = "قسم هندسة العمارة"
+    academic_rank: Optional[str] = "تدريسي"
+
+
+class LoginRequest(BaseModel):
+    identifier: str
+    password: str
+
+
+class TrackVisitRequest(BaseModel):
+    path: Optional[str] = "/"
+
+
+def get_current_user_from_request(request: Request) -> Optional[Dict[str, Any]]:
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1].strip()
+    if not token:
+        token = request.cookies.get("session_token")
+    if token:
+        return get_user_by_session(token)
+    return None
+
+
+@app.post("/api/auth/register")
+async def api_register(data: RegisterRequest, response: Response, request: Request):
+    """تسجيل حساب جديد بالبريد الإلكتروني ورمز المرور"""
+    ip = request.client.host if request.client else "127.0.0.1"
+    res = register_user(
+        username=data.username or "",
+        email=data.email,
+        password=data.password,
+        full_name=data.full_name or "",
+        college=data.college or "الجامعة التكنولوجية",
+        department=data.department or "قسم هندسة العمارة",
+        academic_rank=data.academic_rank or "تدريسي"
+    )
+    if not res.get("success"):
+        return JSONResponse(status_code=400, content=res)
+
+    token = res.get("token")
+    if token:
+        response.set_cookie(key="session_token", value=token, max_age=30 * 86400, httponly=True, samesite="lax")
+        user_id = res.get("user", {}).get("id")
+        log_visit(ip, request.headers.get("User-Agent", ""), "/register", user_id)
+    return res
+
+
+@app.post("/api/auth/login")
+async def api_login(data: LoginRequest, response: Response, request: Request):
+    """تسجيل الدخول بالبريد الإلكتروني أو اسم المستخدم ورمز المرور"""
+    ip = request.client.host if request.client else "127.0.0.1"
+    res = authenticate_user(data.identifier, data.password)
+    if not res.get("success"):
+        return JSONResponse(status_code=401, content=res)
+
+    token = res.get("token")
+    if token:
+        response.set_cookie(key="session_token", value=token, max_age=30 * 86400, httponly=True, samesite="lax")
+        user_id = res.get("user", {}).get("id")
+        log_visit(ip, request.headers.get("User-Agent", ""), "/login", user_id)
+    return res
+
+
+@app.post("/api/auth/logout")
+async def api_logout(request: Request, response: Response):
+    """تسجيل الخروج وإلغاء الجلسة"""
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1].strip()
+    if not token:
+        token = request.cookies.get("session_token")
+    if token:
+        delete_session(token)
+    response.delete_cookie("session_token")
+    return {"success": True, "message": "تم تسجيل الخروج بنجاح"}
+
+
+@app.get("/api/auth/me")
+async def api_get_me(request: Request):
+    """التحقق من حالة تسجيل الدخول للمستخدم الحالي"""
+    user = get_current_user_from_request(request)
+    if user:
+        return {"success": True, "authenticated": True, "logged_in": True, "user": user}
+    return {"success": True, "authenticated": False, "logged_in": False, "user": None}
+
+
+@app.post("/api/analytics/track-visit")
+async def api_track_visit(request: Request, data: Optional[TrackVisitRequest] = None):
+    """تسجيل زيارة وتصفح في المنصة وحساب الإحصائيات"""
+    ip = request.client.host if request.client else "127.0.0.1"
+    ua = request.headers.get("User-Agent", "")
+    p = data.path if data and data.path else "/"
+    user = get_current_user_from_request(request)
+    user_id = user["id"] if user else None
+    log_visit(ip, ua, p, user_id)
+    return {"success": True}
+
+
+@app.get("/api/admin/stats")
+async def api_admin_stats(request: Request):
+    """لوحة تحكم وإحصائيات المشرف العام (مخصصة حصرياً لـ drahmedlouay)"""
+    user = get_current_user_from_request(request)
+    if not user or not user.get("is_admin"):
+        raise HTTPException(status_code=403, detail="عذراً، هذا القسم مخصص حصرياً للمشرف العام (drahmedlouay).")
+    stats = get_admin_analytics()
+    return {"success": True, "analytics": stats, **stats}
 
 
 class EvaluationRequest(BaseModel):
@@ -965,7 +1086,11 @@ app.mount("/css", StaticFiles(directory=os.path.join(STATIC_DIR, "css")), name="
 
 
 @app.get("/")
-async def serve_index():
+async def serve_index(request: Request):
+    ip = request.client.host if request.client else "127.0.0.1"
+    ua = request.headers.get("User-Agent", "")
+    user = get_current_user_from_request(request)
+    log_visit(ip, ua, "/", user["id"] if user else None)
     index_path = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path)

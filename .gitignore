@@ -35,3 +35,7 @@ uploads/*
 uploads_backup/
 scratch/
 *_bin
+
+# Database files
+*.db
+data/*.db
