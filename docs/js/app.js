@@ -291,6 +291,7 @@ function initApp() {
     try { renderAllMiniEvidenceTables(); } catch (e) { logWarn("renderAllMiniEvidenceTables error:", e); }
     try { renderMasterCatalogTable(); } catch (e) { logWarn("renderMasterCatalogTable error:", e); }
     try { updateIndexStats(); } catch (e) { logWarn("updateIndexStats error:", e); }
+    try { initForm39State(); switchEvaluationFormMode("form39"); } catch (e) { logWarn("Form39 init error:", e); }
 }
 
 if (document.readyState === "loading") {
@@ -314,20 +315,14 @@ function switchTab(targetId) {
     document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
     document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
 
-    const activeBtn = document.querySelector(`.tab-btn[data-tab="${targetId}"]`);
+    document.querySelectorAll(`.tab-btn[data-tab="${targetId}"]`).forEach(b => b.classList.add("active"));
     const activePane = document.getElementById(targetId);
 
-    if (activeBtn) activeBtn.classList.add("active");
     if (activePane) activePane.classList.add("active");
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    if (targetId === "tab-summary") {
-        if (currentEvaluation) {
-            updateScoreboardUI(currentEvaluation);
-            if (window.updateSummaryTableUI) window.updateSummaryTableUI(currentEvaluation);
-        } else {
-            calculateLiveScore();
-        }
+    if (targetId === "tab-summary" || targetId === "tab-f39-summary") {
+        calculateLiveScore();
     }
 }
 
@@ -370,7 +365,13 @@ function initEventListeners() {
     safeAddListener("btn-print", "click", () => window.print());
 
     // أزرار الحفظ والاسترجاع والبيانات التجريبية
-    safeAddListener("btn-sample-data", "click", loadSampleData);
+    safeAddListener("btn-sample-data", "click", () => {
+        if (formData.form_type === "form39" || !formData.form_type) {
+            loadSampleDataForm39();
+        } else {
+            loadSampleData();
+        }
+    });
     safeAddListener("btn-save-draft", "click", saveDraft);
     safeAddListener("btn-restore-draft", "click", () => {
         const inp = document.getElementById("restore-file-input");
@@ -615,6 +616,28 @@ window.calculateEvaluationClient = calculateEvaluationClient;
 // الحساب اللحظي للدرجات مع دعم العمل المحلي التلقائي لـ GitHub Pages
 // ============================================================================
 async function calculateLiveScore() {
+    const isF39 = (formData.form_type === "form39" || !formData.form_type);
+    if (isF39) {
+        try {
+            const response = await fetch("/api/calculate-score", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData)
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.evaluation) {
+                    currentEvaluation = data.evaluation;
+                    updateForm39ScoreboardUI(currentEvaluation);
+                    return;
+                }
+            }
+        } catch (err) {}
+        currentEvaluation = calculateEvaluationForm39Client(formData);
+        updateForm39ScoreboardUI(currentEvaluation);
+        return;
+    }
+
     try {
         const response = await fetch("/api/calculate-score", {
             method: "POST",
@@ -3566,7 +3589,9 @@ window.toggleFacultyOnlyFilter = toggleFacultyOnlyFilter;
 function renderMasterCatalogTable() {
     const tbody = document.getElementById("master-catalog-body");
     const countBadge = document.getElementById("attachments-count");
+    const countBadge39 = document.getElementById("attachments-count-f39");
     if (countBadge) countBadge.textContent = indexedEvidenceList.length;
+    if (countBadge39) countBadge39.textContent = indexedEvidenceList.length;
 
     const facultyCountBadge = document.getElementById("faculty-matches-count");
     if (facultyCountBadge) {
@@ -4343,35 +4368,48 @@ th, td {
 }
 
 async function exportDocx() {
-    const btn = document.getElementById("btn-export-docx");
-    btn.disabled = true;
-    btn.innerHTML = `<span class="spinner"></span> جاري إنشاء ملف Word...`;
+    const isF39 = (formData.form_type === "form39" || !formData.form_type);
+    const btn = document.getElementById(isF39 ? "btn-export-f39-docx" : "btn-export-docx") || document.getElementById("btn-export-docx");
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span> جاري إنشاء ملف Word...`;
+    }
 
     try {
         const response = await fetch("/api/export-docx", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ form_data: formData, attachments: indexedEvidenceList })
+            body: JSON.stringify({
+                form_type: isF39 ? "form39" : "form21",
+                form_data: formData,
+                attachments: indexedEvidenceList
+            })
         });
 
         if (response.ok) {
             const blob = await response.blob();
             const teacherName = [formData.personal_info.last_name, formData.personal_info.first_name].filter(Boolean).join('_') || '2026';
-            downloadBlob(blob, `استمارة_تقييم_الأداء_${teacherName}.docx`);
-            showToast("تم تصدير استمارة Word الرسمية مع فهرس الأدلة بنجاح! 📄");
+            const fileName = isF39 ? `استمارة_بولونيا_39_${teacherName}.docx` : `استمارة_تقييم_الأداء_${teacherName}.docx`;
+            downloadBlob(blob, fileName);
+            showToast("تم تصدير استمارة Word الرسمية بنجاح! 📄");
             return;
         }
     } catch (err) {
         console.warn("Backend Word export unavailable, generating client-side Word document:", err);
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-file-word"></i> تحميل الاستمارة Word (.docx)`;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = isF39 ? `<i class="fa-solid fa-file-word"></i> تحميل استمارة بولونيا (39) Word` : `<i class="fa-solid fa-file-word"></i> تحميل الاستمارة Word (.docx)`;
+        }
     }
 
-    // بديل فوري وتلقائي دون أي نوافذ تنبيه: توليد ملف Word المتكامل وتنزيله مباشرة
     try {
-        generateAndDownloadClientWordDoc(formData, indexedEvidenceList);
-        showToast("تم إنشاء وتنزيل استمارة Word الرسمية بنجاح! 📄");
+        if (isF39) {
+            generateAndDownloadClientWordDoc39(formData, indexedEvidenceList);
+        } else {
+            generateAndDownloadClientWordDoc(formData, indexedEvidenceList);
+        }
+        showToast("تم إنشاء وتنزيل استمارة Word بنجاح! 📄");
     } catch (clientErr) {
         console.error("Client-side Word generation failed:", clientErr);
         showToast("تعذر إنشاء ملف Word تلقائياً، يرجى استخدام زر 'طباعة' لحفظ نسخة PDF.");
@@ -4379,9 +4417,12 @@ async function exportDocx() {
 }
 
 async function exportPdf() {
-    const btn = document.getElementById("btn-export-pdf");
-    btn.disabled = true;
-    btn.innerHTML = `<span class="spinner"></span> جاري إنشاء ملف PDF...`;
+    const isF39 = (formData.form_type === "form39" || !formData.form_type);
+    const btn = document.getElementById(isF39 ? "btn-export-f39-pdf" : "btn-export-pdf") || document.getElementById("btn-export-pdf");
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner"></span> جاري إنشاء ملف PDF...`;
+    }
 
     try {
         const signatures = getDigitalSignaturesPayload();
@@ -4389,6 +4430,7 @@ async function exportPdf() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+                form_type: isF39 ? "form39" : "form21",
                 form_data: formData,
                 attachments: indexedEvidenceList,
                 signatures: signatures
@@ -4398,18 +4440,20 @@ async function exportPdf() {
         if (response.ok) {
             const blob = await response.blob();
             const teacherName = [formData.personal_info.last_name, formData.personal_info.first_name].filter(Boolean).join('_') || '2026';
-            downloadBlob(blob, `استمارة_تقييم_الأداء_${teacherName}.pdf`);
-            showToast("تم تصدير استمارة PDF الرسمية مع فهرس الأدلة والتواقيع بنجاح! 📑");
+            const fileName = isF39 ? `استمارة_بولونيا_39_${teacherName}.pdf` : `استمارة_تقييم_الأداء_${teacherName}.pdf`;
+            downloadBlob(blob, fileName);
+            showToast("تم تصدير استمارة PDF الرسمية بنجاح! 📑");
             return;
         }
     } catch (err) {
         console.warn("Backend PDF export unavailable, falling back to browser print:", err);
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<i class="fa-solid fa-file-pdf"></i> تحميل الاستمارة PDF (.pdf)`;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = isF39 ? `<i class="fa-solid fa-file-pdf"></i> تحميل استمارة بولونيا (39) PDF` : `<i class="fa-solid fa-file-pdf"></i> تحميل الاستمارة PDF (.pdf)`;
+        }
     }
 
-    // بديل فوري وفعال: فتح نافذة الطباعة / الحفظ بصيغة PDF الرسمية
     showToast("جارٍ فتح نافذة الطباعة والحفظ بصيغة PDF الرسمية... 🖨️");
     window.print();
 }
@@ -7460,3 +7504,1846 @@ window.handleLogout = handleLogout;
 
 
 
+
+
+
+// ============================================================================
+// محرك استمارة رقم (39): تقييم أداء أعضاء الهيئة التدريسية لمسار بولونيا 2025-2026
+// ============================================================================
+
+window.FORM39_RANK_MULTIPLIERS = {
+    "أستاذ": 1.0,
+    "أستاذ مساعد": 1.4,
+    "مدرس": 1.6,
+    "محاضر": 1.6,
+    "مدرس مساعد": 1.8,
+    "محاضر مساعد": 1.8
+};
+
+window.FORM39_PENALTIES_MAP = {
+    "notice": { name: "لفت نظر", deduction: 3 },
+    "warning": { name: "الإنذار", deduction: 4 },
+    "salary_cut": { name: "قطع الراتب", deduction: 5 },
+    "reprimand": { name: "التوبيخ", deduction: 6 },
+    "salary_reduction": { name: "إنقاص الراتب", deduction: 7 },
+    "grade_demotion": { name: "تنزيل الدرجة", deduction: 8 }
+};
+
+function initForm39State() {
+    if (!formData.form_type) formData.form_type = "form39";
+
+    if (!formData.axis1_bologna) {
+        formData.axis1_bologna = {
+            bologna_teaching_items: [1, 1, 1, 1],
+            teaching_efficiency_items: [1, 1, 1, 1, 1, 1]
+        };
+    }
+
+    if (!formData.axis2_portfolio) {
+        formData.axis2_portfolio = {
+            teaching_load_status: "full",
+            committees: [
+                { type: "permanent", name: "لجنة ضمان الجودة ومسار بولونيا", entity: "القسم", order_no_date: "ق/45 في 2025/09/20", score: 4.0 }
+            ],
+            appreciation_items: [
+                { type: "ministry", name: "كتاب شكر وتقدير من السيد وزير التعليم العالي", order_no_date: "و/1024 في 2025/11/15", score: 5.0 }
+            ],
+            holding_events: [
+                { type: "training_course_24h", name: "دورة التحول الرقمي وتطبيق مسار بولونيا", duration: "24 ساعة تدريبية (أسبوع)", score: 4.0 },
+                { type: "seminar", name: "ندوة الذكاء الاصطناعي في التعليم المعماري", duration: "يوم واحد", score: 2.0 }
+            ],
+            attending_courses: [
+                { type: "course", name: "دورة طرائق التدريس الحديثة ومسار بولونيا", organizer: "مركز التعليم المستمر", score: 2.0 },
+                { type: "conf_paper", name: "المؤتمر الدولي للهندسة المستدامة (بحث منشور)", organizer: "الجامعة التكنولوجية", score: 2.0 }
+            ],
+            attending_seminars_count: 10,
+            research_publications: [
+                {
+                    category: "scopus_q1",
+                    title: "BIM and Digital Twin in Sustainable Heritage Preservation",
+                    journal: "Journal of Building Engineering (Scopus Q1 / Clarivate)",
+                    author_rank: "first",
+                    doi: "10.1016/j.jobe.2025.108912",
+                    base_score: 10.0,
+                    final_score: 11.0
+                },
+                {
+                    category: "clarivate_scopus_mid",
+                    title: "Parametric Architecture Optimization for Hot-Arid Climates",
+                    journal: "Architectural Science Review (IF 2.8 / Scopus Q1)",
+                    author_rank: "corresponding",
+                    doi: "10.1080/00038628.2025.21045",
+                    base_score: 10.0,
+                    final_score: 11.0
+                }
+            ],
+            intl_org_membership: "senior_fellow",
+            editorial_items: [
+                { type: "scopus_editor", journal: "International Journal of Architectural Heritage", score: 3.0 },
+                { type: "review_paper", journal: "Building and Environment (Scopus Reviewer)", score: 1.0 }
+            ],
+            keynote_speaker_type: "intl",
+            fund_granted: true,
+            fund_details: "مشروع التوأمة الرقمية للتراث المعماري - منحة تمويلية للجامعة التكنولوجية"
+        };
+    }
+
+    if (!formData.axis3_hod) {
+        formData.axis3_hod = {
+            base_score: 15.0,
+            penalties: []
+        };
+    }
+
+    if (!formData.axis4_guidance) {
+        formData.axis4_guidance = {
+            qa_committee_items: [
+                { type: "lecturer", title: "محاضر في ورش ضمان الجودة وتطبيق مسار بولونيا", score: 5.0 }
+            ],
+            field_activities: [
+                { type: "field_supervision", details: "زيارة ميدانية للإشراف على تدريب الطلبة في مشاريع الحفاظ المعماري", score: 10.0 }
+            ]
+        };
+    }
+}
+
+function switchEvaluationFormMode(mode) {
+    if (!mode) mode = "form39";
+    formData.form_type = mode;
+
+    const btn39 = document.getElementById("btn-mode-form39");
+    const btn21 = document.getElementById("btn-mode-form21");
+    const pill = document.getElementById("form39-status-pill");
+    const sub = document.getElementById("platform-subtitle-text");
+    const sb39 = document.getElementById("scoreboard-form39");
+    const sb21 = document.getElementById("scoreboard-form21");
+    const nav39 = document.getElementById("tabs-nav-form39");
+    const nav21 = document.getElementById("tabs-nav-form21");
+
+    if (mode === "form39") {
+        if (btn39) {
+            btn39.style.background = "#2563eb";
+            btn39.style.color = "white";
+            btn39.style.borderColor = "#60a5fa";
+            btn39.classList.add("active");
+        }
+        if (btn21) {
+            btn21.style.background = "transparent";
+            btn21.style.color = "#cbd5e1";
+            btn21.style.borderColor = "#64748b";
+            btn21.classList.remove("active");
+        }
+        if (pill) pill.style.display = "inline-flex";
+        if (sub) sub.textContent = "جهاز الإشراف والتقويم العلمي | استمارة رقم (39): تقييم أداء أعضاء الهيئة التدريسية لمسار بولونيا للعام الدراسي 2025-2026";
+        if (sb39) sb39.style.display = "flex";
+        if (sb21) sb21.style.display = "none";
+        if (nav39) nav39.style.display = "flex";
+        if (nav21) nav21.style.display = "none";
+
+        // تحديث عناوين أزرار التصدير
+        const btnDocx = document.getElementById("btn-export-docx");
+        if (btnDocx) btnDocx.title = "تحميل استمارة رقم (39) مسار بولونيا بصيغة Word (.docx)";
+        const btnPdf = document.getElementById("btn-export-pdf");
+        if (btnPdf) btnPdf.title = "تحميل استمارة رقم (39) مسار بولونيا بصيغة PDF (.pdf)";
+
+        initForm39State();
+        renderAllForm39Tables();
+        calculateLiveScore();
+        showToast("تم تفعيل استمارة رقم (39): مسار بولونيا 2025-2026 بنجاح! 🎓");
+    } else {
+        if (btn21) {
+            btn21.style.background = "#2563eb";
+            btn21.style.color = "white";
+            btn21.style.borderColor = "#60a5fa";
+            btn21.classList.add("active");
+        }
+        if (btn39) {
+            btn39.style.background = "transparent";
+            btn39.style.color = "#cbd5e1";
+            btn39.style.borderColor = "#64748b";
+            btn39.classList.remove("active");
+        }
+        if (pill) pill.style.display = "none";
+        if (sub) sub.textContent = "جهاز الإشراف والتقويم العلمي | استمارة رقم (21): تقييم أداء أعضاء الهيئة التدريسية للعام الدراسي 2025-2026";
+        if (sb39) sb39.style.display = "none";
+        if (sb21) sb21.style.display = "flex";
+        if (nav39) nav39.style.display = "none";
+        if (nav21) nav21.style.display = "flex";
+
+        calculateLiveScore();
+        showToast("تم التحويل إلى استمارة رقم (21) - المسار السنوي العام. 🏛️");
+    }
+}
+window.switchEvaluationFormMode = switchEvaluationFormMode;
+
+function goToNextAxisFromPersonal() {
+    if (formData.form_type === "form39") {
+        switchTab("tab-f39-axis1");
+    } else {
+        switchTab("tab-axis1");
+    }
+}
+window.goToNextAxisFromPersonal = goToNextAxisFromPersonal;
+
+function calculateEvaluationForm39Client(fd) {
+    fd = fd || formData;
+    const pInfo = fd.personal_info || {};
+    const rank = pInfo.academic_title || "أستاذ مساعد";
+    const multiplier = window.FORM39_RANK_MULTIPLIERS[rank] || 1.4;
+
+    // المحور الأول: تقييم الطالب (10 درجات)
+    const ax1 = fd.axis1_bologna || {};
+    const bItems = ax1.bologna_teaching_items || [1, 1, 1, 1];
+    const tItems = ax1.teaching_efficiency_items || [1, 1, 1, 1, 1, 1];
+    const p1Score = Math.min(4.0, bItems.reduce((acc, v) => acc + Math.min(1.0, Math.max(0.0, parseFloat(v) || 0)), 0));
+    const p2Score = Math.min(6.0, tItems.reduce((acc, v) => acc + Math.min(1.0, Math.max(0.0, parseFloat(v) || 0)), 0));
+    const axis1Total = Math.round((p1Score + p2Score) * 100) / 100;
+    const axis1Weighted = axis1Total;
+
+    // المحور الثاني: حقيبة الأستاذ (60 درجة)
+    const ax2 = fd.axis2_portfolio || {};
+    
+    // 1. الحمل التدريسي واللجان (8 درجات)
+    const loadStatus = ax2.teaching_load_status || "full";
+    const loadPts = (loadStatus === "full" || loadStatus === "partial_department_assigned") ? 4.0 : 2.0;
+    let commPts = 0.0;
+    (ax2.committees || []).forEach(c => {
+        commPts += (c.type === "permanent") ? 4.0 : 2.0;
+    });
+    commPts = Math.min(4.0, commPts);
+    const p1Resp = Math.min(8.0, loadPts + commPts);
+
+    // 2. كتب الشكر والجوائز (5 درجات)
+    let apprPts = 0.0;
+    (ax2.appreciation_items || []).forEach(a => {
+        if (a.type === "ministry" || a.type === "award") apprPts += 5.0;
+        else if (a.type === "university") apprPts += 4.0;
+        else if (a.type === "college") apprPts += 3.0;
+        else apprPts += 2.0;
+    });
+    const p2Skills = Math.min(5.0, apprPts);
+
+    // 3. التدريب والتعليم المستمر (20 درجة)
+    let holdingPts = 0.0;
+    (ax2.holding_events || []).forEach(h => {
+        holdingPts += (h.type === "training_course_24h") ? 4.0 : 2.0;
+    });
+    holdingPts = Math.min(6.0, holdingPts);
+
+    let attendPts = 0.0;
+    (ax2.attending_courses || []).forEach(ac => {
+        attendPts += (ac.type === "course" || ac.type === "conf_paper") ? 2.0 : 1.0;
+    });
+    attendPts = Math.min(4.0, attendPts);
+
+    const seminarsCount = parseFloat(ax2.attending_seminars_count || (ax2.attending_seminars ? ax2.attending_seminars.length : 10));
+    const seminarsPts = Math.min(10.0, seminarsCount);
+    const p3Training = Math.min(20.0, holdingPts + attendPts + seminarsPts);
+
+    // 4. البحث والتطوير والكتب وبراءات الاختراع (20 درجة مع معامل اللقب)
+    let researchRaw = 0.0;
+    (ax2.research_publications || []).forEach(r => {
+        let base = 0.0;
+        const cat = r.category || "scopus_q3";
+        if (cat === "wipo_patent") base = 20.0;
+        else if (cat === "local_patent") base = 5.0;
+        else if (cat === "clarivate_scopus_high") base = 12.0;
+        else if (cat === "clarivate_scopus_mid") base = 10.0;
+        else if (cat === "clarivate_scopus_low") base = 8.0;
+        else if (cat === "scopus_book_1st") base = 12.0;
+        else if (cat === "scopus_book_2nd") base = 8.0;
+        else if (cat === "scopus_book_3rd") base = 6.0;
+        else if (cat === "scopus_chapter_1st") base = 7.0;
+        else if (cat === "scopus_chapter_2nd") base = 4.0;
+        else if (cat === "official_book") base = 10.0;
+        else if (cat === "scopus_q1") base = 10.0;
+        else if (cat === "scopus_q2") base = 9.0;
+        else if (cat === "scopus_q3") base = 8.0;
+        else if (cat === "scopus_q4") base = 7.0;
+        else if (cat === "non_indexed_doi") base = 5.0;
+        else base = parseFloat(r.base_score || 8.0);
+
+        if (r.author_rank === "first" || r.author_rank === "corresponding") base += 1.0;
+        else if (r.author_rank === "rank_5_10") base = Math.max(0.0, base - 2.0);
+        else if (r.author_rank === "rank_above_10") base = base * 0.5;
+
+        researchRaw += base;
+    });
+
+    const researchCappedRaw = Math.min(20.0, researchRaw);
+    const researchMultiplied = Math.round(researchCappedRaw * multiplier * 100) / 100;
+    const p4Research = Math.min(20.0, researchMultiplied);
+
+    // 5. النشاط الدولي (5 درجات)
+    const orgMembership = ax2.intl_org_membership || "senior_fellow";
+    const orgPts = (orgMembership === "senior_fellow") ? 2.0 : (orgMembership === "member" ? 1.0 : 0.0);
+
+    let editPts = 0.0;
+    (ax2.editorial_items || []).forEach(ed => {
+        if (ed.type === "clarivate_editor") editPts += 4.0;
+        else if (ed.type === "scopus_editor") editPts += 3.0;
+        else editPts += 1.0;
+    });
+    editPts = Math.min(4.0, editPts);
+
+    const keynoteType = ax2.keynote_speaker_type || "intl";
+    const keynotePts = (keynoteType === "intl") ? 2.0 : (keynoteType === "national" ? 1.0 : 0.0);
+    const p5Intl = Math.min(5.0, orgPts + editPts + keynotePts);
+
+    // 6. دعم إيرادات الجامعة (درجتان)
+    const p6Revenue = ax2.fund_granted ? 2.0 : 0.0;
+
+    const axis2Total = Math.min(60.0, Math.round((p1Resp + p2Skills + p3Training + p4Research + p5Intl + p6Revenue) * 100) / 100);
+    const axis2Weighted = axis2Total;
+
+    // المحور الثالث: تقييم رئيس القسم (15 درجة)
+    const ax3 = fd.axis3_hod || {};
+    const baseHod = parseFloat(ax3.base_score !== undefined ? ax3.base_score : 15.0);
+    let penaltyDed = 0.0;
+    const penaltiesDetails = [];
+    (ax3.penalties || []).forEach(p => {
+        const count = parseInt(p.count || 1);
+        const map = window.FORM39_PENALTIES_MAP[p.type];
+        if (map) {
+            const ded = map.deduction * count;
+            penaltyDed += ded;
+            penaltiesDetails.push({ type: p.type, name: map.name, count: count, deduction: ded });
+        }
+    });
+    const axis3Total = Math.max(0.0, Math.round((Math.min(15.0, baseHod) - penaltyDed) * 100) / 100);
+    const axis3Weighted = axis3Total;
+
+    // المحور الرابع: الجانب التربوي والإرشادي (15 درجة)
+    const ax4 = fd.axis4_guidance || {};
+    let qaPts = 0.0;
+    (ax4.qa_committee_items || []).forEach(q => {
+        if (q.type === "lecturer") qaPts += 5.0;
+        else if (q.type === "attendee") qaPts += 4.0;
+        else qaPts += 3.0;
+    });
+    const p1Qa = Math.min(5.0, qaPts);
+
+    let fieldPts = 0.0;
+    (ax4.field_activities || []).forEach(f => {
+        if (f.type === "field_supervision") fieldPts += 10.0;
+        else fieldPts += 5.0;
+    });
+    const p2Field = Math.min(10.0, fieldPts);
+    const axis4Total = Math.min(15.0, Math.round((p1Qa + p2Field) * 100) / 100);
+    const axis4Weighted = axis4Total;
+
+    // المجموع النهائي والتقدير
+    const finalScore = Math.min(100.0, Math.max(0.0, Math.round((axis1Weighted + axis2Weighted + axis3Weighted + axis4Weighted) * 100) / 100));
+
+    let rating = "ضعيف";
+    if (finalScore >= 90.0) rating = "امتياز";
+    else if (finalScore >= 80.0) rating = "جيد جدا";
+    else if (finalScore >= 70.0) rating = "جيد";
+
+    const scoreInWords = (typeof numberToArabicWords === "function") ? numberToArabicWords(finalScore) : `${finalScore} درجة`;
+
+    return {
+        form_type: "form39",
+        academic_rank: rank,
+        rank_multiplier: multiplier,
+        axis1: {
+            name: "تقييم الطالب للمادة الدراسية وطريقة التدريس",
+            weight: 10,
+            items: { p1_bologna: p1Score, p2_efficiency: p2Score },
+            total_score: axis1Total,
+            weighted_score: axis1Weighted
+        },
+        axis2: {
+            name: "تقييم حقيبة الأستاذ",
+            weight: 60,
+            items: {
+                p1_responsibilities: p1Resp,
+                p2_skills: p2Skills,
+                p3_training: p3Training,
+                p4_research: p4Research,
+                p4_research_raw: researchCappedRaw,
+                p4_research_multiplied: researchMultiplied,
+                p5_intl: p5Intl,
+                p6_revenue: p6Revenue
+            },
+            total_score: axis2Total,
+            weighted_score: axis2Weighted
+        },
+        axis3: {
+            name: "تقييم رئيس القسم للعملية التعليمية والأستاذ الجامعي",
+            weight: 15,
+            base_score: baseHod,
+            total_deduction: penaltyDed,
+            penalties_details: penaltiesDetails,
+            total_score: axis3Total,
+            weighted_score: axis3Weighted
+        },
+        axis4: {
+            name: "الجانب التربوي والإرشادي",
+            weight: 15,
+            items: { p1_qa: p1Qa, p2_field: p2Field },
+            total_score: axis4Total,
+            weighted_score: axis4Weighted
+        },
+        final_score: finalScore,
+        rating: rating,
+        score_in_words: scoreInWords,
+        warnings: []
+    };
+}
+window.calculateEvaluationForm39Client = calculateEvaluationForm39Client;
+
+function updateForm39Axis1() {
+    initForm39State();
+    const bItems = [
+        document.getElementById("f39-bologna-p1")?.checked ? 1 : 0,
+        document.getElementById("f39-bologna-p2")?.checked ? 1 : 0,
+        document.getElementById("f39-bologna-p3")?.checked ? 1 : 0,
+        document.getElementById("f39-bologna-p4")?.checked ? 1 : 0
+    ];
+    const tItems = [
+        document.getElementById("f39-teach-p1")?.checked ? 1 : 0,
+        document.getElementById("f39-teach-p2")?.checked ? 1 : 0,
+        document.getElementById("f39-teach-p3")?.checked ? 1 : 0,
+        document.getElementById("f39-teach-p4")?.checked ? 1 : 0,
+        document.getElementById("f39-teach-p5")?.checked ? 1 : 0,
+        document.getElementById("f39-teach-p6")?.checked ? 1 : 0
+    ];
+    formData.axis1_bologna.bologna_teaching_items = bItems;
+    formData.axis1_bologna.teaching_efficiency_items = tItems;
+    calculateLiveScore();
+}
+window.updateForm39Axis1 = updateForm39Axis1;
+
+function updateForm39Axis2() {
+    initForm39State();
+    const loadSelect = document.getElementById("f39-teaching-load-status");
+    if (loadSelect) formData.axis2_portfolio.teaching_load_status = loadSelect.value;
+
+    const semInp = document.getElementById("f39-seminars-count");
+    if (semInp) formData.axis2_portfolio.attending_seminars_count = parseFloat(semInp.value) || 0;
+
+    const orgSelect = document.getElementById("f39-intl-org-membership");
+    if (orgSelect) formData.axis2_portfolio.intl_org_membership = orgSelect.value;
+
+    const keySelect = document.getElementById("f39-keynote-type");
+    if (keySelect) formData.axis2_portfolio.keynote_speaker_type = keySelect.value;
+
+    const fundCheck = document.getElementById("f39-fund-granted");
+    if (fundCheck) formData.axis2_portfolio.fund_granted = fundCheck.checked;
+
+    const fundDet = document.getElementById("f39-fund-details");
+    if (fundDet) formData.axis2_portfolio.fund_details = fundDet.value;
+
+    calculateLiveScore();
+}
+window.updateForm39Axis2 = updateForm39Axis2;
+
+function updateForm39Axis3() {
+    initForm39State();
+    const hodInp = document.getElementById("f39-hod-base-score");
+    if (hodInp) formData.axis3_hod.base_score = parseFloat(hodInp.value) || 15.0;
+    calculateLiveScore();
+}
+window.updateForm39Axis3 = updateForm39Axis3;
+
+function updateForm39ScoreboardUI(evalRes) {
+    if (!evalRes) return;
+    const ax1 = document.getElementById("score-f39-axis1");
+    if (ax1) ax1.textContent = `${evalRes.axis1.weighted_score} / 10%`;
+    const ax2 = document.getElementById("score-f39-axis2");
+    if (ax2) ax2.textContent = `${evalRes.axis2.weighted_score} / 60%`;
+    const ax3 = document.getElementById("score-f39-axis3");
+    if (ax3) ax3.textContent = `${evalRes.axis3.weighted_score} / 15%`;
+    const ax4 = document.getElementById("score-f39-axis4");
+    if (ax4) ax4.textContent = `${evalRes.axis4.weighted_score} / 15%`;
+    const scFinal = document.getElementById("score-f39-final");
+    if (scFinal) scFinal.textContent = `${evalRes.final_score}%`;
+    const badge = document.getElementById("badge-f39-rating");
+    if (badge) {
+        badge.className = `rating-badge rating-${evalRes.rating.replace(/\s+/g, '')}`;
+        badge.textContent = evalRes.rating;
+    }
+
+    // تحديث كروت تبويبات استمارة 39
+    const ax1Tot = document.getElementById("f39-ax1-total-badge");
+    if (ax1Tot) ax1Tot.textContent = `${evalRes.axis1.total_score}`;
+    const p1s = document.getElementById("f39-ax1-p1-score");
+    if (p1s) p1s.textContent = `${evalRes.axis1.items.p1_bologna}`;
+    const p2s = document.getElementById("f39-ax1-p2-score");
+    if (p2s) p2s.textContent = `${evalRes.axis1.items.p2_efficiency}`;
+
+    const p1Resp = document.getElementById("f39-p1-resp-score");
+    if (p1Resp) p1Resp.textContent = `${evalRes.axis2.items.p1_responsibilities}`;
+    const p2Appr = document.getElementById("f39-p2-appr-score");
+    if (p2Appr) p2Appr.textContent = `${evalRes.axis2.items.p2_skills}`;
+    const p3Train = document.getElementById("f39-p3-train-score");
+    if (p3Train) p3Train.textContent = `${evalRes.axis2.items.p3_training}`;
+    const p4Res = document.getElementById("f39-p4-res-score");
+    if (p4Res) p4Res.textContent = `${evalRes.axis2.items.p4_research}`;
+
+    const rRaw = document.getElementById("f39-res-raw-score");
+    if (rRaw) rRaw.textContent = `${evalRes.axis2.items.p4_research_raw}`;
+    const rFin = document.getElementById("f39-res-final-score");
+    if (rFin) rFin.textContent = `${evalRes.axis2.items.p4_research}`;
+
+    const multLabel = document.getElementById("f39-rank-multiplier-label");
+    if (multLabel) multLabel.textContent = `${Math.round(evalRes.rank_multiplier * 100)}% (x${evalRes.rank_multiplier})`;
+    const rankLabel = document.getElementById("f39-rank-display-label");
+    if (rankLabel) rankLabel.textContent = evalRes.academic_rank;
+
+    const p56Score = document.getElementById("f39-p56-score");
+    if (p56Score) p56Score.textContent = `${Math.round((evalRes.axis2.items.p5_intl + evalRes.axis2.items.p6_revenue) * 10) / 10}`;
+
+    const ax3Score = document.getElementById("f39-ax3-score");
+    if (ax3Score) ax3Score.textContent = `${evalRes.axis3.total_score}`;
+
+    const ax4Score = document.getElementById("f39-ax4-score");
+    if (ax4Score) ax4Score.textContent = `${evalRes.axis4.total_score}`;
+
+    // جدول الملخص (الصفحة 5)
+    const s1 = document.getElementById("f39-sum-ax1");
+    if (s1) s1.textContent = evalRes.axis1.weighted_score;
+    const s2 = document.getElementById("f39-sum-ax2");
+    if (s2) s2.textContent = evalRes.axis2.weighted_score;
+    const s3 = document.getElementById("f39-sum-ax3");
+    if (s3) s3.textContent = evalRes.axis3.weighted_score;
+    const s4 = document.getElementById("f39-sum-ax4");
+    if (s4) s4.textContent = evalRes.axis4.weighted_score;
+    const sTot = document.getElementById("f39-sum-total");
+    if (sTot) sTot.textContent = evalRes.final_score;
+    const sWords = document.getElementById("f39-sum-words");
+    if (sWords) sWords.textContent = evalRes.score_in_words;
+    const sRating = document.getElementById("f39-sum-rating");
+    if (sRating) {
+        sRating.className = `rating-badge rating-${evalRes.rating.replace(/\s+/g, '')}`;
+        sRating.textContent = evalRes.rating;
+    }
+    const sumFinal = document.getElementById("f39-summary-final-score");
+    if (sumFinal) sumFinal.textContent = evalRes.final_score;
+
+    // تمييز شارة التقدير في الدليل
+    ["امتياز", "جيدجدا", "جيد", "ضعيف"].forEach(r => {
+        const el = document.getElementById(`badge-guide-${r}`);
+        if (el) {
+            if (evalRes.rating.replace(/\s+/g, '') === r) {
+                el.style.border = "2px solid #22c55e";
+                el.style.background = "#dcfce7";
+                el.style.color = "#166534";
+            } else {
+                el.style.border = "none";
+                el.style.background = "#f1f5f9";
+                el.style.color = "#475569";
+            }
+        }
+    });
+}
+window.updateForm39ScoreboardUI = updateForm39ScoreboardUI;
+
+// ============================================================================
+// إدارة الجداول الديناميكية لاستمارة رقم 39
+// ============================================================================
+function renderAllForm39Tables() {
+    initForm39State();
+    renderForm39Committees();
+    renderForm39Appreciation();
+    renderForm39Holding();
+    renderForm39Attending();
+    renderForm39Research();
+    renderForm39Editorial();
+    renderForm39Penalties();
+    renderForm39Qa();
+    renderForm39Field();
+}
+window.renderAllForm39Tables = renderAllForm39Tables;
+
+function renderForm39Committees() {
+    const tbody = document.getElementById("f39-committees-tbody");
+    if (!tbody) return;
+    const list = formData.axis2_portfolio.committees || [];
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#64748b; padding:10px;">لا توجد لجان مضافة بعد. انقر على "+ إضافة لجنة"</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = list.map((c, i) => `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:6px 10px;"><strong>${c.type === "permanent" ? "دائمية (4 درجات)" : "مؤقتة (2 درجات)"}</strong></td>
+            <td style="padding:6px 10px;">${c.name || "-"}</td>
+            <td style="padding:6px 10px;">${c.entity || "القسم"}</td>
+            <td style="padding:6px 10px;">${c.order_no_date || "-"}</td>
+            <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${c.type === "permanent" ? "4.0" : "2.0"}</td>
+            <td style="padding:6px 10px;">
+                <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39Committee(${i})"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join("");
+}
+
+function addForm39Committee() {
+    const name = prompt("اسم اللجنة العلمية:", "لجنة مسار بولونيا وضمان الجودة");
+    if (!name) return;
+    const isPerm = confirm("هل اللجنة دائمية (4 درجات)؟ انقر موافق لـ دائمية، أو إلغاء لـ مؤقتة (درجتان)");
+    const ord = prompt("رقم وتاريخ الأمر الإداري:", "أمر إداري ق/45 في 2025/09/20");
+    formData.axis2_portfolio.committees.push({
+        type: isPerm ? "permanent" : "temporary",
+        name: name,
+        entity: "الكلية / القسم",
+        order_no_date: ord || "-",
+        score: isPerm ? 4.0 : 2.0
+    });
+    renderForm39Committees();
+    calculateLiveScore();
+    showToast("تمت إضافة اللجنة بنجاح! 📋");
+}
+window.addForm39Committee = addForm39Committee;
+
+function removeForm39Committee(idx) {
+    formData.axis2_portfolio.committees.splice(idx, 1);
+    renderForm39Committees();
+    calculateLiveScore();
+}
+window.removeForm39Committee = removeForm39Committee;
+
+function renderForm39Appreciation() {
+    const tbody = document.getElementById("f39-appreciation-tbody");
+    if (!tbody) return;
+    const list = formData.axis2_portfolio.appreciation_items || [];
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b; padding:10px;">لا توجد كتب شكر مضافة بعد.</td></tr>`;
+        return;
+    }
+    const typeNames = { ministry: "وزارة (5 درجات)", award: "جائزة أكاديمية (5 درجات)", university: "جامعة (4 درجات)", college: "كلية (3 درجات)", department: "قسم (درجتان)" };
+    tbody.innerHTML = list.map((a, i) => `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:6px 10px;"><strong>${typeNames[a.type] || a.type}</strong></td>
+            <td style="padding:6px 10px;">${a.name || "-"}</td>
+            <td style="padding:6px 10px;">${a.order_no_date || "-"}</td>
+            <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${a.type === "ministry" || a.type === "award" ? "5.0" : (a.type === "university" ? "4.0" : (a.type === "college" ? "3.0" : "2.0"))}</td>
+            <td style="padding:6px 10px;">
+                <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39Appreciation(${i})"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join("");
+}
+
+function addForm39Appreciation() {
+    const name = prompt("موضوع كتاب الشكر / الجائزة:", "كتاب شكر وتقدير للجهود المتميزة في تطبيق مسار بولونيا");
+    if (!name) return;
+    const t = prompt("الجهة المانحة (وزارة / جامعة / كلية / قسم / جائزة):", "وزارة");
+    let typ = "department";
+    if (/وزار/i.test(t)) typ = "ministry";
+    else if (/جائز/i.test(t)) typ = "award";
+    else if (/جامع/i.test(t)) typ = "university";
+    else if (/كلي/i.test(t)) typ = "college";
+    const ord = prompt("رقم وتاريخ الكتاب:", "كتاب و/1024 في 2025/11/15");
+    formData.axis2_portfolio.appreciation_items.push({
+        type: typ,
+        name: name,
+        order_no_date: ord || "-",
+        score: typ === "ministry" || typ === "award" ? 5.0 : (typ === "university" ? 4.0 : (typ === "college" ? 3.0 : 2.0))
+    });
+    renderForm39Appreciation();
+    calculateLiveScore();
+    showToast("تمت إضافة كتاب الشكر والتقدير بنجاح! 🏆");
+}
+window.addForm39Appreciation = addForm39Appreciation;
+
+function removeForm39Appreciation(idx) {
+    formData.axis2_portfolio.appreciation_items.splice(idx, 1);
+    renderForm39Appreciation();
+    calculateLiveScore();
+}
+window.removeForm39Appreciation = removeForm39Appreciation;
+
+function renderForm39Holding() {
+    const tbody = document.getElementById("f39-holding-tbody");
+    if (!tbody) return;
+    const list = formData.axis2_portfolio.holding_events || [];
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b; padding:10px;">لا توجد دورات أو ورش منعقدة مضافة.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = list.map((h, i) => `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:6px 10px;"><strong>${h.type === "training_course_24h" ? "دورة تدريبية >=24h (4 درجات)" : (h.type === "workshop" ? "ورشة عمل (درجتان)" : "ندوة / سمينار (درجتان)")}</strong></td>
+            <td style="padding:6px 10px;">${h.name || "-"}</td>
+            <td style="padding:6px 10px;">${h.duration || "-"}</td>
+            <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${h.type === "training_course_24h" ? "4.0" : "2.0"}</td>
+            <td style="padding:6px 10px;">
+                <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39HoldingEvent(${i})"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join("");
+}
+
+function addForm39HoldingEvent() {
+    const name = prompt("عنوان الدورة / الورشة / السمينار المنعقد:", "دورة التقييم التكويني ومخرجات التعلم في مسار بولونيا");
+    if (!name) return;
+    const is24h = confirm("هل الدورة لا تقل عن 24 ساعة تدريب وعن أسبوع واحد (4 درجات)؟ انقر موافق لـ نعم، أو إلغاء لـ ورشة/ندوة (درجتان)");
+    formData.axis2_portfolio.holding_events.push({
+        type: is24h ? "training_course_24h" : "workshop",
+        name: name,
+        duration: is24h ? "24 ساعة تدريبية (أسبوع)" : "ورشة عمل تخصصية",
+        score: is24h ? 4.0 : 2.0
+    });
+    renderForm39Holding();
+    calculateLiveScore();
+}
+window.addForm39HoldingEvent = addForm39HoldingEvent;
+
+function removeForm39HoldingEvent(idx) {
+    formData.axis2_portfolio.holding_events.splice(idx, 1);
+    renderForm39Holding();
+    calculateLiveScore();
+}
+window.removeForm39HoldingEvent = removeForm39HoldingEvent;
+
+function renderForm39Attending() {
+    const tbody = document.getElementById("f39-attending-tbody");
+    if (!tbody) return;
+    const list = formData.axis2_portfolio.attending_courses || [];
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b; padding:10px;">لا توجد مشاركات حضور مضافة.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = list.map((a, i) => `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:6px 10px;"><strong>${a.type === "course" ? "حضور دورة تدريبية (درجتان)" : (a.type === "conf_paper" ? "مؤتمر علمي بورقة (درجتان)" : "مؤتمر بدون ورقة (درجة)")}</strong></td>
+            <td style="padding:6px 10px;">${a.name || "-"}</td>
+            <td style="padding:6px 10px;">${a.organizer || "الجامعة التكنولوجية"}</td>
+            <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${a.type === "conf_no_paper" ? "1.0" : "2.0"}</td>
+            <td style="padding:6px 10px;">
+                <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39AttendingCourse(${i})"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join("");
+}
+
+function addForm39AttendingCourse() {
+    const name = prompt("اسم الدورة التدريبية أو المؤتمر العلمي المحضور:", "المؤتمر الدولي الأول لهندسة التصميم المعماري المستدام");
+    if (!name) return;
+    const withPaper = confirm("هل الحضور مع تقديم ورقة علمية أو دورة تدريبية (درجتان)؟ انقر موافق لـ نعم، أو إلغاء لـ حضور مؤتمر بدون ورقة (درجة واحدة)");
+    formData.axis2_portfolio.attending_courses.push({
+        type: withPaper ? "conf_paper" : "conf_no_paper",
+        name: name,
+        organizer: "الجامعة التكنولوجية",
+        score: withPaper ? 2.0 : 1.0
+    });
+    renderForm39Attending();
+    calculateLiveScore();
+}
+window.addForm39AttendingCourse = addForm39AttendingCourse;
+
+function removeForm39AttendingCourse(idx) {
+    formData.axis2_portfolio.attending_courses.splice(idx, 1);
+    renderForm39Attending();
+    calculateLiveScore();
+}
+window.removeForm39AttendingCourse = removeForm39AttendingCourse;
+
+function renderForm39Research() {
+    const tbody = document.getElementById("f39-research-tbody");
+    if (!tbody) return;
+    const list = formData.axis2_portfolio.research_publications || [];
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#64748b; padding:10px;">لا توجد بحوث مضافة بعد. انقر على "+ إضافة بحث / كتاب / براءة"</td></tr>`;
+        return;
+    }
+    const catLabels = {
+        wipo_patent: "براءة اختراع WIPO (20)",
+        local_patent: "براءة اختراع محلية (5)",
+        clarivate_scopus_high: "كلاريفيت وسكوبس IF>5 (12)",
+        clarivate_scopus_mid: "كلاريفيت وسكوبس IF 1-5 (10)",
+        clarivate_scopus_low: "كلاريفيت وسكوبس IF<1 (8)",
+        scopus_book_1st: "كتاب سكوبس مؤلف أول (12)",
+        scopus_chapter_1st: "فصل كتاب سكوبس مؤلف أول (7)",
+        official_book: "كتاب بطلب رسمي (10)",
+        scopus_q1: "سكوبس Q1 (10)",
+        scopus_q2: "سكوبس Q2 (9)",
+        scopus_q3: "سكوبس Q3 (8)",
+        scopus_q4: "سكوبس Q4 (7)",
+        non_indexed_doi: "غير مؤرشف بـ DOI (5)"
+    };
+    const rankLabels = { first: "باحث أول (+1)", corresponding: "باحث مراسل (+1)", mid: "تسلسل 2-4 (0)", rank_5_10: "تسلسل 5-10 (-2)", rank_above_10: ">10 (-50%)" };
+    tbody.innerHTML = list.map((r, i) => `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:6px 10px;"><strong>${catLabels[r.category] || r.category}</strong></td>
+            <td style="padding:6px 10px;">${r.title || "-"}</td>
+            <td style="padding:6px 10px;">${r.journal || "-"}</td>
+            <td style="padding:6px 10px;"><span class="badge" style="background:#e0f2fe; color:#0369a1;">${rankLabels[r.author_rank] || r.author_rank}</span></td>
+            <td style="padding:6px 10px; font-weight:800; color:#1e40af;">+${r.final_score || r.base_score || "10.0"}</td>
+            <td style="padding:6px 10px;">
+                <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39Research(${i})"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join("");
+}
+
+function addForm39Research() {
+    const title = prompt("عنوان البحث العلمي / الكتاب / براءة الاختراع:", "Integration of Parametric Design in Bologna Process Curricula");
+    if (!title) return;
+    const cat = prompt("الفئة (scopus_q1 / scopus_q2 / clarivate_scopus_mid / wipo_patent / non_indexed_doi):", "scopus_q1") || "scopus_q1";
+    const jour = prompt("اسم المجلة أو دار النشر:", "Ain Shams Engineering Journal (Scopus Q1)");
+    const isFirst = confirm("هل أنت الباحث الأول أو المراسل (+1 درجة إضافية)؟ انقر موافق لـ نعم");
+    formData.axis2_portfolio.research_publications.push({
+        category: cat,
+        title: title,
+        journal: jour || "Scopus Journal",
+        author_rank: isFirst ? "first" : "mid",
+        doi: "10.1016/j.asej.2025.102145",
+        base_score: cat === "scopus_q1" ? 10.0 : 8.0,
+        final_score: (cat === "scopus_q1" ? 10.0 : 8.0) + (isFirst ? 1.0 : 0.0)
+    });
+    renderForm39Research();
+    calculateLiveScore();
+    showToast("تمت إضافة البحث العلمي بنجاح! 🔬");
+}
+window.addForm39Research = addForm39Research;
+
+function removeForm39Research(idx) {
+    formData.axis2_portfolio.research_publications.splice(idx, 1);
+    renderForm39Research();
+    calculateLiveScore();
+}
+window.removeForm39Research = removeForm39Research;
+
+function renderForm39Editorial() {
+    const tbody = document.getElementById("f39-editorial-tbody");
+    if (!tbody) return;
+    const list = formData.axis2_portfolio.editorial_items || [];
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#64748b; padding:8px;">لا توجد أنشطة تحكيم أو هيئات تحرير مضافة.</td></tr>`;
+        return;
+    }
+    const tNames = { clarivate_editor: "تحرير كلاريفيت (4 درجات)", scopus_editor: "تحرير سكوبس (3 درجات)", unindexed_editor: "تحرير غير مؤرشفة (1 درجة)", review_paper: "تقييم بحث (1 درجة)" };
+    tbody.innerHTML = list.map((e, i) => `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:6px 10px;"><strong>${tNames[e.type] || e.type}</strong></td>
+            <td style="padding:6px 10px;">${e.journal || "-"}</td>
+            <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${e.type === "clarivate_editor" ? "4.0" : (e.type === "scopus_editor" ? "3.0" : "1.0")}</td>
+            <td style="padding:6px 10px;">
+                <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39Editorial(${i})"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join("");
+}
+
+function addForm39Editorial() {
+    const jour = prompt("اسم المجلة العلمية:", "Journal of Architectural Research");
+    if (!jour) return;
+    const isEd = confirm("هل النشاط عضوية هيئة تحرير مجلة بسكوبس (3 درجات)؟ انقر موافق لـ نعم، أو إلغاء لـ تقييم بحث (درجة واحدة)");
+    formData.axis2_portfolio.editorial_items.push({
+        type: isEd ? "scopus_editor" : "review_paper",
+        journal: jour,
+        score: isEd ? 3.0 : 1.0
+    });
+    renderForm39Editorial();
+    calculateLiveScore();
+}
+window.addForm39Editorial = addForm39Editorial;
+
+function removeForm39Editorial(idx) {
+    formData.axis2_portfolio.editorial_items.splice(idx, 1);
+    renderForm39Editorial();
+    calculateLiveScore();
+}
+window.removeForm39Editorial = removeForm39Editorial;
+
+function renderForm39Penalties() {
+    const tbody = document.getElementById("f39-penalties-tbody");
+    if (!tbody) return;
+    const list = formData.axis3_hod.penalties || [];
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#15803d; padding:10px;">سجل التدريسي ناصع وخالٍ من العقوبات الإدارية (لا يوجد خصم).</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = list.map((p, i) => {
+        const m = window.FORM39_PENALTIES_MAP[p.type] || { name: p.type, deduction: 3 };
+        const count = p.count || 1;
+        const tot = m.deduction * count;
+        return `
+            <tr style="border-bottom:1px solid #fecdd3;">
+                <td style="padding:6px 10px; color:#be123c; font-weight:700;">${m.name}</td>
+                <td style="padding:6px 10px;">خصم ${m.deduction} درجة</td>
+                <td style="padding:6px 10px;">${count}</td>
+                <td style="padding:6px 10px; font-weight:800; color:#dc2626;">-${tot}</td>
+                <td style="padding:6px 10px;">
+                    <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39Penalty(${i})"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join("");
+}
+
+function addForm39Penalty() {
+    const typ = prompt("نوع العقوبة (notice: لفت نظر / warning: إنذار / salary_cut: قطع راتب / reprimand: توبيخ):", "notice");
+    if (!typ || !window.FORM39_PENALTIES_MAP[typ]) return;
+    formData.axis3_hod.penalties.push({ type: typ, count: 1 });
+    renderForm39Penalties();
+    calculateLiveScore();
+}
+window.addForm39Penalty = addForm39Penalty;
+
+function removeForm39Penalty(idx) {
+    formData.axis3_hod.penalties.splice(idx, 1);
+    renderForm39Penalties();
+    calculateLiveScore();
+}
+window.removeForm39Penalty = removeForm39Penalty;
+
+function renderForm39Qa() {
+    const tbody = document.getElementById("f39-qa-tbody");
+    if (!tbody) return;
+    const list = formData.axis4_guidance.qa_committee_items || [];
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#64748b; padding:8px;">لا توجد مشاركات مضافة في لجان التعليم المستمر والجودة.</td></tr>`;
+        return;
+    }
+    const tNames = { lecturer: "محاضر (5 درجات)", attendee: "حضور - حضورين فقط (4 درجات)", methods: "طرائق التدريس الحديثة (3 درجات)" };
+    tbody.innerHTML = list.map((q, i) => `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:6px 10px;"><strong>${tNames[q.type] || q.type}</strong></td>
+            <td style="padding:6px 10px;">${q.title || "-"}</td>
+            <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${q.type === "lecturer" ? "5.0" : (q.type === "attendee" ? "4.0" : "3.0")}</td>
+            <td style="padding:6px 10px;">
+                <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39QaItem(${i})"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join("");
+}
+
+function addForm39QaItem() {
+    const title = prompt("عنوان الدورة / ورشة التعليم المستمر والجودة:", "محاضر في ورشة استراتيجيات التقييم التكويني وفق مسار بولونيا");
+    if (!title) return;
+    const isLec = confirm("هل المشاركة بصفة محاضر (5 درجات)؟ انقر موافق لـ محاضر، أو إلغاء لـ حضور (4 درجات)");
+    formData.axis4_guidance.qa_committee_items.push({
+        type: isLec ? "lecturer" : "attendee",
+        title: title,
+        score: isLec ? 5.0 : 4.0
+    });
+    renderForm39Qa();
+    calculateLiveScore();
+}
+window.addForm39QaItem = addForm39QaItem;
+
+function removeForm39QaItem(idx) {
+    formData.axis4_guidance.qa_committee_items.splice(idx, 1);
+    renderForm39Qa();
+    calculateLiveScore();
+}
+window.removeForm39QaItem = removeForm39QaItem;
+
+function renderForm39Field() {
+    const tbody = document.getElementById("f39-field-tbody");
+    if (!tbody) return;
+    const list = formData.axis4_guidance.field_activities || [];
+    if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#64748b; padding:8px;">لا توجد زيارات ميدانية أو أعمال تطوعية مضافة.</td></tr>`;
+        return;
+    }
+    const tNames = { field_supervision: "زيارة ميدانية لإشراف الطلبة (10 درجات)", volunteer_work_ministry: "عمل تطوعي داخل الوزارة (5 درجات)", community_activity: "خدمات مجتمعية خارج الوزارة (5 درجات)" };
+    tbody.innerHTML = list.map((f, i) => `
+        <tr style="border-bottom:1px solid #e2e8f0;">
+            <td style="padding:6px 10px;"><strong>${tNames[f.type] || f.type}</strong></td>
+            <td style="padding:6px 10px;">${f.details || "-"}</td>
+            <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${f.type === "field_supervision" ? "10.0" : "5.0"}</td>
+            <td style="padding:6px 10px;">
+                <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39FieldActivity(${i})"><i class="fa-solid fa-trash"></i></button>
+            </td>
+        </tr>
+    `).join("");
+}
+
+function addForm39FieldActivity() {
+    const det = prompt("تفاصيل الزيارة الميدانية أو العمل التطوعي:", "زيارة ميدانية وإشراف عملي على مواقع المشاريع المعمارية التراثية");
+    if (!det) return;
+    const isField = confirm("هل النشاط زيارة ميدانية لإشراف الطلبة (10 درجات)؟ انقر موافق لـ نعم، أو إلغاء لـ عمل تطوعي/خدمة مجتمع (5 درجات)");
+    formData.axis4_guidance.field_activities.push({
+        type: isField ? "field_supervision" : "volunteer_work_ministry",
+        details: det,
+        score: isField ? 10.0 : 5.0
+    });
+    renderForm39Field();
+    calculateLiveScore();
+}
+window.addForm39FieldActivity = addForm39FieldActivity;
+
+function removeForm39FieldActivity(idx) {
+    formData.axis4_guidance.field_activities.splice(idx, 1);
+    renderForm39Field();
+    calculateLiveScore();
+}
+window.removeForm39FieldActivity = removeForm39FieldActivity;
+
+// ============================================================================
+// تحميل البيانات النموذجية لمسار بولونيا
+// ============================================================================
+function loadSampleDataForm39() {
+    formData = {
+        form_type: "form39",
+        personal_info: {
+            university: "الجامعة التكنولوجية",
+            college: "كلية هندسة العمارة",
+            department: "قسم هندسة التصميم المعماري",
+            form_no: "2026/39-105",
+            form_code: "AGY-UOT-BOL-39",
+            first_name: "أحمد",
+            father_name: "لؤي",
+            grandfather_name: "أحمد",
+            great_grandfather_name: "السامرائي",
+            last_name: "دكتور مهندس معماري",
+            mother_name: "فاطمة",
+            mother_father_name: "محمد",
+            mother_grandfather_name: "علي",
+            national_id: "198510293847",
+            registry_no: "45",
+            page_no: "12",
+            issue_year: "2021",
+            issue_month: "03",
+            issue_day: "15",
+            degree: "دكتوراه",
+            order_no_and_date: "و/1054 في 2018/06/20",
+            degree_year: "2018",
+            degree_month: "06",
+            degree_day: "10",
+            granting_country: "العراق",
+            granting_univ: "جامعة بغداد",
+            granting_college: "كلية الهندسة",
+            granting_dept: "قسم الهندسة المعمارية",
+            general_specialty: "الهندسة المعمارية",
+            specific_specialty: "تصميم معماري واستدامة رقمية",
+            academic_title: "أستاذ مساعد",
+            title_granter: "مجلس الجامعة التكنولوجية",
+            title_year: "2022",
+            title_month: "09",
+            title_day: "01",
+            phone: "07701234567",
+            email: "ahmed.louay@uotechnology.edu.iq"
+        },
+        axis1_bologna: {
+            bologna_teaching_items: [1, 1, 1, 1],
+            teaching_efficiency_items: [1, 1, 1, 1, 1, 1]
+        },
+        axis2_portfolio: {
+            teaching_load_status: "full",
+            committees: [
+                { type: "permanent", name: "لجنة ضمان الجودة والاعتماد ومسار بولونيا", entity: "القسم", order_no_date: "ق/45 في 2025/09/20", score: 4.0 }
+            ],
+            appreciation_items: [
+                { type: "ministry", name: "كتاب شكر وتقدير من السيد وزير التعليم العالي والبحث العلمي", order_no_date: "و/1024 في 2025/11/15", score: 5.0 },
+                { type: "university", name: "كتاب شكر وتقدير من السيد رئيس الجامعة التكنولوجية", order_no_date: "ج/312 في 2025/10/05", score: 4.0 }
+            ],
+            holding_events: [
+                { type: "training_course_24h", name: "دورة التحول الرقمي والتصميم التوليدي وفق مسار بولونيا", duration: "24 ساعة تدريبية (أسبوع)", score: 4.0 },
+                { type: "seminar", name: "سمينار الذكاء الاصطناعي ومخرجات التعلم في العمارة", duration: "يوم واحد", score: 2.0 }
+            ],
+            attending_courses: [
+                { type: "course", name: "دورة استراتيجيات التقييم التكويني الحديثة", organizer: "مركز التعليم المستمر", score: 2.0 },
+                { type: "conf_paper", name: "المؤتمر الدولي للهندسة المستدامة والتحول الرقمي", organizer: "الجامعة التكنولوجية", score: 2.0 }
+            ],
+            attending_seminars_count: 10,
+            research_publications: [
+                {
+                    category: "scopus_q1",
+                    title: "BIM and Digital Twin in Sustainable Heritage Preservation",
+                    journal: "Journal of Building Engineering (Scopus Q1 / Clarivate)",
+                    author_rank: "first",
+                    doi: "10.1016/j.jobe.2025.108912",
+                    base_score: 10.0,
+                    final_score: 11.0
+                },
+                {
+                    category: "clarivate_scopus_mid",
+                    title: "Parametric Architecture Optimization for Hot-Arid Climates",
+                    journal: "Architectural Science Review (IF 2.8 / Scopus Q1)",
+                    author_rank: "corresponding",
+                    doi: "10.1080/00038628.2025.21045",
+                    base_score: 10.0,
+                    final_score: 11.0
+                }
+            ],
+            intl_org_membership: "senior_fellow",
+            editorial_items: [
+                { type: "scopus_editor", journal: "International Journal of Architectural Heritage", score: 3.0 },
+                { type: "review_paper", journal: "Building and Environment (Scopus Reviewer)", score: 1.0 }
+            ],
+            keynote_speaker_type: "intl",
+            fund_granted: true,
+            fund_details: "مشروع التوأمة الرقمية للتراث المعماري - منحة تمويلية للجامعة التكنولوجية"
+        },
+        axis3_hod: {
+            base_score: 15.0,
+            penalties: []
+        },
+        axis4_guidance: {
+            qa_committee_items: [
+                { type: "lecturer", title: "محاضر في ورش ضمان الجودة وتطبيق مسار بولونيا", score: 5.0 }
+            ],
+            field_activities: [
+                { type: "field_supervision", details: "زيارة ميدانية للإشراف على تدريب الطلبة في مشاريع الحفاظ المعماري", score: 10.0 }
+            ]
+        }
+    };
+
+    indexedEvidenceList = [
+        {
+            ref_code: "REF-P39-AX1-P1-01",
+            axis: "axis1_bologna",
+            paragraph: "1",
+            axis_name: "المحور الأول: تقييم الطالب لمسار بولونيا",
+            paragraph_name: "دليل وصف المادة وموجز بولونيا",
+            title: "دليل وصف مادة التصميم المعماري ومخرجات التعلم CLOs",
+            doc_type: "دليل وصف المقرر",
+            doc_number: "ع/102",
+            date: "2025/10/01",
+            issuer: "قسم هندسة التصميم المعماري",
+            suggested_score: 4.0
+        },
+        {
+            ref_code: "REF-P39-AX2-P1-01",
+            axis: "axis2_portfolio",
+            paragraph: "1",
+            axis_name: "المحور الثاني: حقيبة الأستاذ",
+            paragraph_name: "واجبات ومسؤوليات - الحمل واللجان",
+            title: "أمر إداري بتشكيل لجنة ضمان الجودة ومسار بولونيا الدائمية",
+            doc_type: "أمر إداري دائمي",
+            doc_number: "ق/45",
+            date: "2025/09/20",
+            issuer: "كلية هندسة العمارة",
+            suggested_score: 8.0
+        },
+        {
+            ref_code: "REF-P39-AX2-P2-01",
+            axis: "axis2_portfolio",
+            paragraph: "2",
+            axis_name: "المحور الثاني: حقيبة الأستاذ",
+            paragraph_name: "كتب الشكر والتقدير والجوائز",
+            title: "كتاب شكر وتقدير من السيد وزير التعليم العالي والبحث العلمي",
+            doc_type: "كتاب شكر وزاري",
+            doc_number: "و/1024",
+            date: "2025/11/15",
+            issuer: "وزارة التعليم العالي والبحث العلمي",
+            suggested_score: 5.0
+        },
+        {
+            ref_code: "REF-P39-AX2-P4-01",
+            axis: "axis2_portfolio",
+            paragraph: "4",
+            axis_name: "المحور الثاني: حقيبة الأستاذ",
+            paragraph_name: "البحث العلمي والكتب وبراءات الاختراع",
+            title: "BIM and Digital Twin in Sustainable Heritage Preservation",
+            doc_type: "بحث سكوبس Q1 / كلاريفيت",
+            doc_number: "DOI: 10.1016/j.jobe.2025.108912",
+            date: "2025/08/12",
+            issuer: "Elsevier / Scopus Q1",
+            suggested_score: 20.0
+        },
+        {
+            ref_code: "REF-P39-AX4-P2-01",
+            axis: "axis4_guidance",
+            paragraph: "2",
+            axis_name: "المحور الرابع: الجانب التربوي والإرشادي",
+            paragraph_name: "الزيارات الميدانية والأعمال التطوعية",
+            title: "أمر تكليف بالزيارة الميدانية لإشراف الطلبة على مشاريع الحفاظ المعماري",
+            doc_type: "أمر زيارة ميدانية",
+            doc_number: "ق/88",
+            date: "2025/12/03",
+            issuer: "قسم هندسة التصميم المعماري",
+            suggested_score: 10.0
+        }
+    ];
+
+    bindFormDataToInputs();
+    renderAllForm39Tables();
+    renderMasterCatalogTable();
+    updateIndexStats();
+    calculateLiveScore();
+    showToast("تمت تعبئة بيانات نموذجية مكتملة لاستمارة (39) مسار بولونيا بنجاح! 🚀");
+}
+window.loadSampleDataForm39 = loadSampleDataForm39;
+
+// ============================================================================
+// توليد وتنزيل استمارة رقم 39 بصيغة Word (.doc / HTML XML) على المتصفح
+// ============================================================================
+function generateAndDownloadClientWordDoc39(fd, attachments) {
+    fd = fd || formData;
+    attachments = attachments || indexedEvidenceList || [];
+    const p = fd.personal_info || {};
+    const evalRes = calculateEvaluationForm39Client(fd);
+
+    const finalScore = evalRes.final_score || 0;
+    const rating = evalRes.rating || "ضعيف";
+    const scoreInWords = evalRes.score_in_words || `${finalScore} درجة`;
+    const teacherName = [p.first_name, p.father_name, p.grandfather_name, p.last_name].filter(Boolean).join(" ") || "تدريسي";
+    const safeFilename = `استمارة_39_مسار_بولونيا_${(p.last_name || p.first_name || "2026").replace(/[\s\/\\:*?"<>|]+/g, '_')}.doc`;
+
+    let html = `<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office'
+      xmlns:w='urn:schemas-microsoft-com:office:word'
+      xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset='utf-8'>
+<title>استمارة رقم (39): تقييم أداء أعضاء الهيئة التدريسية لمسار بولونيا للعام الدراسي 2025-2026</title>
+<!--[if gte mso 9]>
+<xml>
+  <w:WordDocument>
+    <w:View>Print</w:View>
+    <w:Zoom>100</w:Zoom>
+    <w:DoNotOptimizeForBrowser/>
+  </w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+@page {
+    size: A4 portrait;
+    margin: 1.0cm 1.0cm 1.0cm 1.0cm;
+    mso-page-orientation: portrait;
+}
+body {
+    direction: rtl;
+    font-family: 'Arial', 'Traditional Arabic', Tahoma, sans-serif;
+    font-size: 9.5pt;
+    line-height: 1.2;
+    color: #000;
+}
+table {
+    direction: rtl;
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 6pt;
+}
+th, td {
+    border: 1pt solid #000;
+    padding: 3.5pt 4.5pt;
+    font-size: 8.5pt;
+    text-align: center;
+    vertical-align: middle;
+}
+.bg-yellow, th {
+    background-color: #FFF200;
+    font-weight: bold;
+}
+.bg-gray {
+    background-color: #E5E7EB;
+    font-weight: bold;
+}
+.text-right {
+    text-align: right;
+}
+.page-break {
+    page-break-before: always;
+    mso-break-type: page-break;
+}
+</style>
+</head>
+<body>
+
+<!-- الصفحة الأولى (6 - 1) -->
+<table style="border:none; margin-bottom:4pt;">
+    <tr>
+        <td style="border:none; text-align:right; width:45%; font-size:9pt; font-weight:bold;">
+            رقم الاستمارة: ${p.form_no || "2025/...."}<br/>
+            ترميز الاستمارة: ${p.form_code || "AGY-BOL-...."}
+        </td>
+        <td style="border:none; text-align:center; width:55%; font-size:9pt; font-weight:bold;">
+            وزارة التعليم العالي والبحث العلمي<br/>
+            جهاز الإشراف والتقويم العلمي<br/>
+            دائرة ضمان الجودة والاعتماد الأكاديمي<br/>
+            قسم تقويم الأداء المؤسسي
+        </td>
+    </tr>
+</table>
+
+<table style="border:1.5pt solid #000; margin-bottom:8pt;">
+    <tr>
+        <td style="background:#FEF9C3; font-size:11.5pt; font-weight:bold; padding:6pt;">
+            استمارة رقم (39): تقييم أداء أعضاء الهيئة التدريسية لمسار بولونيا للعام الدراسي 2025-2026
+        </td>
+    </tr>
+</table>
+
+<div class="text-right" style="font-weight:bold; font-size:9.5pt; margin-bottom:4pt;">
+    البيانات الرئيسة :<br/>
+    الجامعة: ${p.university || "الجامعة التكنولوجية"} &nbsp;&nbsp;&nbsp;&nbsp; الكلية : ${p.college || "هندسة العمارة"} &nbsp;&nbsp;&nbsp;&nbsp; القسم /الفرع : ${p.department || "قسم هندسة التصميم المعماري"}
+</div>
+
+<table>
+    <tr class="bg-yellow">
+        <th>اللقب</th>
+        <th>اسم جد الاب</th>
+        <th>اسم الجد</th>
+        <th>اسم الاب</th>
+        <th>الاسم</th>
+    </tr>
+    <tr>
+        <td>${p.last_name || "-"}</td>
+        <td>${p.great_grandfather_name || "-"}</td>
+        <td>${p.grandfather_name || "-"}</td>
+        <td>${p.father_name || "-"}</td>
+        <td>${p.first_name || "-"}</td>
+    </tr>
+</table>
+
+<table>
+    <tr class="bg-yellow">
+        <th>اسم جد الام</th>
+        <th>اسم والد الام</th>
+        <th>اسم الام</th>
+    </tr>
+    <tr>
+        <td>${p.mother_grandfather_name || "-"}</td>
+        <td>${p.mother_father_name || "-"}</td>
+        <td>${p.mother_name || "-"}</td>
+    </tr>
+</table>
+
+<table>
+    <tr>
+        <td colspan="2" class="bg-yellow">رقم الجنسية او البطاقة الموحدة</td>
+        <td class="bg-yellow">السجل</td>
+        <td class="bg-yellow">الصحيفة</td>
+    </tr>
+    <tr>
+        <td colspan="2">${p.national_id || "-"}</td>
+        <td>${p.registry_no || "-"}</td>
+        <td>${p.page_no || "-"}</td>
+    </tr>
+    <tr class="bg-yellow">
+        <td>سنة الإصدار</td>
+        <td>شهر الإصدار</td>
+        <td>يوم الإصدار</td>
+        <td>القسم</td>
+    </tr>
+    <tr>
+        <td>${p.issue_year || "-"}</td>
+        <td>${p.issue_month || "-"}</td>
+        <td>${p.issue_day || "-"}</td>
+        <td>${p.department || "-"}</td>
+    </tr>
+</table>
+
+<table>
+    <tr class="bg-yellow">
+        <td>الشهادة</td>
+        <td>رقم وتاريخ الامر الوزاري او الجامعي</td>
+        <td>شهر منح الشهادة</td>
+        <td>يوم منح الشهادة</td>
+    </tr>
+    <tr>
+        <td>${p.degree || "دكتوراه"}</td>
+        <td>${p.order_no_and_date || "-"}</td>
+        <td>${p.degree_month || "-"}</td>
+        <td>${p.degree_day || "-"}</td>
+    </tr>
+    <tr class="bg-yellow">
+        <td>البلد المانح</td>
+        <td>الجامعة</td>
+        <td>الكلية</td>
+        <td>القسم</td>
+    </tr>
+    <tr>
+        <td>${p.granting_country || "العراق"}</td>
+        <td>${p.granting_univ || "-"}</td>
+        <td>${p.granting_college || "-"}</td>
+        <td>${p.granting_dept || "-"}</td>
+    </tr>
+</table>
+
+<table>
+    <tr class="bg-yellow">
+        <td>الاختصاص العام</td>
+        <td>الاختصاص الدقيق</td>
+    </tr>
+    <tr>
+        <td>${p.general_specialty || "-"}</td>
+        <td>${p.specific_specialty || "-"}</td>
+    </tr>
+</table>
+
+<table>
+    <tr class="bg-yellow">
+        <td>اللقب العلمي</td>
+        <td>الجهة المانحة</td>
+        <td>السنة</td>
+        <td>شهر</td>
+        <td>اليوم</td>
+    </tr>
+    <tr>
+        <td>${p.academic_title || "أستاذ مساعد"}</td>
+        <td>${p.title_granter || p.university || "الجامعة التكنولوجية"}</td>
+        <td>${p.title_year || "2022"}</td>
+        <td>${p.title_month || "09"}</td>
+        <td>${p.title_day || "01"}</td>
+    </tr>
+</table>
+
+<table>
+    <tr class="bg-yellow">
+        <td>رقم الموبايل</td>
+        <td>البريد الالكتروني</td>
+    </tr>
+    <tr>
+        <td>${p.phone || "-"}</td>
+        <td>${p.email || "-"}</td>
+    </tr>
+</table>
+
+<div class="text-right" style="font-weight:bold; font-size:8.5pt; margin-top:4pt;">
+    ملاحظة: يتحمل صاحب الاستمارة مسؤولية صحة المعلومات الواردة في الاستمارة.
+</div>
+<div style="text-align:center; font-weight:bold; font-size:8.5pt; margin-top:8pt;">6 - 1</div>
+
+<!-- الصفحة الثانية (6 - 2) -->
+<div class="page-break"></div>
+<div style="text-align:center; font-weight:bold; font-size:10.5pt; margin-bottom:6pt;">
+    المحور الأول : تقييم الطالب للمادة الدراسية وطريقة التدريس (10 درجة)
+</div>
+
+<table>
+    <tr class="bg-yellow">
+        <th style="width:25px;">ت</th>
+        <th style="width:110px;">الفقرات</th>
+        <th>التوصيف</th>
+        <th style="width:60px;">تفصيل الدرجة</th>
+        <th style="width:65px;">الدرجة المعطاة</th>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td style="font-weight:bold;">التدريس وفق مسار بولونيا</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            • يقوم المحاضر بتقديم موجز عن عملية التدريس والتقييم وفق مسار بولونيا للطلبة في أول محاضرة.<br/>
+            • يقوم المحاضر بتقديم وشرح دليل وصف المادة الدراسية في الأسبوع الأول للفصل الدراسي.<br/>
+            • يلتزم المحاضر بطريقة التقييم التكويني من حيث عدد الامتحانات والواجبات والفعاليات ومواعيدها بدليل الوصف.<br/>
+            • يقوم المحاضر بتوضيح علاقة مفردات المنهاج الأسبوعي بمخرجات التعلم.<br/>
+            الدرجة القصوى (4) درجات درجة واحدة لكل فقرة
+        </td>
+        <td>4</td>
+        <td style="font-weight:bold; font-size:9.5pt;">${evalRes.axis1.items.p1_bologna}</td>
+    </tr>
+    <tr>
+        <td>2</td>
+        <td style="font-weight:bold;">كفاءة الأستاذ وطريقة التدريس</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            • طريقة التدريس والمحاضرة مثيرة للاهتمام وتحفز الطالب ليفهم المادة العلمية.<br/>
+            • يتم تزويد الطالب بقائمة من المراجع المختلفة بالإضافة للمراجع الرئيسية.<br/>
+            • يعطي المحاضر الوقت الكافي للأسئلة والأجوبة خلال المحاضرة.<br/>
+            • يستخدم المحاضر التقنيات اللازمة وأدوات الصوت والفيديو لشرح محاضراته.<br/>
+            • خلال المحاضرة يعامل المحاضر الطلاب باحترام.<br/>
+            • تعكس أسئلة الامتحان محتويات المادة العلمية المرتبطة بمخرجات التعلم.<br/>
+            الدرجة القصوى (6) درجات درجة واحدة لكل فقرة
+        </td>
+        <td>6</td>
+        <td style="font-weight:bold; font-size:9.5pt;">${evalRes.axis1.items.p2_efficiency}</td>
+    </tr>
+    <tr class="bg-gray">
+        <td colspan="3" style="text-align:center; font-weight:bold;">الدرجة النهائية للمحور الأول</td>
+        <td>10</td>
+        <td style="font-weight:bold; font-size:10pt;">${evalRes.axis1.total_score}</td>
+    </tr>
+</table>
+
+<div style="text-align:center; font-weight:bold; font-size:10.5pt; margin:10pt 0 6pt 0;">
+    المحور الثاني: تقييم حقيبة الاستاذ (60 درجة)
+</div>
+
+<table>
+    <tr class="bg-yellow">
+        <th style="width:25px;">#</th>
+        <th style="width:115px;">الأبعاد الفرعية وقيمها القصوى</th>
+        <th style="width:130px;">المؤشرات وقيمها القصوى</th>
+        <th>المقاييس</th>
+        <th style="width:65px;">الدرجة</th>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td style="font-weight:bold;">واجبات ومسؤوليات أعضاء هيئة التدريس (8 درجات)</td>
+        <td>الحمل التدريسي (نصاب عضو هيئة التدريس) (4 درجات)</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            • درجة كاملة في حال اكتمال النصاب (4)<br/>
+            • (2 درجة) في حال عدم اكتمال النصاب<br/>
+            (ملاحظة: التدريسي الراغب وغير القادر قسمه يكلف بمهام داخل القسم)
+        </td>
+        <td style="font-weight:bold;">${fd.axis2_portfolio.teaching_load_status === "partial" ? "2.0" : "4.0"}</td>
+    </tr>
+    <tr>
+        <td></td>
+        <td>تابع واجبات ومسؤوليات أعضاء هيئة التدريس</td>
+        <td>عضوية اللجان العلمية في القسم والكلية والجامعة والوزارة (4 درجات)</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            يتم تجميع الدرجات من النشاطات:<br/>
+            • 4 درجات لكل لجنة دائمية<br/>
+            • 2 درجة لكل لجنة مؤقتة
+        </td>
+        <td style="font-weight:bold;">${Math.min(4.0, evalRes.axis2.items.p1_responsibilities - (fd.axis2_portfolio.teaching_load_status === "partial" ? 2.0 : 4.0))}</td>
+    </tr>
+    <tr>
+        <td>2</td>
+        <td style="font-weight:bold;">كفاءة التدريسي في تحقيق مهارات ومعارف وقيم معينة (5 درجات)</td>
+        <td>كتب الشكر والتقدير والجوائز الأكاديمية (5 درجات)</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            • درجتان لكتاب شكر من القسم<br/>
+            • ثلاث درجات لكتاب شكر من الكلية<br/>
+            • أربع درجات لكتاب شكر من الجامعة<br/>
+            • خمس درجات لكتاب شكر من الوزارة<br/>
+            • خمس درجات لجائزة أكاديمية
+        </td>
+        <td style="font-weight:bold; font-size:9.5pt;">${evalRes.axis2.items.p2_skills}</td>
+    </tr>
+</table>
+<div style="text-align:center; font-weight:bold; font-size:8.5pt; margin-top:8pt;">6 - 2</div>
+
+<!-- الصفحة الثالثة (6 - 3) -->
+<div class="page-break"></div>
+<table>
+    <tr class="bg-yellow">
+        <th style="width:25px;">#</th>
+        <th style="width:115px;">الأبعاد الفرعية وقيمها القصوى</th>
+        <th style="width:130px;">المؤشرات وقيمها القصوى</th>
+        <th>المقاييس</th>
+        <th style="width:65px;">الدرجة</th>
+    </tr>
+    <tr>
+        <td>3</td>
+        <td style="font-weight:bold;">التدريب والتعليم المستمر (20 درجة)</td>
+        <td>عقد الدورات التدريبية وورش العمل والندوات العلمية (6 درجات)</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            • 4 درجات لعقد دورة تدريبية لا تقل عن 24 ساعة وعن أسبوع<br/>
+            • درجتان لعقد وتقديم ورشة عمل<br/>
+            • درجتان لتقديم ندوة أو سمينار
+        </td>
+        <td style="font-weight:bold;">محتسب</td>
+    </tr>
+    <tr>
+        <td></td>
+        <td>تابع التدريب والتعليم المستمر</td>
+        <td>حضور الدورات التدريبية او المؤتمرات العلمية ذات العلاقة بالتخصص (4 درجات)</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            • درجتان لحضور دورة تدريبية<br/>
+            • درجتان لحضور مؤتمر علمي مع تقديم ورقة علمية<br/>
+            • درجة واحدة لحضور مؤتمر بدون ورقة علمية
+        </td>
+        <td style="font-weight:bold;">محتسب</td>
+    </tr>
+    <tr>
+        <td></td>
+        <td>تابع التدريب والتعليم المستمر</td>
+        <td>حضور الندوات العلمية – سمينار وورش العمل (10 درجات)</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            درجة واحدة لحضور سمينار او ورشة عمل داخل الجامعة مع تقديم فيدباك
+        </td>
+        <td style="font-weight:bold; font-size:9.5pt;">${evalRes.axis2.items.p3_training}</td>
+    </tr>
+    <tr>
+        <td>4</td>
+        <td style="font-weight:bold;">رؤية الجامعة في البحث والتطوير ودعم القطاعات العلمية والصناعية (20 درجة)</td>
+        <td>نشر الابحاث والكتب وبراءات الاختراع (20 درجة)</td>
+        <td class="text-right" style="font-size:7pt;">
+            • 20 درجة لبراءة اختراع دولية مسجلة في WIPO<br/>
+            • 5 درجات لبراءة اختراع محلية<br/>
+            • 8-12 درجة لبحث في كلاريفيت وسكوبس معاً بحسب معامِل التأثير<br/>
+            • 12-6 درجات لكتاب سكوبس/كلاريفيت، 7-4 لفصل كتاب<br/>
+            • 10 درجات لكتاب بطلب رسمي من الجامعة<br/>
+            • 10-7 درجات لبحث سكوبس فقط (Q1: 10, Q2: 9, Q3: 8, Q4: 7)<br/>
+            • 5 درجات لبحث غير مؤرشف مع DOI وميتاداتا وانتساب<br/>
+            ملاحظات: لا يؤخذ ببحث دون انتساب أول عدا الدكتوراه. يضاف 1 للباحث الأول والمراسل. يخصم 2 لتسلسل 5-10، و50% لأكثر من 10. سقف الدرجة (20).
+        </td>
+        <td style="font-weight:bold; font-size:8.5pt;">
+            خام: ${evalRes.axis2.items.p4_research_raw}<br/>
+            بعد المعامل: <strong>${evalRes.axis2.items.p4_research}</strong>
+        </td>
+    </tr>
+</table>
+<div style="text-align:center; font-weight:bold; font-size:8.5pt; margin-top:8pt;">6 - 3</div>
+
+<!-- الصفحة الرابعة (6 - 4) -->
+<div class="page-break"></div>
+<table>
+    <tr class="bg-yellow">
+        <th>أستاذ (100%)</th>
+        <th>أستاذ مساعد (140%)</th>
+        <th>مدرس / محاضر (160%)</th>
+        <th>مدرس مساعد (180%)</th>
+    </tr>
+    <tr>
+        <td>مضروباً بـ 1.0</td>
+        <td>مضروباً بـ 1.4</td>
+        <td>مضروباً بـ 1.6</td>
+        <td>مضروباً بـ 1.8</td>
+    </tr>
+</table>
+
+<table>
+    <tr class="bg-yellow">
+        <th style="width:25px;">#</th>
+        <th style="width:115px;">الأبعاد الفرعية وقيمها القصوى</th>
+        <th style="width:130px;">المؤشرات وقيمها القصوى</th>
+        <th>المقاييس</th>
+        <th style="width:65px;">الدرجة</th>
+    </tr>
+    <tr>
+        <td>5</td>
+        <td style="font-weight:bold;">النشاط الدولي (5 درجات)</td>
+        <td>عضوية المؤسسات العلمية الدولية (درجتان)</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            • درجتان لعضوية Senior or Fellow Member<br/>
+            • درجة واحدة لعضوية Member
+        </td>
+        <td style="font-weight:bold;">محتسب</td>
+    </tr>
+    <tr>
+        <td></td>
+        <td>تابع النشاط الدولي</td>
+        <td>عضوية لجان تحرير المجالت المؤرشفة وتقييم بحوثها (4 درجات)</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            • 4 درجات للجنة تحرير بكلاريفيت، 3 بسكوبس، 1 غير مؤرشفة<br/>
+            • درجة واحدة لتقييم بحث لمجلة بسكوبس أو كلاريفيت
+        </td>
+        <td style="font-weight:bold;">محتسب</td>
+    </tr>
+    <tr>
+        <td></td>
+        <td>تابع النشاط الدولي</td>
+        <td>متحدث رئيسي في المؤتمرات الدولية (درجتان)</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            • درجتان كمتحدث رئيسي Keynote speaker بمؤتمر دولي<br/>
+            • درجة واحدة بمؤتمر وطني
+        </td>
+        <td style="font-weight:bold; font-size:9.5pt;">${evalRes.axis2.items.p5_intl}</td>
+    </tr>
+    <tr>
+        <td>6</td>
+        <td style="font-weight:bold;">دعم إيرادات الجامعة (درجتان)</td>
+        <td>جلب الأموال إلى الجامعة (درجتان)</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            درجة كاملة (درجتان) في حال الحصول على دعم مالي (Fund) للجامعة من خلال عمل أو مشروع
+        </td>
+        <td style="font-weight:bold; font-size:9.5pt;">${evalRes.axis2.items.p6_revenue}</td>
+    </tr>
+</table>
+
+<div style="text-align:center; font-weight:bold; font-size:10.5pt; margin:10pt 0 6pt 0;">
+    3. المحور الثالث: تقييم رئيس القسم للعملية التعليمية واالستاذ الجامعي (15 درجة)
+</div>
+
+<table>
+    <tr class="bg-yellow">
+        <th style="width:25px;">ت</th>
+        <th style="width:110px;">الفقرات</th>
+        <th>التوصيف</th>
+        <th style="width:60px;">تفصيل الدرجة</th>
+        <th style="width:65px;">الدرجة المعطاة</th>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td style="font-weight:bold;">الالتزام برسالة القسم ورؤيته</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            • يشمل التقييم رأي رئيس القسم بمدى جدية وتعاون التدريسي مع القسم والعمل على تحقيق أهدافه وخصوصا فيما يخص تطبيق مسار بولونيا.<br/>
+            • في حال وجود عقوبات إدارية تؤخذ بنظر الاعتبار: لفت نظر (3)، إنذار (4)، قطع راتب (5)، توبيخ (6)، إنقاص راتب (7)، تنزيل درجة (8).<br/>
+            الدرجة القصوى للفقرة (15) درجة
+        </td>
+        <td>15</td>
+        <td style="font-weight:bold; font-size:9.5pt;">${evalRes.axis3.total_score}</td>
+    </tr>
+    <tr class="bg-gray">
+        <td colspan="3" style="text-align:center; font-weight:bold;">الدرجة النهائية للمحور الثالث</td>
+        <td>15</td>
+        <td style="font-weight:bold; font-size:10pt;">${evalRes.axis3.total_score}</td>
+    </tr>
+</table>
+<div style="text-align:center; font-weight:bold; font-size:8.5pt; margin-top:8pt;">6 - 4</div>
+
+<!-- الصفحة الخامسة (6 - 5) -->
+<div class="page-break"></div>
+<div style="text-align:center; font-weight:bold; font-size:10.5pt; margin-bottom:6pt;">
+    4. المحور الرابع: الجانب التربوي والارشادي (15 درجة)
+</div>
+
+<table>
+    <tr class="bg-yellow">
+        <th style="width:25px;">ت</th>
+        <th style="width:110px;">الفقرات</th>
+        <th>التوصيف</th>
+        <th style="width:60px;">تفصيل الدرجة</th>
+        <th style="width:65px;">الدرجة المعطاة</th>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td style="font-weight:bold;">المشاركة في لجان التعليم المستمر والجودة</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            تمنح (5) درجات للمشاركة بصفة محاضر في التعليم المستمر والجودة، تمنح (4) درجات للمشاركة بصفة حضور في التعليم المستمر والجودة (فقط حضورين)، تمنح (3) درجات للمشاركة في دورات طرائق التدريس الحديثة.<br/>
+            الدرجة القصوى لهذه الفقرة (5) درجات
+        </td>
+        <td>5</td>
+        <td style="font-weight:bold; font-size:9.5pt;">${evalRes.axis4.items.p1_qa}</td>
+    </tr>
+    <tr>
+        <td>4</td>
+        <td style="font-weight:bold;">الزيارات الميدانية والحقلية واالعمال التطوعية داخل الجامعة وخارجها</td>
+        <td class="text-right" style="font-size:7.5pt;">
+            - تمنح (10) درجات لكل زيارة ميدانية للإشراف على الطلبة في مجال التطبيقات العملية أو المختبرية أو السريرية أو السفرات العلمية.<br/>
+            - تمنح (5) درجات لكل عمل تطوعي داخل وزارة التعليم العالي موثق بكتاب رسمي.<br/>
+            - تمنح (5) درجات لكل تدقيق لغوي أو علمي أو إقامة ندوة أو ورشة أو مقال أو خدمة مستشفيات أو منظمات مجتمع مدني خارج الوزارة.<br/>
+            الدرجة القصوى للفقرة (10) درجات
+        </td>
+        <td>10</td>
+        <td style="font-weight:bold; font-size:9.5pt;">${evalRes.axis4.items.p2_field}</td>
+    </tr>
+    <tr class="bg-gray">
+        <td colspan="3" style="text-align:center; font-weight:bold;">الدرجة النهائية للمحور الرابع</td>
+        <td>15</td>
+        <td style="font-weight:bold; font-size:10pt;">${evalRes.axis4.total_score}</td>
+    </tr>
+</table>
+
+<div class="text-right" style="font-weight:bold; font-size:10.5pt; margin:8pt 0 4pt 0;">
+    النتائج النهائية للتقييم :
+</div>
+
+<table>
+    <tr class="bg-yellow">
+        <th style="width:30px;">ت</th>
+        <th style="text-align:right;">المحاور</th>
+        <th style="width:100px;">وزن المحور</th>
+        <th style="width:120px;">الدرجة</th>
+    </tr>
+    <tr>
+        <td>1</td>
+        <td class="text-right">تقييم الطالب</td>
+        <td>%10</td>
+        <td style="font-weight:bold;">${evalRes.axis1.weighted_score}</td>
+    </tr>
+    <tr>
+        <td>2</td>
+        <td class="text-right">حقيبة الاستاذ</td>
+        <td>%60</td>
+        <td style="font-weight:bold;">${evalRes.axis2.weighted_score}</td>
+    </tr>
+    <tr>
+        <td>3</td>
+        <td class="text-right">تقييم رئيس القسم للعملية التعليمية واالستاذ الجامعي</td>
+        <td>%15</td>
+        <td style="font-weight:bold;">${evalRes.axis3.weighted_score}</td>
+    </tr>
+    <tr>
+        <td>4</td>
+        <td class="text-right">الجانب التربوي والارشادي</td>
+        <td>%15</td>
+        <td style="font-weight:bold;">${evalRes.axis4.weighted_score}</td>
+    </tr>
+    <tr class="bg-gray">
+        <td>5</td>
+        <td class="text-right"><strong>مجموع المحاور</strong></td>
+        <td><strong>%100</strong></td>
+        <td style="font-weight:bold; font-size:10.5pt; color:#166534;">${evalRes.final_score}</td>
+    </tr>
+    <tr>
+        <td colspan="2" class="text-right"><strong>مجموع الدرجات النهائية للتقييم (رقماً وتفقيطاً):</strong></td>
+        <td colspan="2" style="font-weight:bold; color:#92400e;">${finalScore} (${scoreInWords})</td>
+    </tr>
+    <tr class="bg-yellow">
+        <td colspan="2" class="text-right"><strong>التقدير النهائي للتقييم:</strong></td>
+        <td colspan="2" style="font-weight:bold; font-size:11pt; background:#FEF9C3;">★ ${rating} ★</td>
+    </tr>
+</table>
+
+<table>
+    <tr class="bg-yellow">
+        <th>امتياز (90 فأكثر)</th>
+        <th>جيد جدا ( 89-80)</th>
+        <th>جيد (79-70)</th>
+        <th>ضعيف ( اقل من 70)</th>
+    </tr>
+</table>
+
+<table style="border:none; margin-top:10pt;">
+    <tr>
+        <td style="border:none; text-align:right; font-size:8.5pt;">
+            التوقيع : ...................................<br/>
+            اسم المسؤول المباشر : .....................<br/>
+            التاريخ :        /      /  2026
+        </td>
+        <td style="border:none; text-align:right; font-size:8.5pt;">
+            التوقيع : ...................................<br/>
+            اسم المسؤول الاعلى : ......................<br/>
+            التاريخ :        /      /  2026
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2" style="border:none; text-align:center; padding-top:10pt; font-weight:bold; font-size:9.5pt;">
+            مصادقة رئيس الجامعة<br/><br/>
+            ....................................................................
+        </td>
+    </tr>
+</table>
+<div style="text-align:center; font-weight:bold; font-size:8.5pt; margin-top:8pt;">6 - 5</div>
+
+<!-- الصفحة السادسة (6 - 6) -->
+<div class="page-break"></div>
+<div class="text-right" style="font-weight:bold; font-size:11.5pt; color:#b91c1c; margin-bottom:6pt;">
+    تعليمات وضوابط :
+</div>
+
+<div class="text-right" style="font-size:8.5pt; line-height:1.5;">
+    <p>1. تشمل الاستمارة تدريسيي مسار بولونيا من غير الإداريين والمجازين دراسياً أو وفق قانون 2020.</p>
+    <p>2. حساب مؤشر الأداء الأكاديمي يكون مشروطاً بقيام عضو هيئة التدريس التسجيل بمنصة إدارة معلومات مسار بولونيا والتي تدار من قبل وزارة التعليم العالي والبحث العلمي وتقديم كافة المعلومات المطلوبة وبخلافه يحسب مؤشر الأداء الأكاديمي صفراً.</p>
+    <p>3. أي عضو هيئة تدريس يقوم بتدريس مادة دراسية واحدة على الأقل يكون تحت طائلة حساب مؤشر الأداء الأكاديمي ومن خلال منصة إلكترونية تقوم الجامعة بتهيئتها لضمان الشفافية والكفاءة وتقديم كتب إثباتات النشاطات العلمية إلكترونياً.</p>
+    <p>4. يتم أخذ تقييم الطالب حول المادة الدراسية وطريقة التدريس إلكترونياً وفي نهاية كل فصل دراسي وقبل بدء امتحانات نهاية الفصل (في الأسبوع العاشر) على أن تستمر عملية جمع تقييمات الطلبة لمدة أسبوع واحد.</p>
+    <p>5. يتم حساب النصاب لعضو هيئة التدريس وفق عدد ساعات التدريس الفعلية وبتكليف من القسم بغض النظر عن تخصص المادة الدراسية وطبيعتها، وتراعى التعليمات الصادرة بخصوص قيمة الساعات النظرية مقابل الساعات العملية والمختبرية إن كان هنالك اختلاف.</p>
+    <p>6. أي نشاط داخل القسم يتم تقاضي أجر لقائه لا يعتبر لغرض حساب مؤشر الأداء الأكاديمي، مثل الإشراف على رسائل الماجستير والدكتوراه ومناقشاتها وكذلك تقييم بحوث الترقية لقاء مبلغ مالي.</p>
+    <p>7. لا يعتد بشهادات حضور السمينارات وحضور المؤتمرات العلمية او الدورات التدريبية التي تقام عبر الانترنت (أونلاين) أو خارج الجامعة عدا التي تقام بإشراف الوزارة او بموافقة الجامعة وبشكل رسمي.</p>
+    <p>8. لا يتم احتساب حضور السمينارات داخل الجامعة بدون قيام التدريسيين الذين حضروا السمينار من تقديم فيدباك حول رأيهم بموضوع السمينار وكفاءة مقدم السمينار وطريقة العرض والجوانب الأخرى وخلال فترة لا تتجاوز الأسبوع من تاريخ تقديم السمينار وذلك من خلال استمارة إلكترونية يتم إعدادها للغرض من قبل ضمان جودة الجامعة أو الكلية.</p>
+    <p>9. على رئيس القسم الاطلاع دورياً على حسابات نظام إدارة التعلم الخاص بالتدريسيين في قسمه وبالتعاون مع مدير النظام.</p>
+    <p>10. بخصوص الفقرة الرابعة "رؤية الجامعة في البحث والتطوير ودعم القطاعات العلمية والصناعية" والواردة في تقييم حقيبة الأستاذ، يتم ضرب درجة هذه الفقرة حسب الآتي:<br/>
+       &nbsp;&nbsp;&nbsp;&nbsp;• مضروباً بـ 100% للتدريسي بدرجة "أستاذ"<br/>
+       &nbsp;&nbsp;&nbsp;&nbsp;• مضروباً بـ 140% للتدريسي بدرجة "أستاذ مساعد"<br/>
+       &nbsp;&nbsp;&nbsp;&nbsp;• مضروباً بـ 160% للتدريسي بدرجة "مدرس" (محاضر)<br/>
+       &nbsp;&nbsp;&nbsp;&nbsp;• مضروباً بـ 180% للتدريسي بدرجة "مدرس مساعد" (محاضر مساعد)
+    </p>
+    <p>11. تلتزم الجامعة بتعليمات الوزارة الصادرة بخصوص النشر العلمي والنشر في المجلات التجارية أو المجلات المفترسة أو المجلات التي تدرج ضمن القائمة السوداء.</p>
+    <p>12. تكون هذه الوثيقة جزء من "سياسة ضمان جودة مسار بولونيا" والتي يجب على الجامعة أو المؤسسة التعليمية كتابتها وإصدارها وجعلها متاحة لجميع أعضاء هيئة التدريس على موقع الجامعة وذلك حسب متطلبات المعيار الأول من تقرير ضمان وتعزيز الجودة السنوي.</p>
+</div>
+<div style="text-align:center; font-weight:bold; font-size:8.5pt; margin-top:8pt;">6 - 6</div>
+
+${attachments && attachments.length > 0 ? `
+<!-- ملحق التوثيق والأدلة -->
+<div class="page-break"></div>
+<div style="text-align:center; font-weight:bold; font-size:11.5pt; margin-bottom:6pt;">
+    ملحق التوثيق والأدلة: جدول الوثائق والمرفقات المستخرجة بنظام OCR لمسار بولونيا
+</div>
+<div style="text-align:center; font-size:9pt; margin-bottom:8pt;">
+    اسم التدريسي: ${teacherName} &nbsp;|&nbsp; الكلية: ${p.college || ""} &nbsp;|&nbsp; القسم: ${p.department || ""}
+</div>
+
+<table>
+    <tr class="bg-yellow">
+        <th style="width:25px;">ت</th>
+        <th style="width:75px;">رمز الفهرسة</th>
+        <th style="width:90px;">نوع الوثيقة</th>
+        <th style="width:85px;">العدد / الإشارة</th>
+        <th style="width:75px;">التاريخ</th>
+        <th>الموضوع / النشاط</th>
+        <th style="width:105px;">المحور والفقرة</th>
+        <th style="width:40px;">الدرجة</th>
+    </tr>
+    ${attachments.map((att, idx) => `
+        <tr>
+            <td>${idx + 1}</td>
+            <td style="font-weight:bold; font-size:7.5pt;">${att.ref_code || `REF-P39-${idx+1}`}</td>
+            <td style="font-size:7.5pt;">${att.type_arabic || att.doc_type || "وثيقة ثبوتية"}</td>
+            <td style="font-size:7.5pt;">${att.document_number || att.doc_number || "-"}</td>
+            <td style="font-size:7.5pt;">${att.date || "-"}</td>
+            <td class="text-right" style="font-size:7.5pt;">${att.title || att.filename || ""}</td>
+            <td style="font-size:7.5pt;">${att.axis_name || ""} - ف${att.suggested_paragraph || att.paragraph || ""}</td>
+            <td style="font-weight:bold;">${att.suggested_score || 0}</td>
+        </tr>
+    `).join("")}
+</table>
+` : ""}
+
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: "application/msword;charset=utf-8" });
+    downloadBlob(blob, safeFilename);
+}
+window.generateAndDownloadClientWordDoc39 = generateAndDownloadClientWordDoc39;

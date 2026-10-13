@@ -18,8 +18,8 @@ from pydantic import BaseModel
 from core.ocr_engine import process_document
 from core.document_parser import parse_academic_document, deep_scan_and_index_document
 from core.scoring_engine import calculate_evaluation
-from core.docx_generator import create_form_21_docx
-from core.pdf_generator import create_form_21_pdf
+from core.docx_generator import create_form_21_docx, create_form_39_docx
+from core.pdf_generator import create_form_21_pdf, create_form_39_pdf
 from core.auth_db import (
     register_user, authenticate_user, get_user_by_session, delete_session,
     log_visit, clear_all_visits, clear_all_test_users, get_admin_analytics, is_admin_account
@@ -546,14 +546,21 @@ async def calculate_score(data: Dict[str, Any]):
 @app.post("/api/export-docx")
 async def export_docx(req: EvaluationRequest):
     """
-    تصدير الاستمارة رقم 21 بصيغة Word (.docx) مطابقة للنموذج الوزاري مع جدول المرفقات
+    تصدير الاستمارة بصيغة Word (.docx) مطابقة للنموذج الوزاري مع جدول المرفقات
+    يدعم استمارة رقم (39) لمسار بولونيا واستمارة رقم (21)
     """
     try:
         doc_id = str(uuid.uuid4())[:8]
-        out_name = f"استمارة_تقييم_الأداء_2026_{doc_id}.docx"
-        out_path = os.path.join(EXPORTS_DIR, out_name)
-
-        create_form_21_docx(req.form_data, out_path, req.attachments)
+        form_type = req.form_data.get("form_type", "form39" if ("axis1_bologna" in req.form_data or "axis2_portfolio" in req.form_data) else "form21")
+        
+        if form_type == "form39":
+            out_name = f"استمارة_39_مسار_بولونيا_{doc_id}.docx"
+            out_path = os.path.join(EXPORTS_DIR, out_name)
+            create_form_39_docx(req.form_data, out_path, req.attachments)
+        else:
+            out_name = f"استمارة_تقييم_الأداء_2026_{doc_id}.docx"
+            out_path = os.path.join(EXPORTS_DIR, out_name)
+            create_form_21_docx(req.form_data, out_path, req.attachments)
 
         return FileResponse(
             out_path,
@@ -567,14 +574,21 @@ async def export_docx(req: EvaluationRequest):
 @app.post("/api/export-pdf")
 async def export_pdf(req: EvaluationRequest):
     """
-    تصدير الاستمارة رقم 21 بصيغة PDF عالية الدقة مع التنسيقات الرسمية
+    تصدير الاستمارة بصيغة PDF عالية الدقة مع التنسيقات الرسمية
+    يدعم استمارة رقم (39) لمسار بولونيا واستمارة رقم (21)
     """
     try:
         doc_id = str(uuid.uuid4())[:8]
-        out_name = f"استمارة_تقييم_الأداء_2026_{doc_id}.pdf"
-        out_path = os.path.join(EXPORTS_DIR, out_name)
-
-        create_form_21_pdf(req.form_data, out_path, req.attachments)
+        form_type = req.form_data.get("form_type", "form39" if ("axis1_bologna" in req.form_data or "axis2_portfolio" in req.form_data) else "form21")
+        
+        if form_type == "form39":
+            out_name = f"استمارة_39_مسار_بولونيا_{doc_id}.pdf"
+            out_path = os.path.join(EXPORTS_DIR, out_name)
+            create_form_39_pdf(req.form_data, out_path, req.attachments)
+        else:
+            out_name = f"استمارة_تقييم_الأداء_2026_{doc_id}.pdf"
+            out_path = os.path.join(EXPORTS_DIR, out_name)
+            create_form_21_pdf(req.form_data, out_path, req.attachments)
 
         return FileResponse(
             out_path,

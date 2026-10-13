@@ -18,7 +18,7 @@
                 <i class="fa-solid fa-graduation-cap fa-2x text-yellow-400" style="color: #facc15;"></i>
                 <div>
                     <h1>وزارة التعليم العالي والبحث العلمي - العراق</h1>
-                    <p>جهاز الإشراف والتقويم العلمي | استمارة رقم (21): تقييم أداء أعضاء الهيئة التدريسية 2025-2026</p>
+                    <p id="platform-subtitle-text">جهاز الإشراف والتقويم العلمي | استمارة رقم (39): تقييم أداء أعضاء الهيئة التدريسية لمسار بولونيا للعام الدراسي 2025-2026</p>
                 </div>
             </div>
 
@@ -100,9 +100,71 @@
         </div>
     </div>
 
+    <!-- شريط التبديل بين الاستمارات (استمارة رقم 39 مسار بولونيا / استمارة رقم 21 التقليدية) -->
+    <div class="evaluation-form-switcher" style="background: #1e293b; color: white; padding: 10px 20px; border-bottom: 2px solid #3b82f6;">
+        <div style="max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-weight: 700; font-size: 0.95rem; color: #93c5fd;"><i class="fa-solid fa-list-check"></i> نموذج التقييم المعتمد:</span>
+                <div class="form-mode-toggle" style="display: inline-flex; background: #0f172a; padding: 4px; border-radius: 8px; border: 1px solid #334155;">
+                    <button type="button" id="btn-mode-form39" class="btn-mode active" onclick="switchEvaluationFormMode('form39')" style="background: #2563eb; color: white; border: none; padding: 6px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; transition: all 0.2s;">
+                        <i class="fa-solid fa-graduation-cap"></i> استمارة رقم (39): مسار بولونيا (2025-2026)
+                    </button>
+                    <button type="button" id="btn-mode-form21" class="btn-mode" onclick="switchEvaluationFormMode('form21')" style="background: transparent; color: #94a3b8; border: none; padding: 6px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                        <i class="fa-solid fa-file-lines"></i> استمارة رقم (21): التقييم السنوي التقليدي
+                    </button>
+                </div>
+            </div>
+            <div style="font-size: 0.85rem; color: #cbd5e1;">
+                <span id="active-form-description"><i class="fa-solid fa-circle-check" style="color: #4ade80;"></i> مسار بولونيا: 4 محاور (10% طالب + 60% حقيبة + 15% رئيس قسم + 15% تربوي) بمعاملات الألقاب العلمية</span>
+            </div>
+        </div>
+    </div>
+
     <!-- شريط الدرجات التراكمي العائم (Sticky Live Scoreboard) -->
     <div class="sticky-scoreboard">
-        <div class="scoreboard-container">
+        <!-- شريط درجات استمارة رقم (39) مسار بولونيا -->
+        <div class="scoreboard-container" id="scoreboard-form39" style="display: flex;">
+            <div class="score-pills">
+                <div class="score-pill">
+                    <span class="label">المحور 1 (تقييم الطالب 10%)</span>
+                    <span class="val" id="score-f39-axis1">0.0 / 10%</span>
+                </div>
+                <div class="score-pill">
+                    <span class="label">المحور 2 (حقيبة الأستاذ 60%)</span>
+                    <span class="val" id="score-f39-axis2">0.0 / 60%</span>
+                </div>
+                <div class="score-pill">
+                    <span class="label">المحور 3 (رئيس القسم 15%)</span>
+                    <span class="val" id="score-f39-axis3">0.0 / 15%</span>
+                </div>
+                <div class="score-pill">
+                    <span class="label">المحور 4 (التربوي والإرشادي 15%)</span>
+                    <span class="val" id="score-f39-axis4">0.0 / 15%</span>
+                </div>
+                <div class="score-pill total">
+                    <span class="label">المجموع النهائي (100%)</span>
+                    <span class="val" id="score-f39-final">0.0 %</span>
+                </div>
+                <div>
+                    <span class="rating-badge rating-ضعيف" id="badge-f39-rating">ضعيف</span>
+                </div>
+            </div>
+
+            <div class="quick-actions">
+                <button type="button" class="btn btn-primary" id="btn-export-f39-docx" onclick="exportDocx()" title="تصدير استمارة رقم (39) مسار بولونيا بصيغة Microsoft Word (.docx)">
+                    <i class="fa-solid fa-file-word"></i> تحميل استمارة بولونيا (39) Word
+                </button>
+                <button type="button" class="btn btn-success" id="btn-export-f39-pdf" onclick="exportPdf()" title="تصدير استمارة رقم (39) مسار بولونيا بصيغة PDF (.pdf)">
+                    <i class="fa-solid fa-file-pdf"></i> تحميل استمارة بولونيا (39) PDF
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="window.print()" title="إرسال الاستمارة مباشرة إلى الطابعة الورقية أو المعاينة">
+                    <i class="fa-solid fa-print"></i> طباعة مباشرة
+                </button>
+            </div>
+        </div>
+
+        <!-- شريط درجات استمارة رقم (21) التقليدية -->
+        <div class="scoreboard-container" id="scoreboard-form21" style="display: none;">
             <div class="score-pills">
                 <div class="score-pill">
                     <span class="label">المحور 1 (التدريس 50%)</span>
@@ -156,7 +218,36 @@
     </div>
 
     <!-- التبويبات الرئيسية (مسطرة موحدة في سطر واحد لكافة المحاور) -->
-    <nav class="tabs-nav" aria-label="أقسام الاستمارة والمحاور">
+        <!-- شريط تبويبات استمارة 39 مسار بولونيا -->
+    <nav class="tabs-nav" id="tabs-nav-form39" aria-label="أقسام استمارة مسار بولونيا رقم 39" style="display: flex;">
+        <button class="tab-btn active" data-tab="tab-personal" title="البيانات الرئيسة (الصفحة 1)">
+            <i class="fa-solid fa-id-card"></i> <span>البيانات الرئيسة (ص1)</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-f39-axis1" title="المحور الأول: تقييم الطالب (الوزن 10%)">
+            <i class="fa-solid fa-chalkboard-user"></i> <span>المحور 1: الطالب (10%)</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-f39-axis2" title="المحور الثاني: حقيبة الأستاذ (الوزن 60%)">
+            <i class="fa-solid fa-briefcase"></i> <span>المحور 2: حقيبة الأستاذ (60%)</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-f39-axis3" title="المحور الثالث: رئيس القسم (الوزن 15%)">
+            <i class="fa-solid fa-user-tie"></i> <span>المحور 3: رئيس القسم (15%)</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-f39-axis4" title="المحور الرابع: التربوي والإرشادي (الوزن 15%)">
+            <i class="fa-solid fa-hands-holding-child"></i> <span>المحور 4: التربوي (15%)</span>
+        </button>
+        <button class="tab-btn tab-btn-evidence" data-tab="tab-ocr" title="فهرس الأدلة والمرفقات المستخرجة">
+            <i class="fa-solid fa-folder-tree"></i> <span>فهرس الأدلة</span> <span class="tab-evidence-badge" id="attachments-count-f39">0</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-f39-summary" title="النتائج والمصادقة والدرجة النهائية (الصفحة 5)">
+            <i class="fa-solid fa-file-signature"></i> <span>النتائج والمصادقة (ص5)</span>
+        </button>
+        <button class="tab-btn" data-tab="tab-f39-rules" title="ضوابط وتعليمات مسار بولونيا (الصفحة 6)">
+            <i class="fa-solid fa-scale-balanced"></i> <span>ضوابط بولونيا (ص6)</span>
+        </button>
+    </nav>
+
+    <!-- شريط تبويبات استمارة 21 التقليدية -->
+    <nav class="tabs-nav" id="tabs-nav-form21" aria-label="أقسام الاستمارة التقليدية رقم 21" style="display: none;">
         <button class="tab-btn active" data-tab="tab-personal" title="البيانات الرئيسة (الصفحة 1)">
             <i class="fa-solid fa-id-card"></i> <span>البيانات الرئيسة (ص1)</span>
         </button>
@@ -380,7 +471,7 @@
             </div>
 
             <div style="display: flex; justify-content: flex-end;">
-                <button type="button" class="btn btn-primary" onclick="switchTab('tab-axis1')">
+                <button type="button" class="btn btn-primary" onclick="goToNextAxisFromPersonal()">
                     التالي: المحور الأول (جودة التدريس) <i class="fa-solid fa-arrow-left"></i>
                 </button>
             </div>
@@ -606,7 +697,7 @@
             </div>
 
             <div style="display: flex; justify-content: space-between;">
-                <button type="button" class="btn btn-secondary" onclick="switchTab('tab-axis1')">
+                <button type="button" class="btn btn-secondary" onclick="goToNextAxisFromPersonal()">
                     <i class="fa-solid fa-arrow-right"></i> السابق: المحور الأول
                 </button>
                 <button type="button" class="btn btn-primary" onclick="switchTab('tab-axis3')">
@@ -1192,6 +1283,721 @@
                 <button type="button" class="btn btn-secondary" onclick="switchTab('tab-ocr')">
                     <i class="fa-solid fa-arrow-right"></i> السابق: مركز المرفقات
                 </button>
+            </div>
+        </div>
+
+
+        <!-- ============================================================== -->
+        <!-- تبويبات استمارة رقم (39): مسار بولونيا للعام الدراسي 2025-2026 -->
+        <!-- ============================================================== -->
+
+        <!-- تبويب استمارة 39: المحور الأول (تقييم الطالب - 10%) -->
+        <div class="tab-pane" id="tab-f39-axis1">
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-chalkboard-user"></i> المحور الأول: تقييم الطالب للمادة الدراسية وطريقة التدريس (الوزن 10% - الدرجة القصوى 10 درجات)</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;">المجموع: <span id="f39-ax1-total-badge">10.0</span> / 10</span>
+                </div>
+                <p style="color:#64748b; font-size:0.9rem; margin-bottom:1rem;">
+                    يتم احتساب هذا المحور وفق تقييم الطلبة الإلكتروني المنفذ قبل الامتحانات النهائية للفصل الدراسي (في الأسبوع العاشر).
+                </p>
+
+                <!-- الفقرة 1 -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; margin-bottom:1.5rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:2px solid #cbd5e1; padding-bottom:0.5rem;">
+                        <h4 style="color:#1e3a8a; margin:0; font-size:1rem;"><i class="fa-solid fa-1"></i> التدريس وفق مسار بولونيا (الدرجة القصوى 4 درجات - درجة واحدة لكل فقرة)</h4>
+                        <span style="font-weight:700; color:#1e40af;"><span id="f39-ax1-p1-score">4</span> / 4 درجات</span>
+                    </div>
+                    
+                    <div class="bologna-check-list" style="display:flex; flex-direction:column; gap:0.75rem;">
+                        <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
+                                <input type="checkbox" id="f39-bologna-p1" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <span><strong>1. يقوم المحاضر بتقديم موجز عن عملية التدريس والتقييم وفق مسار بولونيا للطلبة في أول محاضرة.</strong></span>
+                            </label>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="triggerParagraphScan('axis1_bologna', '1', 'موجز مسار بولونيا')" title="رفع وثيقة إثبات">
+                                    <i class="fa-solid fa-paperclip"></i> مرفق
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
+                                <input type="checkbox" id="f39-bologna-p2" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <span><strong>2. يقوم المحاضر بتقديم وشرح دليل وصف المادة الدراسية في الأسبوع الأول للفصل الدراسي.</strong></span>
+                            </label>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="triggerParagraphScan('axis1_bologna', '2', 'دليل وصف المادة الدراسية')" title="رفع دليل وصف المادة Course Guide">
+                                    <i class="fa-solid fa-paperclip"></i> مرفق
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
+                                <input type="checkbox" id="f39-bologna-p3" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <span><strong>3. يلتزم المحاضر بطريقة التقييم التكويني من حيث عدد الامتحانات القصيرة والواجبات المنزلية والفعاليات العلمية ومواعيدها والمذكورة في دليل وصف المادة الدراسية.</strong></span>
+                            </label>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="triggerParagraphScan('axis1_bologna', '3', 'جدول التقييم التكويني')" title="رفع كشف التقييم التكويني Formative Assessments">
+                                    <i class="fa-solid fa-paperclip"></i> مرفق
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
+                                <input type="checkbox" id="f39-bologna-p4" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <span><strong>4. يقوم المحاضر بتوضيح علاقة مفردات المنهاج الأسبوعي بمخرجات التعلم.</strong></span>
+                            </label>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
+                                <button type="button" class="btn btn-sm btn-outline" onclick="triggerParagraphScan('axis1_bologna', '4', 'مصفوفة مخرجات التعلم CLOs')" title="رفع مصفوفة مخرجات التعلم">
+                                    <i class="fa-solid fa-paperclip"></i> مرفق
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الفقرة 2 -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:2px solid #cbd5e1; padding-bottom:0.5rem;">
+                        <h4 style="color:#1e3a8a; margin:0; font-size:1rem;"><i class="fa-solid fa-2"></i> كفاءة الأستاذ وطريقة التدريس (الدرجة القصوى 6 درجات - درجة واحدة لكل فقرة)</h4>
+                        <span style="font-weight:700; color:#1e40af;"><span id="f39-ax1-p2-score">6</span> / 6 درجات</span>
+                    </div>
+
+                    <div class="bologna-check-list" style="display:flex; flex-direction:column; gap:0.75rem;">
+                        <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
+                                <input type="checkbox" id="f39-teach-p1" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <span>1. طريقة التدريس والمحاضرة مثيرة للاهتمام وتحفز الطالب ليفهم المادة العلمية.</span>
+                            </label>
+                            <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
+                        </div>
+                        <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
+                                <input type="checkbox" id="f39-teach-p2" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <span>2. يتم تزويد الطالب بقائمة من المراجع المختلفة بالإضافة للمراجع الرئيسية.</span>
+                            </label>
+                            <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
+                        </div>
+                        <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
+                                <input type="checkbox" id="f39-teach-p3" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <span>3. يعطي المحاضر الوقت الكافي للأسئلة والأجوبة خلال المحاضرة.</span>
+                            </label>
+                            <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
+                        </div>
+                        <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
+                                <input type="checkbox" id="f39-teach-p4" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <span>4. يستخدم المحاضر التقنيات اللازمة وأدوات الصوت والفيديو لشرح محاضراته.</span>
+                            </label>
+                            <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
+                        </div>
+                        <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
+                                <input type="checkbox" id="f39-teach-p5" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <span>5. خلال المحاضرة يعامل المحاضر الطلاب باحترام.</span>
+                            </label>
+                            <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
+                        </div>
+                        <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
+                                <input type="checkbox" id="f39-teach-p6" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <span>6. تعكس أسئلة الامتحان محتويات المادة العلمية المرتبطة بمخرجات التعلم.</span>
+                            </label>
+                            <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top:1rem; display:flex; justify-content:flex-end;">
+                        <button type="button" class="btn btn-outline" onclick="triggerParagraphScan('axis1_bologna', 'efficiency', 'استبانة تقييم كفاءة التدريس')">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> رفع استبانة تقييم الطلبة الإلكترونية
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="switchTab('tab-personal')"><i class="fa-solid fa-arrow-right"></i> السابق: البيانات الرئيسة</button>
+                    <button type="button" class="btn btn-primary" onclick="switchTab('tab-f39-axis2')">التالي: المحور الثاني (حقيبة الأستاذ 60%) <i class="fa-solid fa-arrow-left"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب استمارة 39: المحور الثاني (حقيبة الأستاذ - 60%) -->
+        <div class="tab-pane" id="tab-f39-axis2">
+            <!-- الفقرة 1: واجبات ومسؤوليات أعضاء هيئة التدريس -->
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-briefcase"></i> المحور الثاني / الفقرة 1: واجبات ومسؤوليات أعضاء هيئة التدريس (الدرجة القصوى 8 درجات)</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p1-resp-score">8.0</span> / 8</span>
+                </div>
+
+                <!-- أ) الحمل التدريسي -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; margin-bottom:1.2rem;">
+                    <h4 style="color:#1e3a8a; margin:0 0 0.75rem 0; font-size:0.95rem;">أ) الحمل التدريسي (نصاب عضو هيئة التدريس) (4 درجات)</h4>
+                    <div class="form-grid" style="grid-template-columns: 2fr 1fr;">
+                        <div class="form-group">
+                            <label>حالة النصاب التدريسي:</label>
+                            <select class="form-control" id="f39-teaching-load-status" onchange="updateForm39Axis2()">
+                                <option value="full" selected>درجة كاملة في حال اكتمال النصاب (4 درجات)</option>
+                                <option value="partial_department_assigned">مستوفٍ للنصاب وفق الملاحظة الوزارية (التدريسي راغب والقسم غير قادر وتم تكليفه بمهام بديلة) (4 درجات)</option>
+                                <option value="partial">عدم اكتمال النصاب (درجتان فقط)</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:flex-end;">
+                            <button type="button" class="btn btn-outline" style="width:100%;" onclick="triggerParagraphScan('axis2_portfolio', 'load', 'جدول النصاب التدريسي')">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> رفع أمر النصاب / جدول الساعات
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ب) اللجان العلمية -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                        <div>
+                            <h4 style="color:#1e3a8a; margin:0; font-size:0.95rem;">ب) عضوية اللجان العلمية في القسم والكلية والجامعة والوزارة (4 درجات)</h4>
+                            <p style="color:#64748b; font-size:0.8rem; margin:2px 0 0 0;">(4 درجات لكل لجنة دائمية، درجتان لكل لجنة مؤقتة - السقف 4 درجات)</p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="addForm39Committee()"><i class="fa-solid fa-plus"></i> إضافة لجنة</button>
+                    </div>
+                    
+                    <div style="overflow-x:auto;">
+                        <table class="table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                            <thead>
+                                <tr style="background:#e2e8f0; text-align:right;">
+                                    <th style="padding:6px 10px;">نوع اللجنة</th>
+                                    <th style="padding:6px 10px;">اسم اللجنة</th>
+                                    <th style="padding:6px 10px;">الجهة</th>
+                                    <th style="padding:6px 10px;">رقم وتاريخ الأمر</th>
+                                    <th style="padding:6px 10px;">الدرجة</th>
+                                    <th style="padding:6px 10px;">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="f39-committees-tbody">
+                                <!-- تملأ ديناميكياً -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الفقرة 2: كفاءة التدريسي في تحقيق مهارات ومعارف وقيم معينة -->
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-award"></i> المحور الثاني / الفقرة 2: كتب الشكر والتقدير والجوائز الأكاديمية (الدرجة القصوى 5 درجات)</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p2-appr-score">5.0</span> / 5</span>
+                </div>
+                <p style="color:#64748b; font-size:0.85rem; margin-bottom:0.75rem;">
+                    يتم تجميع الدرجات: درجتان لقسم، 3 لكلية، 4 لجامعة، 5 لوزارة، 5 لجائزة أكاديمية.
+                </p>
+                <div style="display:flex; justify-content:flex-end; margin-bottom:0.75rem;">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="addForm39Appreciation()"><i class="fa-solid fa-plus"></i> إضافة كتاب شكر / جائزة</button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                        <thead>
+                            <tr style="background:#e2e8f0; text-align:right;">
+                                <th style="padding:6px 10px;">الجهة المانحة</th>
+                                <th style="padding:6px 10px;">موضوع الشكر / الجائزة</th>
+                                <th style="padding:6px 10px;">رقم وتاريخ الكتاب</th>
+                                <th style="padding:6px 10px;">الدرجة</th>
+                                <th style="padding:6px 10px;">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="f39-appreciation-tbody">
+                            <!-- تملأ ديناميكياً -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- الفقرة 3: التدريب والتعليم المستمر (20 درجة) -->
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-chalkboard-user"></i> المحور الثاني / الفقرة 3: التدريب والتعليم المستمر (الدرجة القصوى 20 درجة)</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p3-train-score">20.0</span> / 20</span>
+                </div>
+
+                <!-- أ) عقد الدورات والورش (6 درجات) -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; margin-bottom:1.2rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                        <h4 style="color:#1e3a8a; margin:0; font-size:0.95rem;">أ) عقد الدورات التدريبية وورش العمل والندوات العلمية (القصوى 6 درجات)</h4>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="addForm39HoldingEvent()"><i class="fa-solid fa-plus"></i> إضافة نشاط منعقد</button>
+                    </div>
+                    <p style="color:#64748b; font-size:0.8rem; margin-bottom:0.75rem;">(4 درجات لدورة تدريبية لا تقل عن 24 ساعة وأسبوع، درجتان لورشة عمل، درجتان لندوة أو سمينار)</p>
+                    <div style="overflow-x:auto;">
+                        <table class="table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                            <thead>
+                                <tr style="background:#e2e8f0; text-align:right;">
+                                    <th style="padding:6px 10px;">نوع النشاط</th>
+                                    <th style="padding:6px 10px;">عنوان النشاط / الدورة</th>
+                                    <th style="padding:6px 10px;">المدة / الساعات</th>
+                                    <th style="padding:6px 10px;">الدرجة</th>
+                                    <th style="padding:6px 10px;">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="f39-holding-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ب) حضور الدورات والمؤتمرات (4 درجات) -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; margin-bottom:1.2rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                        <h4 style="color:#1e3a8a; margin:0; font-size:0.95rem;">ب) حضور الدورات التدريبية أو المؤتمرات العلمية (القصوى 4 درجات)</h4>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="addForm39AttendingCourse()"><i class="fa-solid fa-plus"></i> إضافة حضور دورة/مؤتمر</button>
+                    </div>
+                    <p style="color:#64748b; font-size:0.8rem; margin-bottom:0.75rem;">(درجتان لحضور دورة، درجتان لمؤتمر بورقة علمية، درجة واحدة لمؤتمر بدون ورقة)</p>
+                    <div style="overflow-x:auto;">
+                        <table class="table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                            <thead>
+                                <tr style="background:#e2e8f0; text-align:right;">
+                                    <th style="padding:6px 10px;">نوع المشاركة</th>
+                                    <th style="padding:6px 10px;">اسم الدورة / المؤتمر</th>
+                                    <th style="padding:6px 10px;">الجهة المنظمة</th>
+                                    <th style="padding:6px 10px;">الدرجة</th>
+                                    <th style="padding:6px 10px;">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="f39-attending-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ج) حضور الندوات والورش (10 درجات) -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem;">
+                    <h4 style="color:#1e3a8a; margin:0 0 0.5rem 0; font-size:0.95rem;">ج) حضور الندوات العلمية – سمينار وورش العمل داخل الجامعة (القصوى 10 درجات)</h4>
+                    <p style="color:#64748b; font-size:0.8rem; margin-bottom:0.75rem;">(درجة واحدة لكل حضور سمينار أو ورشة عمل داخل الجامعة مع تقديم فيدباك تقييمي - حتى 10 درجات)</p>
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+                        <div class="form-group">
+                            <label>عدد السمينارات وورش العمل المحضورة:</label>
+                            <input type="number" class="form-control" id="f39-seminars-count" min="0" max="10" value="10" onchange="updateForm39Axis2()">
+                        </div>
+                        <div class="form-group" style="display:flex; align-items:flex-end;">
+                            <button type="button" class="btn btn-outline" style="width:100%;" onclick="triggerParagraphScan('axis2_portfolio', 'seminars', 'استمارة فيدباك سمينار')">
+                                <i class="fa-solid fa-cloud-arrow-up"></i> رفع شهادات / استمارات فيدباك السمينارات
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الفقرة 4: رؤية الجامعة في البحث والتطوير والكتب وبراءات الاختراع (20 درجة) -->
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-book-journal-whills"></i> المحور الثاني / الفقرة 4: نشر الأبحاث والكتب وبراءات الاختراع (الدرجة القصوى 20 درجة)</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p4-res-score">20.0</span> / 20</span>
+                </div>
+
+                <!-- بطاقة معامل اللقب العلمي المعتمد -->
+                <div style="background:linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border:1px solid #93c5fd; border-radius:10px; padding:1rem 1.4rem; margin-bottom:1.2rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                    <div>
+                        <div style="font-weight:800; color:#1e3a8a; font-size:0.95rem;">
+                            <i class="fa-solid fa-scale-balanced"></i> معامل ضرب درجة البحث العلمي بحسب اللقب العلمي (الفقرة 10 من الضوابط الرسمية):
+                        </div>
+                        <div style="font-size:0.85rem; color:#1e40af; margin-top:3px;">
+                            اللقب الحالي: <strong id="f39-rank-display-label">أستاذ مساعد</strong> | نسبة الضرب: <strong id="f39-rank-multiplier-label">140% (x1.4)</strong>
+                        </div>
+                    </div>
+                    <div style="text-align:left;">
+                        <span style="font-size:0.8rem; color:#475569;">المجموع الخام: <strong id="f39-res-raw-score">20.0</strong> / 20</span>
+                        <div style="font-size:1.15rem; font-weight:800; color:#1d4ed8;">
+                            بعد المعامل: <span id="f39-res-final-score">20.0</span> / 20
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                    <span style="font-weight:700; color:#334155; font-size:0.9rem;">قائمة الأبحاث والكتب وبراءات الاختراع المضافة:</span>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="addForm39Research()"><i class="fa-solid fa-plus"></i> إضافة بحث / كتاب / براءة</button>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table class="table" style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+                        <thead>
+                            <tr style="background:#e2e8f0; text-align:right;">
+                                <th style="padding:6px 10px;">فئة النشر المعتمدة</th>
+                                <th style="padding:6px 10px;">عنوان البحث / الكتاب / البراءة</th>
+                                <th style="padding:6px 10px;">المجلة / دار النشر</th>
+                                <th style="padding:6px 10px;">تسلسل الباحث</th>
+                                <th style="padding:6px 10px;">الدرجة المستحقة</th>
+                                <th style="padding:6px 10px;">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="f39-research-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- الفقرة 5 و 6: النشاط الدولي ودعم إيرادات الجامعة -->
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-earth-americas"></i> المحور الثاني / الفقرتان 5 و 6: النشاط الدولي (5 درجات) ودعم إيرادات الجامعة (درجتان)</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p56-score">7.0</span> / 7</span>
+                </div>
+
+                <!-- النشاط الدولي -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; margin-bottom:1.2rem;">
+                    <h4 style="color:#1e3a8a; margin:0 0 0.75rem 0; font-size:0.95rem;">5. النشاط الدولي (الدرجة القصوى 5 درجات)</h4>
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr; margin-bottom:1rem;">
+                        <div class="form-group">
+                            <label>أ) عضوية المؤسسات العلمية الدولية (القصوى درجتان):</label>
+                            <select class="form-control" id="f39-intl-org-membership" onchange="updateForm39Axis2()">
+                                <option value="senior_fellow" selected>Senior or Fellow Member (درجتان)</option>
+                                <option value="member">Member (درجة واحدة)</option>
+                                <option value="none">لا توجد عضوية (0)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>ج) متحدث رئيسي Keynote speaker بالمؤتمرات (القصوى درجتان):</label>
+                            <select class="form-control" id="f39-keynote-type" onchange="updateForm39Axis2()">
+                                <option value="intl" selected>متحدث رئيسي Keynote في مؤتمر دولي (درجتان)</option>
+                                <option value="national">متحدث رئيسي في مؤتمر وطني (درجة واحدة)</option>
+                                <option value="none">غير مشارك كمتحدث رئيسي (0)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                        <span style="font-weight:700; color:#334155; font-size:0.85rem;">ب) عضوية لجان تحرير المجلات المؤرشفة وتقييم بحوثها (القصوى 4 درجات):</span>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="addForm39Editorial()"><i class="fa-solid fa-plus"></i> إضافة هيئة تحرير / تقييم بحث</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="table" style="width:100%; border-collapse:collapse; font-size:0.82rem;">
+                            <thead>
+                                <tr style="background:#e2e8f0; text-align:right;">
+                                    <th style="padding:6px 10px;">نوع النشاط التحريري</th>
+                                    <th style="padding:6px 10px;">اسم المجلة</th>
+                                    <th style="padding:6px 10px;">الدرجة</th>
+                                    <th style="padding:6px 10px;">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="f39-editorial-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- دعم إيرادات الجامعة -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem;">
+                    <h4 style="color:#1e3a8a; margin:0 0 0.5rem 0; font-size:0.95rem;">6. دعم إيرادات الجامعة (جلب الأموال Fund) (درجتان)</h4>
+                    <p style="color:#64748b; font-size:0.8rem; margin-bottom:0.75rem;">(درجة كاملة درجتان في حال الحصول على دعم مالي Fund للجامعة من خلال عمل أو مشروع)</p>
+                    <div class="form-grid" style="grid-template-columns: 1fr 2fr;">
+                        <div class="form-group">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:1.8rem;">
+                                <input type="checkbox" id="f39-fund-granted" class="form-check-input" checked onchange="updateForm39Axis2()">
+                                <strong>تم جلب تمويل / منحة بحثية (Fund)</strong>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>تفاصيل المشروع والجهة المانحة والمبلغ:</label>
+                            <input type="text" class="form-control" id="f39-fund-details" value="مشروع التوأمة الرقمية للتراث المعماري - منحة تمويلية للجامعة التكنولوجية" onchange="updateForm39Axis2()">
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="switchTab('tab-f39-axis1')"><i class="fa-solid fa-arrow-right"></i> السابق: المحور الأول</button>
+                    <button type="button" class="btn btn-primary" onclick="switchTab('tab-f39-axis3')">التالي: المحور الثالث (رئيس القسم 15%) <i class="fa-solid fa-arrow-left"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب استمارة 39: المحور الثالث (تقييم رئيس القسم - 15%) -->
+        <div class="tab-pane" id="tab-f39-axis3">
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-user-tie"></i> المحور الثالث: تقييم رئيس القسم للعملية التعليمية والأستاذ الجامعي (الوزن 15% - الدرجة القصوى 15 درجة)</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-ax3-score">15.0</span> / 15</span>
+                </div>
+                
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; margin-bottom:1.5rem;">
+                    <h4 style="color:#1e3a8a; margin:0 0 0.5rem 0; font-size:1rem;">1. الالتزام برسالة القسم ورؤيته (15 درجة أساسية)</h4>
+                    <p style="color:#64748b; font-size:0.88rem; line-height:1.6; margin-bottom:1rem;">
+                        يشمل التقييم رأي رئيس القسم بمدى جدية وتعاون التدريسي مع القسم والعمل على تحقيق أهدافه وخصوصاً فيما يخص تطبيق <strong>مسار بولونيا</strong>.
+                    </p>
+                    
+                    <div class="form-group" style="max-width:300px;">
+                        <label>درجة رئيس القسم الأساسية الممنوحة (من 15):</label>
+                        <input type="number" class="form-control" id="f39-hod-base-score" min="0" max="15" value="15" onchange="updateForm39Axis3()">
+                    </div>
+                </div>
+
+                <!-- العقوبات الإدارية الانضباطية -->
+                <div style="background:#fff1f2; border:1px solid #fecdd3; border-radius:10px; padding:1.2rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                        <div>
+                            <h4 style="color:#9f1239; margin:0; font-size:0.95rem;"><i class="fa-solid fa-triangle-exclamation"></i> العقوبات الإدارية الانضباطية (خصم من درجات هذا المحور)</h4>
+                            <p style="color:#be123c; font-size:0.8rem; margin:2px 0 0 0;">(لفت نظر: -3 | إنذار: -4 | قطع راتب: -5 | توبيخ: -6 | إنقاص راتب: -7 | تنزيل درجة: -8)</p>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline" style="border-color:#f43f5e; color:#e11d48;" onclick="addForm39Penalty()"><i class="fa-solid fa-plus"></i> تسجيل عقوبة</button>
+                    </div>
+
+                    <div style="overflow-x:auto;">
+                        <table class="table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                            <thead>
+                                <tr style="background:#ffe4e6; text-align:right;">
+                                    <th style="padding:6px 10px;">نوع العقوبة</th>
+                                    <th style="padding:6px 10px;">مقدار الخصم</th>
+                                    <th style="padding:6px 10px;">العدد / المرات</th>
+                                    <th style="padding:6px 10px;">إجمالي الخصم</th>
+                                    <th style="padding:6px 10px;">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="f39-penalties-tbody">
+                                <tr><td colspan="5" style="text-align:center; color:#15803d; padding:10px;">سجل التدريسي ناصع وخالٍ من العقوبات الإدارية (لا يوجد خصم).</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="switchTab('tab-f39-axis2')"><i class="fa-solid fa-arrow-right"></i> السابق: المحور الثاني</button>
+                    <button type="button" class="btn btn-primary" onclick="switchTab('tab-f39-axis4')">التالي: المحور الرابع (التربوي والإرشادي 15%) <i class="fa-solid fa-arrow-left"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب استمارة 39: المحور الرابع (الجانب التربوي والإرشادي - 15%) -->
+        <div class="tab-pane" id="tab-f39-axis4">
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-hand-holding-heart"></i> المحور الرابع: الجانب التربوي والإرشادي (الوزن 15% - الدرجة القصوى 15 درجة)</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-ax4-score">15.0</span> / 15</span>
+                </div>
+
+                <!-- 1. لجان التعليم المستمر والجودة (5 درجات) -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; margin-bottom:1.2rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                        <h4 style="color:#1e3a8a; margin:0; font-size:0.95rem;">1. المشاركة في لجان التعليم المستمر والجودة (القصوى 5 درجات)</h4>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="addForm39QaItem()"><i class="fa-solid fa-plus"></i> إضافة مشاركة</button>
+                    </div>
+                    <p style="color:#64748b; font-size:0.8rem; margin-bottom:0.75rem;">(تمنح 5 درجات لمحاضر في التعليم المستمر والجودة، 4 درجات لحضور - فقط حضورين، 3 درجات لطرائق التدريس)</p>
+                    <div style="overflow-x:auto;">
+                        <table class="table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                            <thead>
+                                <tr style="background:#e2e8f0; text-align:right;">
+                                    <th style="padding:6px 10px;">صفة المشاركة</th>
+                                    <th style="padding:6px 10px;">عنوان الدورة / اللجنة</th>
+                                    <th style="padding:6px 10px;">الدرجة</th>
+                                    <th style="padding:6px 10px;">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="f39-qa-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 4 (2). الزيارات الميدانية والحقلية والأعمال التطوعية (10 درجات) -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                        <h4 style="color:#1e3a8a; margin:0; font-size:0.95rem;">4. الزيارات الميدانية والحقلية والأعمال التطوعية داخل الجامعة والمجتمع (القصوى 10 درجات)</h4>
+                        <button type="button" class="btn btn-sm btn-outline" onclick="addForm39FieldActivity()"><i class="fa-solid fa-plus"></i> إضافة نشاط / زيارة</button>
+                    </div>
+                    <p style="color:#64748b; font-size:0.8rem; margin-bottom:0.75rem;">(تمنح 10 درجات لكل زيارة ميدانية لإشراف الطلبة، 5 لكل عمل تطوعي داخل الوزارة، 5 لخدمات مجتمعية خارج الوزارة)</p>
+                    <div style="overflow-x:auto;">
+                        <table class="table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                            <thead>
+                                <tr style="background:#e2e8f0; text-align:right;">
+                                    <th style="padding:6px 10px;">نوع النشاط</th>
+                                    <th style="padding:6px 10px;">تفاصيل النشاط والموقع</th>
+                                    <th style="padding:6px 10px;">الدرجة</th>
+                                    <th style="padding:6px 10px;">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="f39-field-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="switchTab('tab-f39-axis3')"><i class="fa-solid fa-arrow-right"></i> السابق: المحور الثالث</button>
+                    <button type="button" class="btn btn-primary" onclick="switchTab('tab-f39-summary')">التالي: النتائج والمصادقة (ص5) <i class="fa-solid fa-arrow-left"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب استمارة 39: النتائج والمصادقة (الصفحة 5) -->
+        <div class="tab-pane" id="tab-f39-summary">
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-file-signature"></i> النتائج النهائية للتقييم والمصادقات الرسمية (الصفحة 5)</span>
+                    <span class="badge" style="background:#16a34a; color:white; padding:4px 14px; border-radius:9999px; font-weight:800; font-size:0.95rem;">الدرجة النهائية: <span id="f39-summary-final-score">100.0</span> %</span>
+                </div>
+
+                <!-- جدول النتائج الرسمية الموزونة -->
+                <div style="overflow-x:auto; margin-bottom:1.5rem;">
+                    <table class="table" style="width:100%; border-collapse:collapse; font-size:0.9rem; border:1px solid #cbd5e1;">
+                        <thead>
+                            <tr style="background:#fef08a; text-align:center; font-weight:800; border-bottom:2px solid #000;">
+                                <th style="padding:8px 12px; width:50px;">ت</th>
+                                <th style="padding:8px 12px; text-align:right;">المحاور الرسمية للتقييم</th>
+                                <th style="padding:8px 12px; width:140px;">وزن المحور</th>
+                                <th style="padding:8px 12px; width:160px;">الدرجة المستحصلة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="text-align:center; font-weight:700;">1</td>
+                                <td>تقييم الطالب للمادة الدراسية وطريقة التدريس (مسار بولونيا)</td>
+                                <td style="text-align:center; font-weight:700;">%10</td>
+                                <td style="text-align:center; font-weight:800; color:#1e40af;"><span id="f39-sum-ax1">10.0</span> / 10</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="text-align:center; font-weight:700;">2</td>
+                                <td>تقييم حقيبة الأستاذ (الواجبات، الشكر، التدريب، البحوث بمعامل الرتبة، النشاط الدولي، الإيرادات)</td>
+                                <td style="text-align:center; font-weight:700;">%60</td>
+                                <td style="text-align:center; font-weight:800; color:#1e40af;"><span id="f39-sum-ax2">60.0</span> / 60</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="text-align:center; font-weight:700;">3</td>
+                                <td>تقييم رئيس القسم للعملية التعليمية والأستاذ الجامعي (شاملاً خصومات العقوبات إن وجدت)</td>
+                                <td style="text-align:center; font-weight:700;">%15</td>
+                                <td style="text-align:center; font-weight:800; color:#1e40af;"><span id="f39-sum-ax3">15.0</span> / 15</td>
+                            </tr>
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="text-align:center; font-weight:700;">4</td>
+                                <td>الجانب التربوي والإرشادي (لجان الجودة والتعليم المستمر والزيارات الميدانية والتطوعية)</td>
+                                <td style="text-align:center; font-weight:700;">%15</td>
+                                <td style="text-align:center; font-weight:800; color:#1e40af;"><span id="f39-sum-ax4">15.0</span> / 15</td>
+                            </tr>
+                            <tr style="background:#f1f5f9; border-top:2px solid #000; font-weight:800;">
+                                <td style="text-align:center;">5</td>
+                                <td><strong>مجموع درجات المحاور الأربعة</strong></td>
+                                <td style="text-align:center;">%100</td>
+                                <td style="text-align:center; font-size:1.1rem; color:#166534;"><span id="f39-sum-total">100.0</span> %</td>
+                            </tr>
+                            <tr style="background:#fffbeb; border-top:1px solid #cbd5e1;">
+                                <td colspan="2" style="font-weight:700; padding:10px 14px;">
+                                    مجموع الدرجات النهائية للتقييم (رقماً وتفقيطاً):
+                                </td>
+                                <td colspan="2" style="font-weight:800; font-size:0.95rem; color:#92400e; padding:10px 14px; text-align:center;">
+                                    <span id="f39-sum-words">مئة درجة فقط لا غير</span>
+                                </td>
+                            </tr>
+                            <tr style="background:#fef9c3; border-top:1px solid #cbd5e1;">
+                                <td colspan="2" style="font-weight:800; font-size:1rem; padding:10px 14px;">
+                                    التقدير النهائي للتقييم:
+                                </td>
+                                <td colspan="2" style="text-align:center; padding:10px 14px;">
+                                    <span class="rating-badge rating-امتياز" id="f39-sum-rating" style="font-size:1rem; padding:4px 18px;">امتياز</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- جدول التقديرات المرجعية -->
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1rem; margin-bottom:1.5rem;">
+                    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; text-align:center; font-size:0.85rem; font-weight:700;">
+                        <div id="badge-guide-امتياز" style="background:#dcfce7; color:#166534; padding:8px; border-radius:6px; border:2px solid #22c55e;">
+                            امتياز (90 فأكثر) ✓
+                        </div>
+                        <div id="badge-guide-جيدجدا" style="background:#f1f5f9; color:#475569; padding:8px; border-radius:6px;">
+                            جيد جدا (80 - 89)
+                        </div>
+                        <div id="badge-guide-جيد" style="background:#f1f5f9; color:#475569; padding:8px; border-radius:6px;">
+                            جيد (70 - 79)
+                        </div>
+                        <div id="badge-guide-ضعيف" style="background:#f1f5f9; color:#475569; padding:8px; border-radius:6px;">
+                            ضعيف (أقل من 70)
+                        </div>
+                    </div>
+                </div>
+
+                <!-- كروت التواقيع والمصادقات الرسمية -->
+                <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:1.2rem; margin-bottom:1.5rem;">
+                    <h4 style="color:#1e3a8a; margin:0 0 1rem 0; font-size:0.95rem;"><i class="fa-solid fa-signature"></i> التواقيع والمصادقات الرسمية</h4>
+                    <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap:1.5rem;">
+                        <div style="background:#f8fafc; padding:1rem; border-radius:8px; border:1px dashed #94a3b8;">
+                            <strong>توقيع المسؤول المباشر (رئيس القسم):</strong>
+                            <p style="font-size:0.85rem; color:#64748b; margin:6px 0 12px 0;">الاسم: ........................................... | التاريخ:        /      /  2026</p>
+                            <div style="border-bottom:1px solid #94a3b8; height:40px;"></div>
+                        </div>
+                        <div style="background:#f8fafc; padding:1rem; border-radius:8px; border:1px dashed #94a3b8;">
+                            <strong>توقيع المسؤول الأعلى (عميد الكلية):</strong>
+                            <p style="font-size:0.85rem; color:#64748b; margin:6px 0 12px 0;">الاسم: ........................................... | التاريخ:        /      /  2026</p>
+                            <div style="border-bottom:1px solid #94a3b8; height:40px;"></div>
+                        </div>
+                    </div>
+                    <div style="margin-top:1.2rem; background:#f8fafc; padding:1.2rem; border-radius:8px; border:1px dashed #94a3b8; text-align:center;">
+                        <strong style="font-size:1rem; color:#1e3a8a;">مصادقة رئيس الجامعة</strong>
+                        <p style="font-size:0.85rem; color:#64748b; margin:6px 0 16px 0;">تعتمد استمارة تقييم أداء التدريسي لمسار بولونيا للعام الدراسي 2025-2026</p>
+                        <div style="width:250px; margin:0 auto; border-bottom:1px solid #94a3b8; height:35px;"></div>
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between;">
+                    <button type="button" class="btn btn-secondary" onclick="switchTab('tab-f39-axis4')"><i class="fa-solid fa-arrow-right"></i> السابق: المحور الرابع</button>
+                    <button type="button" class="btn btn-primary" onclick="switchTab('tab-f39-rules')">التالي: تعليمات وضوابط مسار بولونيا (ص6) <i class="fa-solid fa-arrow-left"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- تبويب استمارة 39: تعليمات وضوابط مسار بولونيا (الصفحة 6) -->
+        <div class="tab-pane" id="tab-f39-rules">
+            <div class="form-card">
+                <div class="form-card-title">
+                    <span><i class="fa-solid fa-scale-balanced"></i> تعليمات وضوابط استمارة تقييم أداء مسار بولونيا (الصفحة 6)</span>
+                </div>
+                
+                <div style="display:flex; flex-direction:column; gap:0.9rem; font-size:0.92rem; line-height:1.65; color:#1e293b;">
+                    <div style="background:#f8fafc; padding:12px 16px; border-radius:8px; border-right:4px solid #3b82f6;">
+                        <strong>1. الشمول:</strong> تشمل الاستمارة تدريسيي مسار بولونيا من غير الإداريين والمجازين دراسياً أو وفق قانون 2020.
+                    </div>
+                    <div style="background:#f8fafc; padding:12px 16px; border-radius:8px; border-right:4px solid #3b82f6;">
+                        <strong>2. شرط منصة إدارة بولونيا:</strong> حساب مؤشر الأداء الأكاديمي يكون مشروطاً بقيام عضو هيئة التدريس بالتسجيل بمنصة إدارة معلومات مسار بولونيا والتي تدار من قبل وزارة التعليم العالي والبحث العلمي وتقديم كافة المعلومات المطلوبة وبخلافه يحسب مؤشر الأداء الأكاديمي صفراً.
+                    </div>
+                    <div style="background:#f8fafc; padding:12px 16px; border-radius:8px; border-right:4px solid #3b82f6;">
+                        <strong>3. منصة التقييم الإلكترونية:</strong> أي عضو هيئة تدريس يقوم بتدريس مادة دراسية واحدة على الأقل يكون تحت طائلة حساب مؤشر الأداء الأكاديمي ومن خلال منصة إلكترونية تقوم الجامعة بتهيئتها لضمان الشفافية والكفاءة وتقديم كتب إثباتات النشاطات العلمية إلكترونياً.
+                    </div>
+                    <div style="background:#f8fafc; padding:12px 16px; border-radius:8px; border-right:4px solid #3b82f6;">
+                        <strong>4. موعد تقييم الطالب:</strong> يتم أخذ تقييم الطالب حول المادة الدراسية وطريقة التدريس إلكترونياً وفي نهاية كل فصل دراسي وقبل بدء امتحانات نهاية الفصل (في الأسبوع العاشر) على أن تستمر عملية جمع تقييمات الطلبة لمدة أسبوع واحد.
+                    </div>
+                    <div style="background:#f8fafc; padding:12px 16px; border-radius:8px; border-right:4px solid #3b82f6;">
+                        <strong>5. حساب النصاب التدريسي:</strong> يتم حساب النصاب لعضو هيئة التدريس وفق عدد ساعات التدريس الفعلية وبتكليف من القسم بغض النظر عن تخصص المادة الدراسية وطبيعتها، وتراعى التعليمات الصادرة بخصوص قيمة الساعات النظرية مقابل الساعات العملية والمختبرية إن كان هنالك اختلاف.
+                    </div>
+                    <div style="background:#f8fafc; padding:12px 16px; border-radius:8px; border-right:4px solid #ef4444;">
+                        <strong>6. حظر الأنشطة مدفوعة الأجر:</strong> أي نشاط داخل القسم يتم تقاضي أجر لقائه لا يعتبر لغرض حساب مؤشر الأداء الأكاديمي، مثل الإشراف على رسائل الماجستير والدكتوراه ومناقشاتها وكذلك تقييم بحوث الترقية لقاء مبلغ مالي.
+                    </div>
+                    <div style="background:#f8fafc; padding:12px 16px; border-radius:8px; border-right:4px solid #f59e0b;">
+                        <strong>7. ضوابط حضور المؤتمرات والسمينارات (أونلاين):</strong> لا يعتد بشهادات حضور السمينارات وحضور المؤتمرات العلمية او الدورات التدريبية التي تقام عبر الانترنت (أونلاين) أو خارج الجامعة عدا التي تقام بإشراف الوزارة او بموافقة الجامعة وبشكل رسمي.
+                    </div>
+                    <div style="background:#f8fafc; padding:12px 16px; border-radius:8px; border-right:4px solid #3b82f6;">
+                        <strong>8. شرط الفيدباك لحضور السمينار:</strong> لا يتم احتساب حضور السمينارات داخل الجامعة بدون قيام التدريسيين الذين حضروا السمينار من تقديم فيدباك حول رأيهم بموضوع السمينار وكفاءة مقدم السمينار وطريقة العرض والجوانب الأخرى وخلال فترة لا تتجاوز الأسبوع من تاريخ تقديم السمينار وذلك من خلال استمارة إلكترونية يتم إعدادها للغرض من قبل ضمان جودة الجامعة أو الكلية.
+                    </div>
+                    <div style="background:#f8fafc; padding:12px 16px; border-radius:8px; border-right:4px solid #3b82f6;">
+                        <strong>9. متابعة رئيس القسم:</strong> على رئيس القسم الاطلاع دورياً على حسابات نظام إدارة التعلم الخاص بالتدريسيين في قسمه وبالتعاون مع مدير النظام.
+                    </div>
+                    <div style="background:#eff6ff; padding:14px 18px; border-radius:8px; border:1px solid #bfdbfe; border-right:5px solid #2563eb;">
+                        <strong style="color:#1e40af; font-size:1rem;">10. معاملات ضرب درجة البحث العلمي بحسب اللقب العلمي (حاسمة):</strong><br/>
+                        بخصوص الفقرة الرابعة "رؤية الجامعة في البحث والتطوير ودعم القطاعات العلمية والصناعية" والواردة في تقييم حقيبة الأستاذ، يتم ضرب درجة هذه الفقرة حسب الآتي:
+                        <ul style="margin:6px 20px 0 0; color:#1e3a8a;">
+                            <li>مضروباً بـ <strong>100%</strong> (1.0) للتدريسي بدرجة "أستاذ"</li>
+                            <li>مضروباً بـ <strong>140%</strong> (1.4) للتدريسي بدرجة "أستاذ مساعد"</li>
+                            <li>مضروباً بـ <strong>160%</strong> (1.6) للتدريسي بدرجة "مدرس" (محاضر)</li>
+                            <li>مضروباً بـ <strong>180%</strong> (1.8) للتدريسي بدرجة "مدرس مساعد" (محاضر مساعد)</li>
+                        </ul>
+                    </div>
+                    <div style="background:#f8fafc; padding:12px 16px; border-radius:8px; border-right:4px solid #ef4444;">
+                        <strong>11. حظر النشر المفترس:</strong> تلتزم الجامعة بتعليمات الوزارة الصادرة بخصوص النشر العلمي والنشر في المجلات التجارية أو المجلات المفترسة أو المجلات التي تدرج ضمن القائمة السوداء.
+                    </div>
+                    <div style="background:#f8fafc; padding:12px 16px; border-radius:8px; border-right:4px solid #10b981;">
+                        <strong>12. النشر المؤسسي والشفافية:</strong> تكون هذه الوثيقة جزء من "سياسة ضمان جودة مسار بولونيا" والتي يجب على الجامعة أو المؤسسة التعليمية كتابتها وإصدارها وجعلها متاحة لجميع أعضاء هيئة التدريس على موقع الجامعة وذلك حسب متطلبات المعيار الأول من تقرير ضمان وتعزيز الجودة السنوي.
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-top:1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="switchTab('tab-f39-summary')"><i class="fa-solid fa-arrow-right"></i> السابق: النتائج والمصادقة</button>
+                    <button type="button" class="btn btn-success" onclick="exportDocx()"><i class="fa-solid fa-file-word"></i> تحميل الاستمارة الرسمية Word (.docx)</button>
+                </div>
             </div>
         </div>
 

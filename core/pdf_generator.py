@@ -22,7 +22,7 @@ import arabic_reshaper
 from bidi.algorithm import get_display
 from pypdf import PdfReader, PdfWriter
 
-from core.scoring_engine import calculate_evaluation
+from core.scoring_engine import calculate_evaluation, calculate_evaluation_form39, number_to_arabic_words
 
 # تسجيل الخط العربي
 FONT_NAME = "ArialUnicode"
@@ -1095,4 +1095,855 @@ def create_consolidated_dossier_pdf(
             pass
 
     return output_path
+
+
+def create_form_39_pdf(
+    data: Dict[str, Any],
+    output_path: str,
+    attachments: Optional[List[Dict[str, Any]]] = None,
+    signatures: Optional[Dict[str, Any]] = None
+) -> str:
+    """
+    إنشاء ملف PDF رسمي كامل لاستمارة رقم (39): تقييم أداء أعضاء الهيئة التدريسية لمسار بولونيا 2025-2026
+    مطابق تماماً للجداول الرسمية الست والخلفيات الصفراء ومحاذاة RTL وتفقيط الدرجة وملحق الوثائق.
+    """
+    eval_res = calculate_evaluation_form39(data)
+    personal = data.get("personal_info", {})
+    attachments = attachments or []
+    signatures = signatures or {}
+
+    doc = SimpleDocTemplate(
+        output_path,
+        pagesize=A4,
+        rightMargin=10 * mm,
+        leftMargin=10 * mm,
+        topMargin=8 * mm,
+        bottomMargin=8 * mm
+    )
+
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'ArTitle39',
+        fontName=FONT_NAME,
+        fontSize=10.5,
+        leading=14,
+        alignment=1,  # Center
+        textColor=colors.black
+    )
+
+    h1_style = ParagraphStyle(
+        'ArH139',
+        fontName=FONT_NAME,
+        fontSize=9.5,
+        leading=13,
+        alignment=2,  # Right
+        textColor=colors.black
+    )
+
+    cell_style = ParagraphStyle(
+        'ArCell39',
+        fontName=FONT_NAME,
+        fontSize=7.5,
+        leading=10,
+        alignment=1,  # Center
+        textColor=colors.black
+    )
+
+    cell_right_style = ParagraphStyle(
+        'ArCellRight39',
+        fontName=FONT_NAME,
+        fontSize=7,
+        leading=9.5,
+        alignment=2,  # Right
+        textColor=colors.black
+    )
+
+    header_cell_style = ParagraphStyle(
+        'ArHeaderCell39',
+        fontName=FONT_NAME,
+        fontSize=7.5,
+        leading=10,
+        alignment=1,  # Center
+        textColor=colors.black
+    )
+
+    yellow_bg = colors.HexColor("#FFF200")
+    gray_bg = colors.HexColor("#E5E7EB")
+    light_yellow_bg = colors.HexColor("#FEF9C3")
+
+    story = []
+
+    # =========================================================================
+    # الصفحة 1 (6 - 1) : الترويسة والبيانات الرئيسة
+    # =========================================================================
+    form_no = personal.get("form_no", "2025/....")
+    form_code = personal.get("form_code", "AGY-BOL-....")
+
+    head_data = [
+        [
+            Paragraph(ar(f"رقم الاستمارة: {form_no}<br/>ترميز الاستمارة: {form_code}"), h1_style),
+            Paragraph(ar("وزارة التعليم العالي والبحث العلمي<br/>جهاز الإشراف والتقويم العلمي<br/>دائرة ضمان الجودة والاعتماد الأكاديمي<br/>قسم تقويم الأداء المؤسسي"), title_style)
+        ]
+    ]
+    t_head = Table(head_data, colWidths=[200, 355])
+    t_head.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+    ]))
+    story.append(t_head)
+    story.append(Spacer(1, 4))
+
+    # صندوق عنوان الاستمارة الإطاري
+    box_data = [[Paragraph(ar("استمارة رقم (39): تقييم أداء أعضاء الهيئة التدريسية لمسار بولونيا للعام الدراسي 2025-2026"), title_style)]]
+    t_box = Table(box_data, colWidths=[555])
+    t_box.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), light_yellow_bg),
+        ('BOX', (0, 0), (-1, -1), 1, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    story.append(t_box)
+    story.append(Spacer(1, 4))
+
+    # سطر التبعية الأكاديمية
+    dep_text = ar(f"البيانات الرئيسة :<br/>الجامعة: {personal.get('university', 'الجامعة التكنولوجية')}    |    الكلية : {personal.get('college', 'هندسة العمارة')}    |    القسم /الفرع : {personal.get('department', 'قسم هندسة التصميم المعماري')}")
+    story.append(Paragraph(dep_text, cell_right_style))
+    story.append(Spacer(1, 3))
+
+    # جدول الاسم الرباعي واللقب (5 أعمدة)
+    name_data = [
+        [Paragraph(ar(h), header_cell_style) for h in ["اللقب", "اسم جد الاب", "اسم الجد", "اسم الاب", "الاسم"]],
+        [
+            Paragraph(ar(personal.get("last_name", "")), cell_style),
+            Paragraph(ar(personal.get("great_grandfather_name", "")), cell_style),
+            Paragraph(ar(personal.get("grandfather_name", "")), cell_style),
+            Paragraph(ar(personal.get("father_name", "")), cell_style),
+            Paragraph(ar(personal.get("first_name", "")), cell_style)
+        ]
+    ]
+    t_name = Table(name_data, colWidths=[111]*5)
+    t_name.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), yellow_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_name)
+    story.append(Spacer(1, 3))
+
+    # جدول اسم الأم الثلاثي (3 أعمدة)
+    mother_data = [
+        [Paragraph(ar(h), header_cell_style) for h in ["اسم جد الام", "اسم والد الام", "اسم الام"]],
+        [
+            Paragraph(ar(personal.get("mother_grandfather_name", "")), cell_style),
+            Paragraph(ar(personal.get("mother_father_name", "")), cell_style),
+            Paragraph(ar(personal.get("mother_name", "")), cell_style)
+        ]
+    ]
+    t_mother = Table(mother_data, colWidths=[185]*3)
+    t_mother.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), yellow_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_mother)
+    story.append(Spacer(1, 3))
+
+    # جدول الهوية والجنسية
+    id_data = [
+        [
+            Paragraph(ar(personal.get("page_no", "")), cell_style),
+            Paragraph(ar(personal.get("registry_no", "")), cell_style),
+            Paragraph(ar(personal.get("national_id", "")), cell_style),
+            Paragraph(ar(""), cell_style),
+        ],
+        [
+            Paragraph(ar("الصحيفة"), header_cell_style),
+            Paragraph(ar("السجل"), header_cell_style),
+            Paragraph(ar("رقم الجنسية او البطاقة الموحدة"), header_cell_style),
+            Paragraph(ar(""), header_cell_style),
+        ],
+        [
+            Paragraph(ar(personal.get("department", "")), cell_style),
+            Paragraph(ar(personal.get("issue_day", "")), cell_style),
+            Paragraph(ar(personal.get("issue_month", "")), cell_style),
+            Paragraph(ar(personal.get("issue_year", "")), cell_style),
+        ],
+        [
+            Paragraph(ar("القسم"), header_cell_style),
+            Paragraph(ar("يوم الإصدار"), header_cell_style),
+            Paragraph(ar("شهر الإصدار"), header_cell_style),
+            Paragraph(ar("سنة الإصدار"), header_cell_style),
+        ]
+    ]
+    t_id = Table(id_data, colWidths=[138.75]*4)
+    t_id.setStyle(TableStyle([
+        ('SPAN', (2, 0), (3, 0)),
+        ('SPAN', (2, 1), (3, 1)),
+        ('BACKGROUND', (0, 1), (-1, 1), yellow_bg),
+        ('BACKGROUND', (0, 3), (-1, 3), yellow_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_id)
+    story.append(Spacer(1, 3))
+
+    # جدول الشهادة وتاريخ الأمر والجهة المانحة
+    deg_data = [
+        [
+            Paragraph(ar(personal.get("degree_day", "")), cell_style),
+            Paragraph(ar(personal.get("degree_month", "")), cell_style),
+            Paragraph(ar(personal.get("order_no_and_date", "")), cell_style),
+            Paragraph(ar(personal.get("degree", "دكتوراه")), cell_style),
+        ],
+        [
+            Paragraph(ar("يوم منح الشهادة"), header_cell_style),
+            Paragraph(ar("شهر منح الشهادة"), header_cell_style),
+            Paragraph(ar("رقم وتاريخ الامر الوزاري او الجامعي"), header_cell_style),
+            Paragraph(ar("الشهادة"), header_cell_style),
+        ],
+        [
+            Paragraph(ar(personal.get("granting_dept", "")), cell_style),
+            Paragraph(ar(personal.get("granting_college", "")), cell_style),
+            Paragraph(ar(personal.get("granting_univ", "")), cell_style),
+            Paragraph(ar(personal.get("granting_country", "العراق")), cell_style),
+        ],
+        [
+            Paragraph(ar("القسم"), header_cell_style),
+            Paragraph(ar("الكلية"), header_cell_style),
+            Paragraph(ar("الجامعة"), header_cell_style),
+            Paragraph(ar("البلد المانح"), header_cell_style),
+        ]
+    ]
+    t_deg = Table(deg_data, colWidths=[138.75]*4)
+    t_deg.setStyle(TableStyle([
+        ('BACKGROUND', (0, 1), (-1, 1), yellow_bg),
+        ('BACKGROUND', (0, 3), (-1, 3), yellow_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_deg)
+    story.append(Spacer(1, 3))
+
+    # جدول الاختصاص
+    spec_data = [
+        [
+            Paragraph(ar(personal.get("specific_specialty", "")), cell_style),
+            Paragraph(ar(personal.get("general_specialty", "")), cell_style),
+        ],
+        [
+            Paragraph(ar("الاختصاص الدقيق"), header_cell_style),
+            Paragraph(ar("الاختصاص العام"), header_cell_style),
+        ]
+    ]
+    t_spec = Table(spec_data, colWidths=[277.5, 277.5])
+    t_spec.setStyle(TableStyle([
+        ('BACKGROUND', (0, 1), (-1, 1), yellow_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_spec)
+    story.append(Spacer(1, 3))
+
+    # جدول اللقب العلمي وتاريخه
+    title_data = [
+        [
+            Paragraph(ar(personal.get("title_day", "")), cell_style),
+            Paragraph(ar(personal.get("title_month", "")), cell_style),
+            Paragraph(ar(personal.get("title_year", "")), cell_style),
+            Paragraph(ar(personal.get("title_granter", personal.get("university", "الجامعة التكنولوجية"))), cell_style),
+            Paragraph(ar(personal.get("academic_title", "أستاذ مساعد")), cell_style),
+        ],
+        [
+            Paragraph(ar("اليوم"), header_cell_style),
+            Paragraph(ar("شهر"), header_cell_style),
+            Paragraph(ar("السنة"), header_cell_style),
+            Paragraph(ar("الجهة المانحة"), header_cell_style),
+            Paragraph(ar("اللقب العلمي"), header_cell_style),
+        ]
+    ]
+    t_title = Table(title_data, colWidths=[80, 80, 80, 157.5, 157.5])
+    t_title.setStyle(TableStyle([
+        ('BACKGROUND', (0, 1), (-1, 1), yellow_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_title)
+    story.append(Spacer(1, 3))
+
+    # جدول الاتصال
+    contact_data = [
+        [
+            Paragraph(ar(personal.get("phone", "")), cell_style),
+            Paragraph(ar(personal.get("email", "")), cell_style),
+        ],
+        [
+            Paragraph(ar("رقم الموبايل"), header_cell_style),
+            Paragraph(ar("البريد الالكتروني"), header_cell_style),
+        ]
+    ]
+    t_contact = Table(contact_data, colWidths=[277.5, 277.5])
+    t_contact.setStyle(TableStyle([
+        ('BACKGROUND', (0, 1), (-1, 1), yellow_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_contact)
+    story.append(Spacer(1, 6))
+
+    story.append(Paragraph(ar("ملاحظة: يتحمل صاحب الاستمارة مسؤولية صحة المعلومات الواردة في الاستمارة."), h1_style))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(ar("6 - 1"), title_style))
+
+    # =========================================================================
+    # الصفحة 2 (6 - 2) : المحور الأول والمحور الثاني (1 و 2)
+    # =========================================================================
+    story.append(PageBreak())
+
+    story.append(Paragraph(ar("المحور الأول : تقييم الطالب للمادة الدراسية وطريقة التدريس (10 درجة)"), title_style))
+    story.append(Spacer(1, 4))
+
+    ax1_desc1 = ar("• يقوم المحاضر بتقديم موجز عن عملية التدريس والتقييم وفق مسار بولونيا للطلبة في أول محاضرة.<br/>• يقوم المحاضر بتقديم وشرح دليل وصف المادة الدراسية في الأسبوع الأول للفصل الدراسي.<br/>• يلتزم المحاضر بطريقة التقييم التكويني من حيث عدد الامتحانات القصيرة والواجبات المنزلية والفعاليات العلمية ومواعيدها والمذكورة في دليل وصف المادة الدراسية.<br/>• يقوم المحاضر بتوضيح علاقة مفردات المنهاج الأسبوعي بمخرجات التعلم.<br/>الدرجة القصوى (4) درجات درجة واحدة لكل فقرة")
+    ax1_desc2 = ar("• طريقة التدريس والمحاضرة مثيرة للاهتمام وتحفز الطالب ليفهم المادة العلمية.<br/>• يتم تزويد الطالب بقائمة من المراجع المختلفة بالإضافة للمراجع الرئيسية.<br/>• يعطي المحاضر الوقت الكافي للأسئلة والأجوبة خلال المحاضرة.<br/>• يستخدم المحاضر التقنيات اللازمة وأدوات الصوت والفيديو لشرح محاضراته.<br/>• خلال المحاضرة يعامل المحاضر الطلاب باحترام.<br/>• تعكس أسئلة الامتحان محتويات المادة العلمية المرتبطة بمخرجات التعلم.<br/>الدرجة القصوى (6) درجات درجة واحدة لكل فقرة")
+
+    tbl_ax1_data = [
+        [
+            Paragraph(ar("الدرجة المعطاة"), header_cell_style),
+            Paragraph(ar("تفصيل الدرجة"), header_cell_style),
+            Paragraph(ar("التوصيف"), header_cell_style),
+            Paragraph(ar("الفقرات"), header_cell_style),
+            Paragraph(ar("ت"), header_cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis1"]["items"]["p1_bologna"])), cell_style),
+            Paragraph(ar("4"), cell_style),
+            Paragraph(ax1_desc1, cell_right_style),
+            Paragraph(ar("التدريس وفق مسار بولونيا"), cell_style),
+            Paragraph(ar("1"), cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis1"]["items"]["p2_efficiency"])), cell_style),
+            Paragraph(ar("6"), cell_style),
+            Paragraph(ax1_desc2, cell_right_style),
+            Paragraph(ar("كفاءة الأستاذ وطريقة التدريس"), cell_style),
+            Paragraph(ar("2"), cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis1"]["total_score"])), cell_style),
+            Paragraph(ar("10"), cell_style),
+            Paragraph(ar("الدرجة النهائية للمحور الأول"), cell_style),
+            Paragraph(ar(""), cell_style),
+            Paragraph(ar(""), cell_style)
+        ]
+    ]
+    t_ax1 = Table(tbl_ax1_data, colWidths=[65, 55, 290, 120, 25])
+    t_ax1.setStyle(TableStyle([
+        ('SPAN', (2, 3), (4, 3)),
+        ('BACKGROUND', (0, 0), (-1, 0), yellow_bg),
+        ('BACKGROUND', (0, 3), (-1, 3), gray_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_ax1)
+    story.append(Spacer(1, 6))
+
+    story.append(Paragraph(ar("المحور الثاني: تقييم حقيبة الاستاذ (60 درجة)"), title_style))
+    story.append(Spacer(1, 4))
+
+    load_pts = 4.0 if data.get("axis2_portfolio", {}).get("teaching_load_status", "full") in ["full", "partial_department_assigned"] else 2.0
+    comm_pts = min(4.0, eval_res["axis2"]["items"]["p1_responsibilities"] - load_pts)
+
+    tbl_ax2_data = [
+        [
+            Paragraph(ar("الدرجة"), header_cell_style),
+            Paragraph(ar("المقاييس"), header_cell_style),
+            Paragraph(ar("المؤشرات وقيمها القصوى"), header_cell_style),
+            Paragraph(ar("الأبعاد الفرعية وقيمها القصوى"), header_cell_style),
+            Paragraph(ar("#"), header_cell_style)
+        ],
+        [
+            Paragraph(ar(str(load_pts)), cell_style),
+            Paragraph(ar("• درجة كاملة في حال اكتمال النصاب (4)<br/>• (2 درجة) في حال عدم اكتمال النصاب<br/>(ملاحظة: التدريسي الراغب وغير القادر قسمه يكلف بمهام داخل القسم)"), cell_right_style),
+            Paragraph(ar("الحمل التدريسي (نصاب عضو هيئة التدريس)<br/>(4 درجات)"), cell_style),
+            Paragraph(ar("واجبات ومسؤوليات أعضاء هيئة التدريس<br/>(8 درجات)"), cell_style),
+            Paragraph(ar("1"), cell_style)
+        ],
+        [
+            Paragraph(ar(str(max(0.0, comm_pts))), cell_style),
+            Paragraph(ar("يتم تجميع الدرجات من النشاطات:<br/>• 4 درجات لكل لجنة دائمية<br/>• 2 درجة لكل لجنة مؤقتة"), cell_right_style),
+            Paragraph(ar("عضوية اللجان العلمية في القسم والكلية والجامعة والوزارة (4 درجات)"), cell_style),
+            Paragraph(ar("تابع واجبات ومسؤوليات أعضاء هيئة التدريس"), cell_style),
+            Paragraph(ar(""), cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis2"]["items"]["p2_skills"])), cell_style),
+            Paragraph(ar("يتم تجميع الدرجات من النشاطات:<br/>• درجتان لكتاب شكر من القسم<br/>• ثلاث درجات لكتاب شكر من الكلية<br/>• أربع درجات لكتاب شكر من الجامعة<br/>• خمس درجات لكتاب شكر من الوزارة<br/>• خمس درجات لجائزة أكاديمية"), cell_right_style),
+            Paragraph(ar("كتب الشكر والتقدير والجوائز الأكاديمية<br/>(5 درجات)"), cell_style),
+            Paragraph(ar("كفاءة التدريسي في تحقيق مهارات ومعارف وقيم معينة<br/>(5 درجات)"), cell_style),
+            Paragraph(ar("2"), cell_style)
+        ]
+    ]
+    t_ax2_p12 = Table(tbl_ax2_data, colWidths=[55, 230, 135, 110, 25])
+    t_ax2_p12.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), yellow_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_ax2_p12)
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(ar("6 - 2"), title_style))
+
+    # =========================================================================
+    # الصفحة 3 (6 - 3) : المحور الثاني (3 و 4)
+    # =========================================================================
+    story.append(PageBreak())
+
+    res_desc = ar("• 20 درجة لبراءة اختراع دولية مسجلة في WIPO<br/>• 5 درجات لبراءة اختراع محلية<br/>• 8-12 درجة لبحث منشور في مجلة كلاريفيت وسكوبس معاً (IF < 1: 8, IF 1-5: 10, IF > 5: 12)<br/>• 12 درجة لكتاب سكوبس/كلاريفيت أول، 8 ثان، 6 ثالث<br/>• 7 درجات لفصل كتاب أول، 4 ثان<br/>• 10 درجات لكتاب بطلب رسمي من الجامعة<br/>• 10-7 درجات لبحث سكوبس فقط (Q1: 10, Q2: 9, Q3: 8, Q4: 7)<br/>• 5 درجات لبحث غير مؤرشف مع DOI وميتاداتا وانتساب<br/>ملاحظات: لا يؤخذ ببحث دون انتساب أول عدا الدكتوراه. يضاف 1 للباحث الأول والمراسل. يخصم 2 لتسلسل 5-10، و50% لأكثر من 10. سقف الدرجة (20).")
+
+    tbl_ax2_p34_data = [
+        [
+            Paragraph(ar("الدرجة"), header_cell_style),
+            Paragraph(ar("المقاييس"), header_cell_style),
+            Paragraph(ar("المؤشرات وقيمها القصوى"), header_cell_style),
+            Paragraph(ar("الأبعاد الفرعية وقيمها القصوى"), header_cell_style),
+            Paragraph(ar("#"), header_cell_style)
+        ],
+        [
+            Paragraph(ar("محتسب"), cell_style),
+            Paragraph(ar("• 4 درجات لعقد دورة تدريبية لا تقل عن 24 ساعة وعن أسبوع<br/>• درجتان لعقد وتقديم ورشة عمل<br/>• درجتان لتقديم ندوة أو سمينار"), cell_right_style),
+            Paragraph(ar("عقد الدورات التدريبية وورش العمل والندوات العلمية (6 درجات)"), cell_style),
+            Paragraph(ar("التدريب والتعليم المستمر<br/>(20 درجة)"), cell_style),
+            Paragraph(ar("3"), cell_style)
+        ],
+        [
+            Paragraph(ar("محتسب"), cell_style),
+            Paragraph(ar("• درجتان لحضور دورة تدريبية<br/>• درجتان لحضور مؤتمر علمي مع تقديم ورقة علمية<br/>• درجة واحدة لحضور مؤتمر بدون ورقة علمية"), cell_right_style),
+            Paragraph(ar("حضور الدورات التدريبية او المؤتمرات العلمية ذات العلاقة بالتخصص (4 درجات)"), cell_style),
+            Paragraph(ar("تابع التدريب والتعليم المستمر"), cell_style),
+            Paragraph(ar(""), cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis2"]["items"]["p3_training"])), cell_style),
+            Paragraph(ar("درجة واحدة لحضور سمينار او ورشة عمل داخل الجامعة مع تقديم فيدباك"), cell_right_style),
+            Paragraph(ar("حضور الندوات العلمية – سمينار وورش العمل (10 درجات)"), cell_style),
+            Paragraph(ar("تابع التدريب والتعليم المستمر"), cell_style),
+            Paragraph(ar(""), cell_style)
+        ],
+        [
+            Paragraph(ar(f"خام: {eval_res['axis2']['items']['p4_research_raw']}<br/>بعد المعامل: {eval_res['axis2']['items']['p4_research']}"), cell_style),
+            Paragraph(res_desc, cell_right_style),
+            Paragraph(ar("نشر الابحاث والكتب وبراءات الاختراع (20 درجة)"), cell_style),
+            Paragraph(ar("رؤية الجامعة في البحث والتطوير ودعم القطاعات العلمية والصناعية<br/>(20 درجة)"), cell_style),
+            Paragraph(ar("4"), cell_style)
+        ]
+    ]
+    t_ax2_p34 = Table(tbl_ax2_p34_data, colWidths=[65, 235, 125, 105, 25])
+    t_ax2_p34.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), yellow_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_ax2_p34)
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(ar("6 - 3"), title_style))
+
+    # =========================================================================
+    # الصفحة 4 (6 - 4) : تابع المحور الثاني والمحور الثالث
+    # =========================================================================
+    story.append(PageBreak())
+
+    # جدول معامل اللقب العلمي
+    mult_data = [
+        [
+            Paragraph(ar("مدرس مساعد (180%)"), header_cell_style),
+            Paragraph(ar("مدرس / محاضر (160%)"), header_cell_style),
+            Paragraph(ar("أستاذ مساعد (140%)"), header_cell_style),
+            Paragraph(ar("أستاذ (100%)"), header_cell_style),
+        ],
+        [
+            Paragraph(ar("مضروباً بـ 1.8"), cell_style),
+            Paragraph(ar("مضروباً بـ 1.6"), cell_style),
+            Paragraph(ar("مضروباً بـ 1.4"), cell_style),
+            Paragraph(ar("مضروباً بـ 1.0"), cell_style),
+        ]
+    ]
+    t_mult = Table(mult_data, colWidths=[138.75]*4)
+    t_mult.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), yellow_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_mult)
+    story.append(Spacer(1, 4))
+
+    tbl_ax2_p56_data = [
+        [
+            Paragraph(ar("الدرجة"), header_cell_style),
+            Paragraph(ar("المقاييس"), header_cell_style),
+            Paragraph(ar("المؤشرات وقيمها القصوى"), header_cell_style),
+            Paragraph(ar("الأبعاد الفرعية وقيمها القصوى"), header_cell_style),
+            Paragraph(ar("#"), header_cell_style)
+        ],
+        [
+            Paragraph(ar("محتسب"), cell_style),
+            Paragraph(ar("• درجتان لعضوية مؤسسة دولية كـ Senior or Fellow Member<br/>• درجة واحدة لعضوية مؤسسة دولية كـ Member"), cell_right_style),
+            Paragraph(ar("عضوية المؤسسات العلمية الدولية (درجتان)"), cell_style),
+            Paragraph(ar("النشاط الدولي<br/>(5 درجات)"), cell_style),
+            Paragraph(ar("5"), cell_style)
+        ],
+        [
+            Paragraph(ar("محتسب"), cell_style),
+            Paragraph(ar("• 4 درجات للجنة تحرير بكلاريفيت، 3 بسكوبس، 1 غير مؤرشفة<br/>• درجة واحدة لتقييم بحث لمجلة بسكوبس أو كلاريفيت"), cell_right_style),
+            Paragraph(ar("عضوية لجان تحرير المجالت المؤرشفة وتقييم بحوثها (4 درجات)"), cell_style),
+            Paragraph(ar("تابع النشاط الدولي"), cell_style),
+            Paragraph(ar(""), cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis2"]["items"]["p5_intl"])), cell_style),
+            Paragraph(ar("• درجتان كمتحدث رئيسي Keynote speaker بمؤتمر دولي<br/>• درجة واحدة كمتحدث رئيسي بمؤتمر وطني"), cell_right_style),
+            Paragraph(ar("متحدث رئيسي في المؤتمرات الدولية (درجتان)"), cell_style),
+            Paragraph(ar("تابع النشاط الدولي"), cell_style),
+            Paragraph(ar(""), cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis2"]["items"]["p6_revenue"])), cell_style),
+            Paragraph(ar("درجة كاملة في حال الحصول على دعم مالي (Fund) للجامعة من خلال عمل أو مشروع"), cell_right_style),
+            Paragraph(ar("جلب الأموال إلى الجامعة (درجتان)"), cell_style),
+            Paragraph(ar("دعم إيرادات الجامعة<br/>(درجتان)"), cell_style),
+            Paragraph(ar("6"), cell_style)
+        ]
+    ]
+    t_ax2_p56 = Table(tbl_ax2_p56_data, colWidths=[55, 235, 135, 105, 25])
+    t_ax2_p56.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), yellow_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_ax2_p56)
+    story.append(Spacer(1, 6))
+
+    story.append(Paragraph(ar("3. المحور الثالث: تقييم رئيس القسم للعملية التعليمية واالستاذ الجامعي (15 درجة)"), title_style))
+    story.append(Spacer(1, 4))
+
+    ax3_desc = ar("• يشمل التقييم رأي رئيس القسم بمدى جدية وتعاون التدريسي مع القسم والعمل على تحقيق أهدافه وخصوصا فيما يخص تطبيق مسار بولونيا<br/>• في حال وجود عقوبات إدارية تؤخذ بنظر الاعتبار وكما يلي: لفت نظر (خصم 3)، الإنذار (خصم 4)، قطع الراتب (خصم 5)، التوبيخ (خصم 6)، إنقاص الراتب (خصم 7)، تنزيل الدرجة (خصم 8). الدرجة القصوى (15) درجة.")
+
+    tbl_ax3_data = [
+        [
+            Paragraph(ar("الدرجة المعطاة"), header_cell_style),
+            Paragraph(ar("تفصيل الدرجة"), header_cell_style),
+            Paragraph(ar("التوصيف"), header_cell_style),
+            Paragraph(ar("الفقرات"), header_cell_style),
+            Paragraph(ar("ت"), header_cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis3"]["total_score"])), cell_style),
+            Paragraph(ar("15"), cell_style),
+            Paragraph(ax3_desc, cell_right_style),
+            Paragraph(ar("الالتزام برسالة القسم ورؤيته"), cell_style),
+            Paragraph(ar("1"), cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis3"]["total_score"])), cell_style),
+            Paragraph(ar("15"), cell_style),
+            Paragraph(ar("الدرجة النهائية للمحور الثالث"), cell_style),
+            Paragraph(ar(""), cell_style),
+            Paragraph(ar(""), cell_style)
+        ]
+    ]
+    t_ax3 = Table(tbl_ax3_data, colWidths=[65, 55, 290, 120, 25])
+    t_ax3.setStyle(TableStyle([
+        ('SPAN', (2, 2), (4, 2)),
+        ('BACKGROUND', (0, 0), (-1, 0), yellow_bg),
+        ('BACKGROUND', (0, 2), (-1, 2), gray_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_ax3)
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(ar("6 - 4"), title_style))
+
+    # =========================================================================
+    # الصفحة 5 (6 - 5) : المحور الرابع والنتائج النهائية والمصادقات
+    # =========================================================================
+    story.append(PageBreak())
+
+    story.append(Paragraph(ar("4. المحور الرابع: الجانب التربوي والارشادي (15 درجة)"), title_style))
+    story.append(Spacer(1, 4))
+
+    ax4_desc1 = ar("تمنح (5) درجات للمشاركة بصفة محاضر في التعليم المستمر والجودة، تمنح (4) درجات للمشاركة بصفة حضور في التعليم المستمر والجودة (فقط حضورين)، تمنح (3) درجات للمشاركة في دورات طرائق التدريس الحديثة في التعليم المستمر. الدرجة القصوى لهذه الفقرة (5) درجات")
+    ax4_desc2 = ar("- تمنح (10) درجات لكل زيارة ميدانية للإشراف على الطلبة في مجال التطبيقات العملية أو التحليلات المختبرية أو السريرية أو السفرات العلمية.<br/>- تمنح (5) درجات لكل عمل تطوعي داخل وزارة التعليم العالي موثق بكتاب رسمي.<br/>- تمنح (5) درجات لكل تدقيق لغوي أو علمي أو إقامة ندوة أو ورشة أو مقال أو زيارة دار أيتام أو خدمة مستشفيات أو منظمات مجتمع مدني خارج وزارة التعليم العالي. الدرجة القصوى للفقرة (10) درجات")
+
+    tbl_ax4_data = [
+        [
+            Paragraph(ar("الدرجة المعطاة"), header_cell_style),
+            Paragraph(ar("تفصيل الدرجة"), header_cell_style),
+            Paragraph(ar("التوصيف"), header_cell_style),
+            Paragraph(ar("الفقرات"), header_cell_style),
+            Paragraph(ar("ت"), header_cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis4"]["items"]["p1_qa"])), cell_style),
+            Paragraph(ar("5"), cell_style),
+            Paragraph(ax4_desc1, cell_right_style),
+            Paragraph(ar("المشاركة في لجان التعليم المستمر والجودة"), cell_style),
+            Paragraph(ar("1"), cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis4"]["items"]["p2_field"])), cell_style),
+            Paragraph(ar("10"), cell_style),
+            Paragraph(ax4_desc2, cell_right_style),
+            Paragraph(ar("الزيارات الميدانية والحقلية واالعمال التطوعية داخل الجامعة وخارجها"), cell_style),
+            Paragraph(ar("4"), cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis4"]["total_score"])), cell_style),
+            Paragraph(ar("15"), cell_style),
+            Paragraph(ar("الدرجة النهائية للمحور الرابع"), cell_style),
+            Paragraph(ar(""), cell_style),
+            Paragraph(ar(""), cell_style)
+        ]
+    ]
+    t_ax4 = Table(tbl_ax4_data, colWidths=[65, 55, 290, 120, 25])
+    t_ax4.setStyle(TableStyle([
+        ('SPAN', (2, 3), (4, 3)),
+        ('BACKGROUND', (0, 0), (-1, 0), yellow_bg),
+        ('BACKGROUND', (0, 3), (-1, 3), gray_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_ax4)
+    story.append(Spacer(1, 6))
+
+    story.append(Paragraph(ar("النتائج النهائية للتقييم :"), title_style))
+    story.append(Spacer(1, 3))
+
+    tbl_res_data = [
+        [
+            Paragraph(ar("الدرجة"), header_cell_style),
+            Paragraph(ar("وزن المحور"), header_cell_style),
+            Paragraph(ar("المحاور"), header_cell_style),
+            Paragraph(ar("ت"), header_cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis1"]["weighted_score"])), cell_style),
+            Paragraph(ar("%10"), cell_style),
+            Paragraph(ar("تقييم الطالب"), cell_right_style),
+            Paragraph(ar("1"), cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis2"]["weighted_score"])), cell_style),
+            Paragraph(ar("%60"), cell_style),
+            Paragraph(ar("حقيبة الاستاذ"), cell_right_style),
+            Paragraph(ar("2"), cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis3"]["weighted_score"])), cell_style),
+            Paragraph(ar("%15"), cell_style),
+            Paragraph(ar("تقييم رئيس القسم للعملية التعليمية واالستاذ الجامعي"), cell_right_style),
+            Paragraph(ar("3"), cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["axis4"]["weighted_score"])), cell_style),
+            Paragraph(ar("%15"), cell_style),
+            Paragraph(ar("الجانب التربوي والارشادي"), cell_right_style),
+            Paragraph(ar("4"), cell_style)
+        ],
+        [
+            Paragraph(ar(str(eval_res["final_score"])), cell_style),
+            Paragraph(ar("%100"), cell_style),
+            Paragraph(ar("مجموع المحاور"), cell_right_style),
+            Paragraph(ar("5"), cell_style)
+        ],
+        [
+            Paragraph(ar(f"{eval_res['final_score']} ({eval_res['score_in_words']})"), cell_style),
+            Paragraph(ar("مجموع الدرجات النهائية للتقييم (رقماً وتفقيطاً)"), cell_style),
+            Paragraph(ar(""), cell_style),
+            Paragraph(ar(""), cell_style)
+        ],
+        [
+            Paragraph(ar(f"★ {eval_res['rating']} ★"), cell_style),
+            Paragraph(ar("التقدير النهائي للتقييم"), cell_style),
+            Paragraph(ar(""), cell_style),
+            Paragraph(ar(""), cell_style)
+        ]
+    ]
+    t_res = Table(tbl_res_data, colWidths=[120, 85, 325, 25])
+    t_res.setStyle(TableStyle([
+        ('SPAN', (1, 6), (3, 6)),
+        ('SPAN', (1, 7), (3, 7)),
+        ('BACKGROUND', (0, 0), (-1, 0), yellow_bg),
+        ('BACKGROUND', (0, 5), (-1, 5), gray_bg),
+        ('BACKGROUND', (0, 7), (-1, 7), light_yellow_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_res)
+    story.append(Spacer(1, 4))
+
+    # التقديرات الوزارية
+    tbl_rb_data = [
+        [
+            Paragraph(ar("ضعيف ( اقل من 70)"), cell_style),
+            Paragraph(ar("جيد (79-70)"), cell_style),
+            Paragraph(ar("جيد جدا ( 89-80)"), cell_style),
+            Paragraph(ar("امتياز (90 فأكثر)"), cell_style),
+        ]
+    ]
+    t_rb = Table(tbl_rb_data, colWidths=[138.75]*4)
+    t_rb.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), yellow_bg),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_rb)
+    story.append(Spacer(1, 6))
+
+    # التواقيع والمصادقات
+    sig_data = [
+        [
+            Paragraph(ar("التوقيع : ...................................<br/>اسم المسؤول الاعلى : ......................<br/>التاريخ :        /      /  2026"), cell_right_style),
+            Paragraph(ar("التوقيع : ...................................<br/>اسم المسؤول المباشر : .....................<br/>التاريخ :        /      /  2026"), cell_right_style),
+        ],
+        [
+            Paragraph(ar("مصادقة رئيس الجامعة<br/><br/>...................................................................."), title_style),
+            Paragraph(ar(""), cell_style),
+        ]
+    ]
+    t_sig = Table(sig_data, colWidths=[277.5, 277.5])
+    t_sig.setStyle(TableStyle([
+        ('SPAN', (0, 1), (1, 1)),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+    ]))
+    story.append(t_sig)
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(ar("6 - 5"), title_style))
+
+    # =========================================================================
+    # الصفحة 6 (6 - 6) : تعليمات وضوابط مسار بولونيا
+    # =========================================================================
+    story.append(PageBreak())
+
+    story.append(Paragraph(ar("تعليمات وضوابط :"), title_style))
+    story.append(Spacer(1, 4))
+
+    instructions = [
+        "1. تشمل الاستمارة تدريسيي مسار بولونيا من غير الإداريين والمجازين دراسياً أو وفق قانون 2020.",
+        "2. حساب مؤشر الأداء الأكاديمي يكون مشروطاً بقيام عضو هيئة التدريس التسجيل بمنصة إدارة معلومات مسار بولونيا والتي تدار من قبل وزارة التعليم العالي والبحث العلمي وتقديم كافة المعلومات المطلوبة وبخلافه يحسب مؤشر الأداء الأكاديمي صفراً.",
+        "3. أي عضو هيئة تدريس يقوم بتدريس مادة دراسية واحدة على الأقل يكون تحت طائلة حساب مؤشر الأداء الأكاديمي ومن خلال منصة إلكترونية تقوم الجامعة بتهيئتها لضمان الشفافية والكفاءة وتقديم كتب إثباتات النشاطات العلمية إلكترونياً.",
+        "4. يتم أخذ تقييم الطالب حول المادة الدراسية وطريقة التدريس إلكترونياً وفي نهاية كل فصل دراسي وقبل بدء امتحانات نهاية الفصل (في الأسبوع العاشر) على أن تستمر عملية جمع تقييمات الطلبة لمدة أسبوع واحد.",
+        "5. يتم حساب النصاب لعضو هيئة التدريس وفق عدد ساعات التدريس الفعلية وبتكليف من القسم بغض النظر عن تخصص المادة الدراسية وطبيعتها، وتراعى التعليمات الصادرة بخصوص قيمة الساعات النظرية مقابل الساعات العملية والمختبرية إن كان هنالك اختلاف.",
+        "6. أي نشاط داخل القسم يتم تقاضي أجر لقائه لا يعتبر لغرض حساب مؤشر الأداء الأكاديمي، مثل الإشراف على رسائل الماجستير والدكتوراه ومناقشاتها وكذلك تقييم بحوث الترقية لقاء مبلغ مالي.",
+        "7. لا يعتد بشهادات حضور السمينارات وحضور المؤتمرات العلمية او الدورات التدريبية التي تقام عبر الانترنت (أونلاين) أو خارج الجامعة عدا التي تقام بإشراف الوزارة او بموافقة الجامعة وبشكل رسمي.",
+        "8. لا يتم احتساب حضور السمينارات داخل الجامعة بدون قيام التدريسيين الذين حضروا السمينار من تقديم فيدباك حول رأيهم بموضوع السمينار وكفاءة مقدم السمينار وطريقة العرض والجوانب الأخرى وخلال فترة لا تتجاوز الأسبوع من تاريخ تقديم السمينار وذلك من خلال استمارة إلكترونية يتم إعدادها للغرض من قبل ضمان جودة الجامعة أو الكلية.",
+        "9. على رئيس القسم الاطلاع دورياً على حسابات نظام إدارة التعلم الخاص بالتدريسيين في قسمه وبالتعاون مع مدير النظام.",
+        "10. بخصوص الفقرة الرابعة 'رؤية الجامعة في البحث والتطوير ودعم القطاعات العلمية والصناعية' والواردة في تقييم حقيبة الأستاذ، يتم ضرب درجة هذه الفقرة حسب الآتي:\n   - مضروباً بـ 100% للتدريسي بدرجة 'أستاذ'\n   - مضروباً بـ 140% للتدريسي بدرجة 'أستاذ مساعد'\n   - مضروباً بـ 160% للتدريسي بدرجة 'مدرس' (محاضر)\n   - مضروباً بـ 180% للتدريسي بدرجة 'مدرس مساعد' (محاضر مساعد)",
+        "11. تلتزم الجامعة بتعليمات الوزارة الصادرة بخصوص النشر العلمي والنشر في المجلات التجارية أو المجلات المفترسة أو المجلات التي تدرج ضمن القائمة السوداء.",
+        "12. تكون هذه الوثيقة جزء من 'سياسة ضمان جودة مسار بولونيا' والتي يجب على الجامعة أو المؤسسة التعليمية كتابتها وإصدارها وجعلها متاحة لجميع أعضاء هيئة التدريس على موقع الجامعة وذلك حسب متطلبات المعيار الأول من تقرير ضمان وتعزيز الجودة السنوي."
+    ]
+
+    for inst in instructions:
+        story.append(Paragraph(ar(inst), cell_right_style))
+        story.append(Spacer(1, 2))
+
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(ar("6 - 6"), title_style))
+
+    # =========================================================================
+    # صفحة الملحق التوثيقي : جدول المرفقات المعالجة بنظام OCR
+    # =========================================================================
+    if attachments:
+        story.append(PageBreak())
+        story.append(Paragraph(ar("ملحق التوثيق والأدلة: جدول الوثائق والمرفقات المستخرجة بنظام OCR لمسار بولونيا"), title_style))
+        story.append(Spacer(1, 4))
+
+        att_header = [
+            Paragraph(ar("الدرجة"), header_cell_style),
+            Paragraph(ar("المحور والفقرة"), header_cell_style),
+            Paragraph(ar("الموضوع / النشاط"), header_cell_style),
+            Paragraph(ar("التاريخ"), header_cell_style),
+            Paragraph(ar("العدد / الإشارة"), header_cell_style),
+            Paragraph(ar("نوع الوثيقة"), header_cell_style),
+            Paragraph(ar("رمز الفهرسة"), header_cell_style),
+            Paragraph(ar("ت"), header_cell_style)
+        ]
+        att_rows = [att_header]
+        for idx, att in enumerate(attachments, start=1):
+            ref_code = att.get("ref_code", f"REF-P39-{idx:02d}")
+            att_rows.append([
+                Paragraph(ar(str(att.get("suggested_score", 0))), cell_style),
+                Paragraph(ar(f"{att.get('axis_name', att.get('axis', ''))} - ف{att.get('suggested_paragraph', att.get('paragraph', ''))}"), cell_style),
+                Paragraph(ar(att.get("title", att.get("filename", ""))), cell_right_style),
+                Paragraph(ar(att.get("date", "-")), cell_style),
+                Paragraph(ar(att.get("document_number", att.get("doc_number", "-"))), cell_style),
+                Paragraph(ar(att.get("type_arabic", att.get("doc_type", att.get("type", "وثيقة")))), cell_style),
+                Paragraph(ar(ref_code), cell_style),
+                Paragraph(ar(str(idx)), cell_style)
+            ])
+        t_att = Table(att_rows, colWidths=[40, 75, 150, 60, 65, 80, 60, 25])
+        t_att.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), yellow_bg),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+        ]))
+        story.append(t_att)
+
+    doc.build(story)
+    return output_path
+
 
