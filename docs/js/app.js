@@ -361,8 +361,8 @@ function initEventListeners() {
     // أزرار التصدير
     safeAddListener("btn-export-docx", "click", exportDocx);
     safeAddListener("btn-export-pdf", "click", exportPdf);
-    safeAddListener("btn-export-dossier-pdf", "click", exportDossierPdf);
-    safeAddListener("btn-export-f39-dossier-pdf", "click", exportDossierPdf);
+    safeAddListener("btn-export-dossier-pdf", "click", () => exportDossierPdf("btn-export-dossier-pdf"));
+    safeAddListener("btn-export-f39-dossier-pdf", "click", () => exportDossierPdf("btn-export-f39-dossier-pdf"));
     safeAddListener("btn-print", "click", () => window.print());
 
     // أزرار الحفظ والاسترجاع والبيانات التجريبية
@@ -4459,11 +4459,10 @@ async function exportPdf() {
     window.print();
 }
 
-async function exportDossierPdf() {
-    // دعم زر استمارة 21 وزر استمارة 39 (بولونيا)
-    const btn = document.getElementById("btn-export-f39-dossier-pdf") && (formData.form_type === "form39" || !formData.form_type)
-        ? document.getElementById("btn-export-f39-dossier-pdf")
-        : document.getElementById("btn-export-dossier-pdf");
+async function exportDossierPdf(btnId) {
+    // يقبل معرف الزر مباشرة لدعم زر استمارة 21 وزر استمارة 39 (بولونيا) بشكل موثوق
+    const resolvedId = btnId || "btn-export-dossier-pdf";
+    const btn = document.getElementById(resolvedId);
     if (!btn) return;
     btn.disabled = true;
     btn.innerHTML = `<span class="spinner"></span> جاري تجميع الاستمارة والمرفقات...`;
