@@ -6470,24 +6470,8 @@ function getLocalUsersDb() {
         }
     } catch (e) {}
 
-    // الحساب الافتراضي للمشرف العام
-    const defaultUsers = [
-        {
-            id: 1,
-            username: "drahmedlouay",
-            email: "drahmedlouay@uotechnology.edu.iq",
-            password: "drahmedlouay2026",
-            full_name: "أ.م.د. أحمد لؤي أحمد",
-            university: "الجامعة التكنولوجية",
-            college: "الجامعة التكنولوجية",
-            department: "قسم هندسة العمارة",
-            academic_rank: "أستاذ مساعد",
-            role: "admin",
-            is_admin: true,
-            created_at: "2026-09-01T10:00:00",
-            last_login: null
-        }
-    ];
+    // قائمة المستخدمين المحليين تبدأ فارغة
+    const defaultUsers = [];
     saveLocalUsersDb(defaultUsers);
     return defaultUsers;
 }
