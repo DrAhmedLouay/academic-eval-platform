@@ -1536,6 +1536,154 @@ def deep_scan_and_index_document(
         }
         auto_fill_summary.append(f"تمت فهرسة وثيقة مواطن القوة '{subject_title}' وإضافة {awarded} درجات.")
 
+    elif axis in ["axis1_bologna", "axis1_bol"]:
+        field_updates = {
+            "action": "bologna_axis1_update",
+            "paragraph": paragraph,
+            "ref_code": ref_code,
+            "title": subject_title,
+            "doc_no": doc_number or "وثيقة رسمية",
+            "date": dates[0] if dates else "2025/2026",
+            "score": score_delta
+        }
+        auto_fill_summary.append(f"تمت قراءة وفهرسة وثيقة مسار بولونيا (المحور 1 / فقرة {paragraph}) بالرمز [{ref_code}].")
+
+    elif axis in ["axis2_portfolio", "axis2_port"]:
+        if paragraph in ["committees", "committee", "b"]:
+            c_type = "permanent" if any(k in text for k in ["دائم", "دائمية"]) else "temporary"
+            field_updates = {
+                "action": "add_bologna_committee",
+                "item": {
+                    "ref_code": ref_code,
+                    "name": subject_title,
+                    "type": c_type,
+                    "entity": parsed.get("issuer", "الكلية / القسم"),
+                    "order_no_date": f"{doc_number or 'أمر إداري'} في {dates[0] if dates else '2025/2026'}",
+                    "score": 4.0 if c_type == "permanent" else 2.0
+                }
+            }
+            auto_fill_summary.append(f"تمت قراءة وفهرسة أمر تشكيل لجنة علمية ({subject_title}) بالرقم {doc_number} وإضافتها لحقيبة الأستاذ.")
+        elif paragraph in ["appreciation", "appreciations", "2"]:
+            iss = parsed.get("issuer", "الجامعة التكنولوجية")
+            appr_type = "ministry" if "وزار" in text or "وزير" in text else ("university" if "جامع" in text or "رئيس الجامعة" in text else ("college" if "عميد" in text or "كلي" in text else "department"))
+            awarded = 5.0 if appr_type in ["ministry", "award"] else (4.0 if appr_type == "university" else (3.0 if appr_type == "college" else 2.0))
+            field_updates = {
+                "action": "add_bologna_appreciation",
+                "item": {
+                    "ref_code": ref_code,
+                    "type": appr_type,
+                    "issuer": iss,
+                    "subject": subject_title,
+                    "letter_no_date": f"{doc_number or 'كتاب رسمي'} في {dates[0] if dates else '2025/2026'}",
+                    "score": awarded
+                }
+            }
+            auto_fill_summary.append(f"تمت قراءة وفهرسة كتاب شكر/جائزة من ({iss}) بالعدد {doc_number} وإسناد {awarded} درجات.")
+        elif paragraph in ["research", "4"]:
+            doi = identifiers.get("doi") or doc_number or ""
+            field_updates = {
+                "action": "add_bologna_research",
+                "item": {
+                    "ref_code": ref_code,
+                    "category": "scopus_first",
+                    "title": subject_title,
+                    "journal": "مجلة علمية مفهرسة (Scopus / Clarivate)",
+                    "role": "الباحث الأول",
+                    "score": 20.0,
+                    "doi": doi
+                }
+            }
+            auto_fill_summary.append(f"تمت قراءة وفهرسة البحث العلمي '{subject_title[:60]}' وإضافته لقائمة الأبحاث بحقيبة الأستاذ.")
+        elif paragraph in ["holding", "3a"]:
+            field_updates = {
+                "action": "add_bologna_holding",
+                "item": {
+                    "ref_code": ref_code,
+                    "type": "workshop" if "ورش" in text else ("seminar" if "ندوة" in text or "سمينار" in text else "course"),
+                    "title": subject_title,
+                    "duration": "أسبوع / 24 ساعة",
+                    "score": 4.0
+                }
+            }
+            auto_fill_summary.append(f"تمت قراءة وفهرسة نشاط عقد الدورة/الورشة '{subject_title}' وإضافته للحقيبة.")
+        elif paragraph in ["attending", "3b"]:
+            field_updates = {
+                "action": "add_bologna_attending",
+                "item": {
+                    "ref_code": ref_code,
+                    "type": "conference" if "مؤتمر" in text else "course",
+                    "title": subject_title,
+                    "organizer": parsed.get("issuer", "الجامعة التكنولوجية"),
+                    "score": 2.0
+                }
+            }
+            auto_fill_summary.append(f"تمت قراءة وفهرسة شهادة حضور الدورة/المؤتمر '{subject_title}' وإضافتها للحقيبة.")
+        elif paragraph in ["editorial", "5"]:
+            field_updates = {
+                "action": "add_bologna_editorial",
+                "item": {
+                    "ref_code": ref_code,
+                    "type": "editorial_board" if "تحرير" in text else "reviewer",
+                    "journal": subject_title,
+                    "score": 2.0
+                }
+            }
+            auto_fill_summary.append(f"تمت قراءة وفهرسة وثيقة النشاط الدولي/التحكيم '{subject_title}'.")
+        else:
+            field_updates = {
+                "action": "bologna_axis2_generic",
+                "ref_code": ref_code,
+                "title": subject_title,
+                "doc_no": doc_number or "أمر إداري",
+                "date": dates[0] if dates else "2025/2026",
+                "score": score_delta
+            }
+            auto_fill_summary.append(f"تمت فهرسة وثيقة حقيبة الأستاذ ({subject_title}) بالرمز [{ref_code}].")
+
+    elif axis in ["axis4_edu", "axis4_educational"]:
+        if paragraph in ["qa", "1"]:
+            field_updates = {
+                "action": "add_bologna_qa",
+                "item": {
+                    "ref_code": ref_code,
+                    "role": "lecturer" if "محاضر" in text else "attendee",
+                    "title": subject_title,
+                    "score": 5.0
+                }
+            }
+            auto_fill_summary.append(f"تمت قراءة وفهرسة وثيقة الجودة والتعليم المستمر '{subject_title}' وإضافتها للمحور الرابع.")
+        elif paragraph in ["field", "4"]:
+            field_updates = {
+                "action": "add_bologna_field",
+                "item": {
+                    "ref_code": ref_code,
+                    "type": "field_visit",
+                    "details": subject_title,
+                    "score": 10.0
+                }
+            }
+            auto_fill_summary.append(f"تمت قراءة وفهرسة وثيقة الزيارة الميدانية/العمل التطوعي '{subject_title}'.")
+        else:
+            field_updates = {
+                "action": "bologna_axis4_generic",
+                "ref_code": ref_code,
+                "title": subject_title,
+                "score": score_delta
+            }
+            auto_fill_summary.append(f"تمت فهرسة وثيقة المحور التربوي والإرشادي [{ref_code}].")
+
+    elif axis in ["axis3_head", "axis3_hod"]:
+        field_updates = {
+            "action": "add_bologna_penalty",
+            "item": {
+                "ref_code": ref_code,
+                "type": "attention",
+                "times": 1,
+                "deduction": 3.0
+            }
+        }
+        auto_fill_summary.append(f"تمت قراءة وفهرسة وثيقة تقييم رئيس القسم/العقوبة الإدارية [{ref_code}].")
+
     # فحص خط اليد
     is_hw_num = getattr(doc_number, "is_handwritten", False)
     is_hw_date = bool(dates and getattr(dates[0], "is_handwritten", False))

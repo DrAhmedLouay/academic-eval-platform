@@ -2009,6 +2009,102 @@ function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph, 
             paragraphName = `الفقرة ${p} - نشاط متميز`;
             docType = "وثيقة إثبات لمواطن القوة";
             suggestedScore = 5.0;
+        } else if (ax === "axis1_bologna" || ax === "axis1_bol") {
+            axisName = "المحور الأول: التدريس وفق مسار بولونيا وتقييم الكفاءة";
+            if (p === "1") {
+                paragraphName = "1. تقديم موجز مسار بولونيا";
+                docType = "موجز مسار بولونيا للمادة الدراسية";
+                suggestedScore = 1.0;
+            } else if (p === "2") {
+                paragraphName = "2. إعداد وشرح دليل وصف المادة الدراسية (Course Guide)";
+                docType = "دليل وصف المادة الدراسية";
+                suggestedScore = 1.0;
+            } else if (p === "3") {
+                paragraphName = "3. الالتزام بجدول التقييم التكويني وتوزيع الدرجات";
+                docType = "جدول التقييم التكويني";
+                suggestedScore = 1.0;
+            } else if (p === "4") {
+                paragraphName = "4. مصفوفة مخرجات التعلم CLOs وعلاقتها بالمنهاج";
+                docType = "مصفوفة مخرجات التعلم للمقرر";
+                suggestedScore = 1.0;
+            } else {
+                paragraphName = "استبانة تقييم كفاءة التدريس والتعلم";
+                docType = "استبانة تقييم كفاءة التدريس";
+                suggestedScore = 6.0;
+            }
+        } else if (ax === "axis2_portfolio" || ax === "axis2_port") {
+            axisName = "المحور الثاني: حقيبة الأستاذ الأكاديمية (Portfolio)";
+            if (p === "load") {
+                paragraphName = "1. النصاب التدريسي";
+                docType = "جدول النصاب التدريسي والتكليفات";
+                suggestedScore = 5.0;
+            } else if (p === "committees") {
+                paragraphName = "2. اللجان العلمية الدائمية والمؤقتة";
+                docType = "أمر إداري بتشكيل لجنة علمية";
+                suggestedScore = /دائم/i.test(raw) ? 4.0 : 2.0;
+            } else if (p === "appreciation") {
+                paragraphName = "3. كتب الشكر والتقدير والجوائز";
+                docType = "كتاب شكر وتقدير / جائزة أكاديمية";
+                suggestedScore = (/وزار|وزير/i.test(raw)) ? 5.0 : (/جامع/i.test(raw) ? 4.0 : (/كلي/i.test(raw) ? 3.0 : 2.0));
+            } else if (p === "holding") {
+                paragraphName = "4. إقامة الدورات التدريبية والورش والندوات";
+                docType = "أمر إداري بإقامة دورة / ورشة عمل";
+                suggestedScore = (/دورة|24/i.test(raw)) ? 4.0 : 2.0;
+            } else if (p === "attending") {
+                paragraphName = "5. حضور الدورات التدريبية والمؤتمرات العلمية";
+                docType = "شهادة حضور دورة / مؤتمر علمي";
+                suggestedScore = 2.0;
+            } else if (p === "seminars") {
+                paragraphName = "6. حلقات السمينار وتغذية الطلبة الراجعة";
+                docType = "استمارة فيدباك سمينار وملاحظات الطلبة";
+                suggestedScore = 10.0;
+            } else if (p === "research") {
+                paragraphName = "7. النشر العلمي والمؤلفات وبراءات الاختراع";
+                docType = "بحث علمي منشور بمستوعب Scopus / Clarivate";
+                suggestedScore = 11.0;
+            } else if (p === "editorial") {
+                paragraphName = "8. العمل في المجلات والمنظمات العالمية";
+                docType = "عضوية هيئة تحرير / تقييم بحث عالمي";
+                suggestedScore = /تحرير/i.test(raw) ? 3.0 : 1.0;
+            } else if (p === "fund") {
+                paragraphName = "9. الحصول على منحة تمويلية للبحث العلمي";
+                docType = "وثيقة منحة تمويل بحث علمي";
+                suggestedScore = 5.0;
+            } else {
+                paragraphName = "نشاط ضمن حقيبة الأستاذ";
+                docType = "وثيقة إثبات نشاط أكاديمي";
+                suggestedScore = 2.0;
+            }
+        } else if (ax === "axis3_head" || ax === "axis3_hod") {
+            axisName = "المحور الثالث: تقييم رئيس القسم العلمي";
+            if (p === "penalties") {
+                paragraphName = "العقوبات الإدارية الانضباطية";
+                docType = "أمر إداري بعقوبة انضباطية";
+                suggestedScore = -3.0;
+            } else {
+                paragraphName = "تقييم رئيس القسم لمسار بولونيا";
+                docType = "استمارة تقييم رئيس القسم";
+                suggestedScore = 15.0;
+            }
+        } else if (ax === "axis4_edu" || ax === "axis4_guidance") {
+            axisName = "المحور الرابع: النشاطات التربوية والإرشادية";
+            if (p === "qa") {
+                paragraphName = "1. لجان وورش التعليم المستمر وضمان الجودة";
+                docType = "شهادة مشاركة / إلقاء محاضرة بالجودة";
+                suggestedScore = /محاضر/i.test(raw) ? 5.0 : 4.0;
+            } else if (p === "field") {
+                paragraphName = "3. الزيارات الميدانية والأعمال التطوعية وخدمة المجتمع";
+                docType = "توثيق زيارة ميدانية / عمل تطوعي";
+                suggestedScore = /ميدان|زيار/i.test(raw) ? 10.0 : 5.0;
+            } else if (p === "guidance") {
+                paragraphName = "2. مهام الإرشاد التربوي ومتابعة الطلبة";
+                docType = "أمر تكليف بمهام الإرشاد التربوي";
+                suggestedScore = 10.0;
+            } else {
+                paragraphName = "تقييم منتسبي القسم والعمادة";
+                docType = "استمارة تقييم الزملاء والعمادة";
+                suggestedScore = 5.0;
+            }
         }
     }
 
@@ -3221,6 +3317,157 @@ function applyIndexedItem(item) {
         delete manualScoreOverrides[fieldMapping.field];
     }
 
+    // التوجيه الآلي لجداول وحقول استمارة مسار بولونيا (رقم 39)
+    if (item.axis === "axis1_bologna" || item.axis === "axis1_bol") {
+        initForm39State();
+        const pStr = String(item.paragraph);
+        if (["1", "2", "3", "4"].includes(pStr)) {
+            const idx = parseInt(pStr) - 1;
+            if (formData.axis1_bologna && formData.axis1_bologna.bologna_teaching_items) {
+                formData.axis1_bologna.bologna_teaching_items[idx] = 1;
+            }
+            const chk = document.getElementById(`f39-bologna-p${pStr}`);
+            if (chk) chk.checked = true;
+        } else if (pStr === "efficiency") {
+            if (formData.axis1_bologna) {
+                formData.axis1_bologna.teaching_efficiency_items = [1, 1, 1, 1, 1, 1];
+            }
+            for (let i = 1; i <= 6; i++) {
+                const chk = document.getElementById(`f39-teach-p${i}`);
+                if (chk) chk.checked = true;
+            }
+        }
+        updateForm39Axis1();
+    } else if (item.axis === "axis2_portfolio" || item.axis === "axis2_port") {
+        initForm39State();
+        const pStr = String(item.paragraph);
+        if (pStr === "committees" || pStr === "b") {
+            const isPerm = (item.title || item.subject || "").includes("دائم") || (item.doc_type || "").includes("دائم");
+            formData.axis2_portfolio.committees = (formData.axis2_portfolio.committees || []).filter(c => c.ref_code !== item.ref_code);
+            formData.axis2_portfolio.committees.push({
+                ref_code: item.ref_code,
+                type: isPerm ? "permanent" : "temporary",
+                name: item.title || item.subject || "أمر تشكيل لجنة علمية",
+                entity: item.issuer || "الكلية / القسم",
+                order_no_date: `${item.doc_number || "أمر إداري"} في ${item.date || "2025/2026"}`,
+                score: isPerm ? 4.0 : 2.0
+            });
+            renderForm39Committees();
+        } else if (pStr === "appreciation" || pStr === "2") {
+            let apprType = "department";
+            const txt = (item.issuer || "") + " " + (item.title || "") + " " + (item.doc_type || "");
+            if (/وزار|وزير/i.test(txt)) apprType = "ministry";
+            else if (/جائز/i.test(txt)) apprType = "award";
+            else if (/جامع/i.test(txt)) apprType = "university";
+            else if (/كلي/i.test(txt)) apprType = "college";
+            const scoreMap = { ministry: 5.0, award: 5.0, university: 4.0, college: 3.0, department: 2.0 };
+            formData.axis2_portfolio.appreciation_items = (formData.axis2_portfolio.appreciation_items || []).filter(a => a.ref_code !== item.ref_code);
+            formData.axis2_portfolio.appreciation_items.push({
+                ref_code: item.ref_code,
+                type: apprType,
+                name: item.title || item.subject || "كتاب شكر وتقدير",
+                order_no_date: `${item.doc_number || "كتاب رسمي"} في ${item.date || "2025/2026"}`,
+                score: scoreMap[apprType] || 2.0
+            });
+            renderForm39Appreciation();
+        } else if (pStr === "holding" || pStr === "3a") {
+            const is24h = (item.title || "").includes("24") || (item.title || "").includes("دورة") || (item.title || "").includes("أسبوع");
+            formData.axis2_portfolio.holding_events = (formData.axis2_portfolio.holding_events || []).filter(h => h.ref_code !== item.ref_code);
+            formData.axis2_portfolio.holding_events.push({
+                ref_code: item.ref_code,
+                type: is24h ? "training_course_24h" : "workshop",
+                name: item.title || item.subject || "دورة تدريبية / ورشة عمل",
+                duration: is24h ? "24 ساعة تدريبية (أسبوع)" : "ورشة عمل تخصصية",
+                score: is24h ? 4.0 : 2.0
+            });
+            renderForm39Holding();
+        } else if (pStr === "attending" || pStr === "3b") {
+            const isPaper = (item.title || "").includes("مؤتمر") || (item.title || "").includes("بحث") || (item.doc_type || "").includes("مؤتمر");
+            formData.axis2_portfolio.attending_courses = (formData.axis2_portfolio.attending_courses || []).filter(a => a.ref_code !== item.ref_code);
+            formData.axis2_portfolio.attending_courses.push({
+                ref_code: item.ref_code,
+                type: isPaper ? "conf_paper" : "course",
+                name: item.title || item.subject || "دورة تدريبية / مؤتمر علمي",
+                organizer: item.issuer || "الجامعة التكنولوجية",
+                score: 2.0
+            });
+            renderForm39Attending();
+        } else if (pStr === "research" || pStr === "4") {
+            formData.axis2_portfolio.research_publications = (formData.axis2_portfolio.research_publications || []).filter(r => r.ref_code !== item.ref_code);
+            formData.axis2_portfolio.research_publications.push({
+                ref_code: item.ref_code,
+                category: "scopus_q1",
+                title: item.title || item.subject || "بحث علمي في مستوعب عالمي",
+                journal: item.issuer || "مجلة علمية مفهرسة (Scopus / Clarivate)",
+                author_rank: "first",
+                doi: item.doc_number || "10.1016/j.asej.2025.102145",
+                base_score: 10.0,
+                final_score: 11.0
+            });
+            renderForm39Research();
+        } else if (pStr === "editorial" || pStr === "5") {
+            const isEd = (item.title || "").includes("تحرير") || (item.doc_type || "").includes("تحرير");
+            formData.axis2_portfolio.editorial_items = (formData.axis2_portfolio.editorial_items || []).filter(e => e.ref_code !== item.ref_code);
+            formData.axis2_portfolio.editorial_items.push({
+                ref_code: item.ref_code,
+                type: isEd ? "scopus_editor" : "review_paper",
+                journal: item.title || item.subject || "Journal Review / Editorial",
+                score: isEd ? 3.0 : 1.0
+            });
+            renderForm39Editorial();
+        } else if (pStr === "fund") {
+            formData.axis2_portfolio.fund_granted = true;
+            formData.axis2_portfolio.fund_details = `${item.title || 'منحة تمويلية'} (${item.doc_number || ''})`;
+            const fChk = document.getElementById("f39-fund-granted");
+            if (fChk) fChk.checked = true;
+            const fDet = document.getElementById("f39-fund-details");
+            if (fDet) fDet.value = formData.axis2_portfolio.fund_details;
+        } else if (pStr === "load") {
+            formData.axis2_portfolio.teaching_load_status = "full";
+            const lSel = document.getElementById("f39-teaching-load-status");
+            if (lSel) lSel.value = "full";
+        } else if (pStr === "seminars") {
+            formData.axis2_portfolio.attending_seminars_count = Math.max((formData.axis2_portfolio.attending_seminars_count || 0), 10);
+            const sInp = document.getElementById("f39-seminars-count");
+            if (sInp) sInp.value = formData.axis2_portfolio.attending_seminars_count;
+        }
+        updateForm39Axis2();
+    } else if (item.axis === "axis3_head" || item.axis === "axis3_hod") {
+        initForm39State();
+        formData.axis3_hod.penalties = (formData.axis3_hod.penalties || []).filter(p => p.ref_code !== item.ref_code);
+        formData.axis3_hod.penalties.push({
+            ref_code: item.ref_code,
+            type: "notice",
+            count: 1
+        });
+        renderForm39Penalties();
+        updateForm39Axis3();
+    } else if (item.axis === "axis4_edu" || item.axis === "axis4_guidance") {
+        initForm39State();
+        const pStr = String(item.paragraph);
+        if (pStr === "qa" || pStr === "1") {
+            const isLec = (item.title || "").includes("محاضر") || (item.doc_type || "").includes("محاضر");
+            formData.axis4_guidance.qa_committee_items = (formData.axis4_guidance.qa_committee_items || []).filter(q => q.ref_code !== item.ref_code);
+            formData.axis4_guidance.qa_committee_items.push({
+                ref_code: item.ref_code,
+                type: isLec ? "lecturer" : "attendee",
+                title: item.title || item.subject || "دورة / ورشة جودة وتعليم مستمر",
+                score: isLec ? 5.0 : 4.0
+            });
+            renderForm39Qa();
+        } else if (pStr === "field" || pStr === "3" || pStr === "4") {
+            const isField = (item.title || "").includes("ميدان") || (item.title || "").includes("زيارة");
+            formData.axis4_guidance.field_activities = (formData.axis4_guidance.field_activities || []).filter(f => f.ref_code !== item.ref_code);
+            formData.axis4_guidance.field_activities.push({
+                ref_code: item.ref_code,
+                type: isField ? "field_supervision" : "volunteer_work_ministry",
+                details: item.title || item.subject || "زيارة ميدانية / عمل تطوعي",
+                score: isField ? 10.0 : 5.0
+            });
+            renderForm39Field();
+        }
+    }
+
     syncEvidenceWithScores();
     renderAllMiniEvidenceTables();
     renderMasterCatalogTable();
@@ -3248,6 +3495,48 @@ async function deleteEvidence(refCode) {
             if (window.manualScoreOverrides) {
                 delete window.manualScoreOverrides[fieldMapping.field];
             }
+        }
+    }
+
+    // إزالة المرفق من جداول استمارة 39 إن وجد
+    if (formData.axis2_portfolio) {
+        if (formData.axis2_portfolio.committees) {
+            formData.axis2_portfolio.committees = formData.axis2_portfolio.committees.filter(c => c.ref_code !== refCode);
+            renderForm39Committees();
+        }
+        if (formData.axis2_portfolio.appreciation_items) {
+            formData.axis2_portfolio.appreciation_items = formData.axis2_portfolio.appreciation_items.filter(a => a.ref_code !== refCode);
+            renderForm39Appreciation();
+        }
+        if (formData.axis2_portfolio.holding_events) {
+            formData.axis2_portfolio.holding_events = formData.axis2_portfolio.holding_events.filter(h => h.ref_code !== refCode);
+            renderForm39Holding();
+        }
+        if (formData.axis2_portfolio.attending_courses) {
+            formData.axis2_portfolio.attending_courses = formData.axis2_portfolio.attending_courses.filter(a => a.ref_code !== refCode);
+            renderForm39Attending();
+        }
+        if (formData.axis2_portfolio.research_publications) {
+            formData.axis2_portfolio.research_publications = formData.axis2_portfolio.research_publications.filter(r => r.ref_code !== refCode);
+            renderForm39Research();
+        }
+        if (formData.axis2_portfolio.editorial_items) {
+            formData.axis2_portfolio.editorial_items = formData.axis2_portfolio.editorial_items.filter(e => e.ref_code !== refCode);
+            renderForm39Editorial();
+        }
+    }
+    if (formData.axis3_hod && formData.axis3_hod.penalties) {
+        formData.axis3_hod.penalties = formData.axis3_hod.penalties.filter(p => p.ref_code !== refCode);
+        renderForm39Penalties();
+    }
+    if (formData.axis4_guidance) {
+        if (formData.axis4_guidance.qa_committee_items) {
+            formData.axis4_guidance.qa_committee_items = formData.axis4_guidance.qa_committee_items.filter(q => q.ref_code !== refCode);
+            renderForm39Qa();
+        }
+        if (formData.axis4_guidance.field_activities) {
+            formData.axis4_guidance.field_activities = formData.axis4_guidance.field_activities.filter(f => f.ref_code !== refCode);
+            renderForm39Field();
         }
     }
 
@@ -8057,7 +8346,7 @@ function renderForm39Committees() {
             <td style="padding:6px 10px;"><strong>${c.type === "permanent" ? "دائمية (4 درجات)" : "مؤقتة (2 درجات)"}</strong></td>
             <td style="padding:6px 10px;">${c.name || "-"}</td>
             <td style="padding:6px 10px;">${c.entity || "القسم"}</td>
-            <td style="padding:6px 10px;">${c.order_no_date || "-"}</td>
+            <td style="padding:6px 10px;">${c.order_no_date || "-"} ${c.ref_code ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.75rem; margin-right:4px;">📎 ${c.ref_code}</span>` : ''}</td>
             <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${c.type === "permanent" ? "4.0" : "2.0"}</td>
             <td style="padding:6px 10px;">
                 <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39Committee(${i})"><i class="fa-solid fa-trash"></i></button>
@@ -8085,6 +8374,12 @@ function addForm39Committee() {
 window.addForm39Committee = addForm39Committee;
 
 function removeForm39Committee(idx) {
+    const it = (formData.axis2_portfolio.committees || [])[idx];
+    if (it && it.ref_code) {
+        indexedEvidenceList = indexedEvidenceList.filter(e => e.ref_code !== it.ref_code);
+        renderMasterCatalogTable();
+        updateIndexStats();
+    }
     formData.axis2_portfolio.committees.splice(idx, 1);
     renderForm39Committees();
     calculateLiveScore();
@@ -8104,7 +8399,7 @@ function renderForm39Appreciation() {
         <tr style="border-bottom:1px solid #e2e8f0;">
             <td style="padding:6px 10px;"><strong>${typeNames[a.type] || a.type}</strong></td>
             <td style="padding:6px 10px;">${a.name || "-"}</td>
-            <td style="padding:6px 10px;">${a.order_no_date || "-"}</td>
+            <td style="padding:6px 10px;">${a.order_no_date || "-"} ${a.ref_code ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.75rem; margin-right:4px;">📎 ${a.ref_code}</span>` : ''}</td>
             <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${a.type === "ministry" || a.type === "award" ? "5.0" : (a.type === "university" ? "4.0" : (a.type === "college" ? "3.0" : "2.0"))}</td>
             <td style="padding:6px 10px;">
                 <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39Appreciation(${i})"><i class="fa-solid fa-trash"></i></button>
@@ -8136,6 +8431,12 @@ function addForm39Appreciation() {
 window.addForm39Appreciation = addForm39Appreciation;
 
 function removeForm39Appreciation(idx) {
+    const it = (formData.axis2_portfolio.appreciation_items || [])[idx];
+    if (it && it.ref_code) {
+        indexedEvidenceList = indexedEvidenceList.filter(e => e.ref_code !== it.ref_code);
+        renderMasterCatalogTable();
+        updateIndexStats();
+    }
     formData.axis2_portfolio.appreciation_items.splice(idx, 1);
     renderForm39Appreciation();
     calculateLiveScore();
@@ -8153,7 +8454,7 @@ function renderForm39Holding() {
     tbody.innerHTML = list.map((h, i) => `
         <tr style="border-bottom:1px solid #e2e8f0;">
             <td style="padding:6px 10px;"><strong>${h.type === "training_course_24h" ? "دورة تدريبية >=24h (4 درجات)" : (h.type === "workshop" ? "ورشة عمل (درجتان)" : "ندوة / سمينار (درجتان)")}</strong></td>
-            <td style="padding:6px 10px;">${h.name || "-"}</td>
+            <td style="padding:6px 10px;">${h.name || "-"} ${h.ref_code ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.75rem; margin-right:4px;">📎 ${h.ref_code}</span>` : ''}</td>
             <td style="padding:6px 10px;">${h.duration || "-"}</td>
             <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${h.type === "training_course_24h" ? "4.0" : "2.0"}</td>
             <td style="padding:6px 10px;">
@@ -8179,6 +8480,12 @@ function addForm39HoldingEvent() {
 window.addForm39HoldingEvent = addForm39HoldingEvent;
 
 function removeForm39HoldingEvent(idx) {
+    const it = (formData.axis2_portfolio.holding_events || [])[idx];
+    if (it && it.ref_code) {
+        indexedEvidenceList = indexedEvidenceList.filter(e => e.ref_code !== it.ref_code);
+        renderMasterCatalogTable();
+        updateIndexStats();
+    }
     formData.axis2_portfolio.holding_events.splice(idx, 1);
     renderForm39Holding();
     calculateLiveScore();
@@ -8196,7 +8503,7 @@ function renderForm39Attending() {
     tbody.innerHTML = list.map((a, i) => `
         <tr style="border-bottom:1px solid #e2e8f0;">
             <td style="padding:6px 10px;"><strong>${a.type === "course" ? "حضور دورة تدريبية (درجتان)" : (a.type === "conf_paper" ? "مؤتمر علمي بورقة (درجتان)" : "مؤتمر بدون ورقة (درجة)")}</strong></td>
-            <td style="padding:6px 10px;">${a.name || "-"}</td>
+            <td style="padding:6px 10px;">${a.name || "-"} ${a.ref_code ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.75rem; margin-right:4px;">📎 ${a.ref_code}</span>` : ''}</td>
             <td style="padding:6px 10px;">${a.organizer || "الجامعة التكنولوجية"}</td>
             <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${a.type === "conf_no_paper" ? "1.0" : "2.0"}</td>
             <td style="padding:6px 10px;">
@@ -8222,6 +8529,12 @@ function addForm39AttendingCourse() {
 window.addForm39AttendingCourse = addForm39AttendingCourse;
 
 function removeForm39AttendingCourse(idx) {
+    const it = (formData.axis2_portfolio.attending_courses || [])[idx];
+    if (it && it.ref_code) {
+        indexedEvidenceList = indexedEvidenceList.filter(e => e.ref_code !== it.ref_code);
+        renderMasterCatalogTable();
+        updateIndexStats();
+    }
     formData.axis2_portfolio.attending_courses.splice(idx, 1);
     renderForm39Attending();
     calculateLiveScore();
@@ -8255,7 +8568,7 @@ function renderForm39Research() {
     tbody.innerHTML = list.map((r, i) => `
         <tr style="border-bottom:1px solid #e2e8f0;">
             <td style="padding:6px 10px;"><strong>${catLabels[r.category] || r.category}</strong></td>
-            <td style="padding:6px 10px;">${r.title || "-"}</td>
+            <td style="padding:6px 10px;">${r.title || "-"} ${r.ref_code ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.75rem; margin-right:4px;">📎 ${r.ref_code}</span>` : ''}</td>
             <td style="padding:6px 10px;">${r.journal || "-"}</td>
             <td style="padding:6px 10px;"><span class="badge" style="background:#e0f2fe; color:#0369a1;">${rankLabels[r.author_rank] || r.author_rank}</span></td>
             <td style="padding:6px 10px; font-weight:800; color:#1e40af;">+${r.final_score || r.base_score || "10.0"}</td>
@@ -8288,6 +8601,12 @@ function addForm39Research() {
 window.addForm39Research = addForm39Research;
 
 function removeForm39Research(idx) {
+    const it = (formData.axis2_portfolio.research_publications || [])[idx];
+    if (it && it.ref_code) {
+        indexedEvidenceList = indexedEvidenceList.filter(e => e.ref_code !== it.ref_code);
+        renderMasterCatalogTable();
+        updateIndexStats();
+    }
     formData.axis2_portfolio.research_publications.splice(idx, 1);
     renderForm39Research();
     calculateLiveScore();
@@ -8306,7 +8625,7 @@ function renderForm39Editorial() {
     tbody.innerHTML = list.map((e, i) => `
         <tr style="border-bottom:1px solid #e2e8f0;">
             <td style="padding:6px 10px;"><strong>${tNames[e.type] || e.type}</strong></td>
-            <td style="padding:6px 10px;">${e.journal || "-"}</td>
+            <td style="padding:6px 10px;">${e.journal || "-"} ${e.ref_code ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.75rem; margin-right:4px;">📎 ${e.ref_code}</span>` : ''}</td>
             <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${e.type === "clarivate_editor" ? "4.0" : (e.type === "scopus_editor" ? "3.0" : "1.0")}</td>
             <td style="padding:6px 10px;">
                 <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39Editorial(${i})"><i class="fa-solid fa-trash"></i></button>
@@ -8330,6 +8649,12 @@ function addForm39Editorial() {
 window.addForm39Editorial = addForm39Editorial;
 
 function removeForm39Editorial(idx) {
+    const it = (formData.axis2_portfolio.editorial_items || [])[idx];
+    if (it && it.ref_code) {
+        indexedEvidenceList = indexedEvidenceList.filter(e => e.ref_code !== it.ref_code);
+        renderMasterCatalogTable();
+        updateIndexStats();
+    }
     formData.axis2_portfolio.editorial_items.splice(idx, 1);
     renderForm39Editorial();
     calculateLiveScore();
@@ -8350,7 +8675,7 @@ function renderForm39Penalties() {
         const tot = m.deduction * count;
         return `
             <tr style="border-bottom:1px solid #fecdd3;">
-                <td style="padding:6px 10px; color:#be123c; font-weight:700;">${m.name}</td>
+                <td style="padding:6px 10px; color:#be123c; font-weight:700;">${m.name} ${p.ref_code ? `<span class="badge" style="background:#fee2e2; color:#b91c1c; font-size:0.75rem; margin-right:4px;">📎 ${p.ref_code}</span>` : ''}</td>
                 <td style="padding:6px 10px;">خصم ${m.deduction} درجة</td>
                 <td style="padding:6px 10px;">${count}</td>
                 <td style="padding:6px 10px; font-weight:800; color:#dc2626;">-${tot}</td>
@@ -8372,6 +8697,12 @@ function addForm39Penalty() {
 window.addForm39Penalty = addForm39Penalty;
 
 function removeForm39Penalty(idx) {
+    const it = (formData.axis3_hod.penalties || [])[idx];
+    if (it && it.ref_code) {
+        indexedEvidenceList = indexedEvidenceList.filter(e => e.ref_code !== it.ref_code);
+        renderMasterCatalogTable();
+        updateIndexStats();
+    }
     formData.axis3_hod.penalties.splice(idx, 1);
     renderForm39Penalties();
     calculateLiveScore();
@@ -8390,7 +8721,7 @@ function renderForm39Qa() {
     tbody.innerHTML = list.map((q, i) => `
         <tr style="border-bottom:1px solid #e2e8f0;">
             <td style="padding:6px 10px;"><strong>${tNames[q.type] || q.type}</strong></td>
-            <td style="padding:6px 10px;">${q.title || "-"}</td>
+            <td style="padding:6px 10px;">${q.title || "-"} ${q.ref_code ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.75rem; margin-right:4px;">📎 ${q.ref_code}</span>` : ''}</td>
             <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${q.type === "lecturer" ? "5.0" : (q.type === "attendee" ? "4.0" : "3.0")}</td>
             <td style="padding:6px 10px;">
                 <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39QaItem(${i})"><i class="fa-solid fa-trash"></i></button>
@@ -8414,6 +8745,12 @@ function addForm39QaItem() {
 window.addForm39QaItem = addForm39QaItem;
 
 function removeForm39QaItem(idx) {
+    const it = (formData.axis4_guidance.qa_committee_items || [])[idx];
+    if (it && it.ref_code) {
+        indexedEvidenceList = indexedEvidenceList.filter(e => e.ref_code !== it.ref_code);
+        renderMasterCatalogTable();
+        updateIndexStats();
+    }
     formData.axis4_guidance.qa_committee_items.splice(idx, 1);
     renderForm39Qa();
     calculateLiveScore();
@@ -8432,7 +8769,7 @@ function renderForm39Field() {
     tbody.innerHTML = list.map((f, i) => `
         <tr style="border-bottom:1px solid #e2e8f0;">
             <td style="padding:6px 10px;"><strong>${tNames[f.type] || f.type}</strong></td>
-            <td style="padding:6px 10px;">${f.details || "-"}</td>
+            <td style="padding:6px 10px;">${f.details || "-"} ${f.ref_code ? `<span class="badge" style="background:#e0f2fe; color:#0369a1; font-size:0.75rem; margin-right:4px;">📎 ${f.ref_code}</span>` : ''}</td>
             <td style="padding:6px 10px; font-weight:700; color:#1e40af;">+${f.type === "field_supervision" ? "10.0" : "5.0"}</td>
             <td style="padding:6px 10px;">
                 <button type="button" class="btn btn-sm btn-outline" style="color:#ef4444; border-color:#fca5a5; padding:2px 8px;" onclick="removeForm39FieldActivity(${i})"><i class="fa-solid fa-trash"></i></button>
@@ -8456,6 +8793,12 @@ function addForm39FieldActivity() {
 window.addForm39FieldActivity = addForm39FieldActivity;
 
 function removeForm39FieldActivity(idx) {
+    const it = (formData.axis4_guidance.field_activities || [])[idx];
+    if (it && it.ref_code) {
+        indexedEvidenceList = indexedEvidenceList.filter(e => e.ref_code !== it.ref_code);
+        renderMasterCatalogTable();
+        updateIndexStats();
+    }
     formData.axis4_guidance.field_activities.splice(idx, 1);
     renderForm39Field();
     calculateLiveScore();

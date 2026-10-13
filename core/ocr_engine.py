@@ -5,10 +5,11 @@
 """
 import os
 import re
-from typing import Dict, Any, List, Optional
-from pypdf import PdfReader
+try:
+    from pypdf import PdfReader
+except ImportError:
+    PdfReader = None
 
-import subprocess
 import json
 
 # مسار الأداة الأصلية لمحرك Apple Vision OCR فائق الدقة المدمج في macOS
