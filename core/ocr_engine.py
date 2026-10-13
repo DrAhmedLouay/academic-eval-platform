@@ -5,6 +5,7 @@
 """
 import os
 import re
+from typing import Dict, Any, List, Optional, Tuple
 try:
     from pypdf import PdfReader
 except ImportError:

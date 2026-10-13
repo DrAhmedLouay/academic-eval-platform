@@ -306,11 +306,11 @@ def calculate_evaluation_form39(data: Dict[str, Any]) -> Dict[str, Any]:
     ax1 = data.get("axis1_bologna", data.get("axis1", {}))
     
     # الفقرة 1: التدريس وفق مسار بولونيا (4 فقرات، درجة واحدة لكل فقرة، القصوى 4)
-    p1_items = ax1.get("bologna_teaching_items", [1, 1, 1, 1])
+    p1_items = ax1.get("bologna_teaching_items", [0, 0, 0, 0])
     ax1_p1 = min(4.0, sum(min(1.0, max(0.0, float(x))) for x in p1_items[:4]))
 
     # الفقرة 2: كفاءة الأستاذ وطريقة التدريس (6 فقرات، درجة واحدة لكل فقرة، القصوى 6)
-    p2_items = ax1.get("teaching_efficiency_items", [1, 1, 1, 1, 1, 1])
+    p2_items = ax1.get("teaching_efficiency_items", [0, 0, 0, 0, 0, 0])
     ax1_p2 = min(6.0, sum(min(1.0, max(0.0, float(x))) for x in p2_items[:6]))
 
     axis1_total = round(ax1_p1 + ax1_p2, 2)
@@ -323,11 +323,13 @@ def calculate_evaluation_form39(data: Dict[str, Any]) -> Dict[str, Any]:
 
     # # 1: واجبات ومسؤوليات أعضاء هيئة التدريس (8 درجات)
     # أ) الحمل التدريسي / النصاب (القصوى 4)
-    teaching_load_status = ax2.get("teaching_load_status", "full")
+    teaching_load_status = ax2.get("teaching_load_status", "none")
     if teaching_load_status in ["full", "partial_department_assigned"]:
         load_score = 4.0
-    else:
+    elif teaching_load_status == "partial":
         load_score = 2.0
+    else:
+        load_score = 0.0
     
     # ب) عضوية اللجان العلمية في القسم والكلية والجامعة والوزارة (القصوى 4)
     # 4 درجات لكل لجنة دائمية، 2 درجة لكل لجنة مؤقتة
@@ -383,7 +385,7 @@ def calculate_evaluation_form39(data: Dict[str, Any]) -> Dict[str, Any]:
 
     # ج) حضور الندوات العلمية - سمينار وورش العمل (القصوى 10)
     # درجة واحدة لكل حضور
-    seminars_count = float(ax2.get("attending_seminars_count", len(ax2.get("attending_seminars", []))))
+    seminars_count = float(ax2.get("attending_seminars_count", len(ax2.get("attending_seminars", [])) if "attending_seminars" in ax2 else 0))
     seminars_score = min(10.0, seminars_count)
 
     p3_training = min(20.0, holding_score + attending_score + seminars_score)
@@ -496,7 +498,7 @@ def calculate_evaluation_form39(data: Dict[str, Any]) -> Dict[str, Any]:
     # المحور الثالث : تقييم رئيس القسم للعملية التعليمية والأستاذ الجامعي (15 درجة - 15%)
     # =========================================================================
     ax3 = data.get("axis3_hod", data.get("axis3", {}))
-    base_hod_score = float(ax3.get("base_score", 15.0))
+    base_hod_score = float(ax3.get("base_score", 0.0))
     penalties_list = ax3.get("penalties", data.get("axis5", {}).get("penalties", []))
     
     total_penalty_deduction = 0.0

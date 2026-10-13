@@ -141,8 +141,185 @@ const AXIS_CATALOG_DEFINITIONS = {
             { id: "11", name: "11. الانتماء إلى نقابة الأكاديميين (3 درجات)", maxScore: 3, defaultDocType: "هوية / كتاب انتماء نقابة الأكاديميين", field: "axis4.items.item11" },
             { id: "12", name: "12. مسؤولي شعب ووحدات حقوق الإنسان (3 درجات)", maxScore: 3, defaultDocType: "أمر تكليف وحدة حقوق الإنسان", field: "axis4.items.item12" }
         ]
+    },
+    "axis1": {
+        key: "axis1",
+        name: "المحور الأول: جودة التدريس والتعليم والالتزام الوظيفي",
+        paragraphs: [
+            { id: "1", name: "1. المقررات التي قام بتدريسها", maxScore: 20, defaultDocType: "أمر تكليف بتدريس مقرر", field: "axis1.courses_score" },
+            { id: "2", name: "2. إدارة الصف والعلاقة مع الطلبة (استبيان الطلبة)", maxScore: 20, defaultDocType: "استمارة تقييم أداء الطلبة", field: "axis1.classroom_management_score" },
+            { id: "3", name: "3. التعليم المدمج والمنصات التعليمية", maxScore: 20, defaultDocType: "توثيق التعليم المدمج والمنصة", field: "axis1.blended_learning_items" },
+            { id: "4", name: "4. وصف المقرر الدراسي وتحديثه والتقييم", maxScore: 20, defaultDocType: "وثيقة وخطة وصف المقرر", field: "axis1.course_description_items" },
+            { id: "5", name: "5. الالتزام الوظيفي والأنظمة والتعليمات", maxScore: 20, defaultDocType: "سجل أو وثيقة الالتزام الوظيفي", field: "axis1.job_commitment_items" }
+        ]
+    },
+    "axis2": {
+        key: "axis2",
+        name: "المحور الثاني: النشاط العلمي والبحثي",
+        paragraphs: [
+            { id: "1", name: "1. البحوث في المستوعبات العالمية (Clarivate / Scopus)", maxScore: 60, defaultDocType: "بحث مفهرس في Scopus/Clarivate", field: "axis2.global_research_score" },
+            { id: "2", name: "2. البحوث في المجلات العربية والمحلية والمؤتمرات والكتب", maxScore: 25, defaultDocType: "بحث مجلة محلية / كتاب مؤلف", field: "axis2.local_research_score" },
+            { id: "3", name: "3. الإشراف على الطلبة والنشاطات العلمية والتقويم", maxScore: 15, defaultDocType: "أمر جامعي بالإشراف / تقويم علمي", field: "axis2.supervision_score" }
+        ]
+    },
+    "axis3": {
+        key: "axis3",
+        name: "المحور الثالث: الجانب التربوي والإرشادي والتعليم المستمر",
+        paragraphs: [
+            { id: "1", name: "1. المشاركة في اللجان الدائمية والمؤقتة", maxScore: 30, defaultDocType: "أمر إداري بتشكيل لجنة", field: "axis3.committees_score" },
+            { id: "2", name: "2. المشاركة في لجان التعليم المستمر والجودة", maxScore: 20, defaultDocType: "شهادة مشاركة / أمر تعليم مستمر", field: "axis3.continuous_learning_score" },
+            { id: "3", name: "3. كتب الشكر والتقدير أو الشهادات التقديرية", maxScore: 20, defaultDocType: "كتاب شكر وتقدير", field: "axis3.thank_you_score" },
+            { id: "4", name: "4. الزيارات الميدانية والحقلية والأعمال التطوعية", maxScore: 30, defaultDocType: "أمر زيارة ميدانية / عمل تطوعي", field: "axis3.field_visits_score" }
+        ]
+    },
+    "axis4": {
+        key: "axis4",
+        name: "المحور الرابع: مواطن القوة العلمية والإبداع",
+        paragraphs: [
+            { id: "1", name: "1. براءات الاختراع والجوائز في عام التقييم (3 درجات)", maxScore: 3, defaultDocType: "براءة اختراع / جائزة علمية", field: "axis4.items.item1" },
+            { id: "2", name: "2. معامل هيرش h-index في Scopus (1-4 درجات)", maxScore: 4, defaultDocType: "توثيق بروفايل Scopus h-index", field: "axis4.items.item2" },
+            { id: "3", name: "3. مسؤول وحدة شؤون المرأة والعاملين معهم (3 درجات)", maxScore: 3, defaultDocType: "أمر إداري تكليف شؤون المرأة", field: "axis4.items.item3" },
+            { id: "4", name: "4. تطوير منظومة إلكترونية لإدارة أحد البرامج (3 درجات)", maxScore: 3, defaultDocType: "توثيق منظومة إلكترونية مبرمجة", field: "axis4.items.item4" },
+            { id: "5", name: "5. مسؤولي الشعب والوحدات الإرشادية والارتباط (3 درجات)", maxScore: 3, defaultDocType: "أمر تكليف وحدة إرشادية", field: "axis4.items.item5" },
+            { id: "6", name: "6. مجالس الاعتماد والمقيم الوطني وفريق الأداء (4 درجات)", maxScore: 4, defaultDocType: "أمر تكليف مجلس اعتماد / مقيم وطني", field: "axis4.items.item6" },
+            { id: "7", name: "7. مدراء أقسام وشعب ضمان الجودة والعاملين فيها (5 درجات)", maxScore: 5, defaultDocType: "أمر إداري ضمان جودة", field: "axis4.items.item7" },
+            { id: "8", name: "8. المدرب المعتمد في طرائق التدريس بتكليف وزاري (5 درجات)", maxScore: 5, defaultDocType: "شهادة / تكليف مدرب معتمد طرائق تدريس", field: "axis4.items.item8" },
+            { id: "9", name: "9. البحوث الإضافية المفهرسة غير المستفاد منها (4 درجات)", maxScore: 4, defaultDocType: "بحث مفهرس إضافي", field: "axis4.items.item9" },
+            { id: "10", name: "10. دعم نادي الطلبة بمبلغ (2000) دينار شهرياً (3 درجات)", maxScore: 3, defaultDocType: "وصل أو كتاب دعم نادي الطلبة", field: "axis4.items.item10" },
+            { id: "11", name: "11. الانتماء إلى نقابة الأكاديميين (3 درجات)", maxScore: 3, defaultDocType: "هوية / كتاب انتماء نقابة الأكاديميين", field: "axis4.items.item11" },
+            { id: "12", name: "12. مسؤولي شعب ووحدات حقوق الإنسان (3 درجات)", maxScore: 3, defaultDocType: "أمر تكليف وحدة حقوق الإنسان", field: "axis4.items.item12" }
+        ]
+    },
+    "axis1_bologna": {
+        key: "axis1_bologna",
+        name: "المحور الأول: تقييم الطالب للمادة والتدريس (10%)",
+        paragraphs: [
+            { id: "1", name: "1. تقديم موجز مسار بولونيا", maxScore: 1, defaultDocType: "موجز مسار بولونيا للمادة الدراسية", field: "axis1_bologna.bologna_teaching_items.0" },
+            { id: "2", name: "2. إعداد وشرح دليل وصف المادة الدراسية (Course Guide)", maxScore: 1, defaultDocType: "دليل وصف المادة الدراسية", field: "axis1_bologna.bologna_teaching_items.1" },
+            { id: "3", name: "3. الالتزام بجدول التقييم التكويني وتوزيع الدرجات", maxScore: 1, defaultDocType: "جدول التقييم التكويني", field: "axis1_bologna.bologna_teaching_items.2" },
+            { id: "4", name: "4. مصفوفة مخرجات التعلم CLOs وعلاقتها بالمنهاج", maxScore: 1, defaultDocType: "مصفوفة مخرجات التعلم للمقرر", field: "axis1_bologna.bologna_teaching_items.3" },
+            { id: "efficiency", name: "استبانة تقييم كفاءة التدريس والتعلم", maxScore: 6, defaultDocType: "استبانة تقييم كفاءة التدريس", field: "axis1_bologna.teaching_efficiency_items" }
+        ]
+    },
+    "axis2_portfolio": {
+        key: "axis2_portfolio",
+        name: "المحور الثاني: حقيبة الأستاذ الأكاديمية (Portfolio) (60%)",
+        paragraphs: [
+            { id: "load", name: "1. النصاب التدريسي والتكليفات", maxScore: 4, defaultDocType: "جدول النصاب التدريسي والتكليفات", field: "axis2_portfolio.teaching_load_status" },
+            { id: "committees", name: "2. اللجان العلمية الدائمية والمؤقتة", maxScore: 4, defaultDocType: "أمر إداري بتشكيل لجنة علمية", field: "axis2_portfolio.committees" },
+            { id: "appreciation", name: "3. كتب الشكر والتقدير والجوائز", maxScore: 5, defaultDocType: "كتاب شكر وتقدير / جائزة أكاديمية", field: "axis2_portfolio.appreciation_items" },
+            { id: "holding", name: "4. إقامة الدورات التدريبية والورش والندوات", maxScore: 6, defaultDocType: "أمر إداري بإقامة دورة / ورشة عمل", field: "axis2_portfolio.holding_events" },
+            { id: "attending", name: "5. حضور الدورات التدريبية والمؤتمرات العلمية", maxScore: 4, defaultDocType: "شهادة حضور دورة / مؤتمر علمي", field: "axis2_portfolio.attending_courses" },
+            { id: "seminars", name: "6. حلقات السمينار وتغذية الطلبة الراجعة", maxScore: 10, defaultDocType: "استمارة فيدباك سمينار وملاحظات الطلبة", field: "axis2_portfolio.attending_seminars_count" },
+            { id: "research", name: "7. النشر العلمي والمؤلفات وبراءات الاختراع", maxScore: 20, defaultDocType: "بحث علمي منشور بمستوعب Scopus / Clarivate", field: "axis2_portfolio.research_publications" },
+            { id: "editorial", name: "8. العمل في المجلات والمنظمات العالمية والتحكيم", maxScore: 5, defaultDocType: "عضوية هيئة تحرير / تقييم بحث عالمي", field: "axis2_portfolio.editorial_items" },
+            { id: "fund", name: "9. دعم إيرادات الجامعة (جلب منحة Fund)", maxScore: 2, defaultDocType: "وثيقة منحة تمويل بحث علمي", field: "axis2_portfolio.fund_granted" }
+        ]
+    },
+    "axis3_hod": {
+        key: "axis3_hod",
+        name: "المحور الثالث: تقييم رئيس القسم (15%)",
+        paragraphs: [
+            { id: "base", name: "1. الالتزام برسالة القسم ورؤيته لمسار بولونيا", maxScore: 15, defaultDocType: "استمارة تقييم رئيس القسم", field: "axis3_hod.base_score" },
+            { id: "penalties", name: "العقوبات الإدارية الانضباطية (خصم)", maxScore: 0, defaultDocType: "أمر إداري بعقوبة انضباطية", field: "axis3_hod.penalties" }
+        ]
+    },
+    "axis3_head": {
+        key: "axis3_hod",
+        name: "المحور الثالث: تقييم رئيس القسم (15%)",
+        paragraphs: [
+            { id: "base", name: "1. الالتزام برسالة القسم ورؤيته لمسار بولونيا", maxScore: 15, defaultDocType: "استمارة تقييم رئيس القسم", field: "axis3_hod.base_score" },
+            { id: "penalties", name: "العقوبات الإدارية الانضباطية (خصم)", maxScore: 0, defaultDocType: "أمر إداري بعقوبة انضباطية", field: "axis3_hod.penalties" }
+        ]
+    },
+    "axis4_guidance": {
+        key: "axis4_guidance",
+        name: "المحور الرابع: الجانب التربوي والإرشادي (15%)",
+        paragraphs: [
+            { id: "qa", name: "1. لجان وورش التعليم المستمر وضمان الجودة", maxScore: 5, defaultDocType: "شهادة مشاركة / إلقاء محاضرة بالجودة", field: "axis4_guidance.qa_committee_items" },
+            { id: "guidance", name: "2. مهام الإرشاد التربوي ومتابعة الطلبة", maxScore: 10, defaultDocType: "أمر تكليف بمهام الإرشاد التربوي", field: "axis4_guidance.field_activities" },
+            { id: "field", name: "3. الزيارات الميدانية والأعمال التطوعية وخدمة المجتمع", maxScore: 10, defaultDocType: "توثيق زيارة ميدانية / عمل تطوعي", field: "axis4_guidance.field_activities" }
+        ]
+    },
+    "axis4_edu": {
+        key: "axis4_guidance",
+        name: "المحور الرابع: الجانب التربوي والإرشادي (15%)",
+        paragraphs: [
+            { id: "qa", name: "1. لجان وورش التعليم المستمر وضمان الجودة", maxScore: 5, defaultDocType: "شهادة مشاركة / إلقاء محاضرة بالجودة", field: "axis4_guidance.qa_committee_items" },
+            { id: "guidance", name: "2. مهام الإرشاد التربوي ومتابعة الطلبة", maxScore: 10, defaultDocType: "أمر تكليف بمهام الإرشاد التربوي", field: "axis4_guidance.field_activities" },
+            { id: "field", name: "3. الزيارات الميدانية والأعمال التطوعية وخدمة المجتمع", maxScore: 10, defaultDocType: "توثيق زيارة ميدانية / عمل تطوعي", field: "axis4_guidance.field_activities" }
+        ]
     }
 };
+
+function formatEvidenceAxisAndParagraph(item) {
+    if (!item) return { axisTitle: "", paragraphTitle: "", fullLabel: "" };
+    const ax = String(item.axis || "").trim();
+    const p = String(item.paragraph || "").trim();
+
+    let def = AXIS_CATALOG_DEFINITIONS[ax];
+    if (!def) {
+        if (ax === "1" || ax === "axis1") def = AXIS_CATALOG_DEFINITIONS["axis1"] || AXIS_CATALOG_DEFINITIONS["1"];
+        else if (ax === "2" || ax === "axis2") def = AXIS_CATALOG_DEFINITIONS["axis2"] || AXIS_CATALOG_DEFINITIONS["2"];
+        else if (ax === "3" || ax === "axis3") def = AXIS_CATALOG_DEFINITIONS["axis3"] || AXIS_CATALOG_DEFINITIONS["3"];
+        else if (ax === "4" || ax === "axis4") def = AXIS_CATALOG_DEFINITIONS["axis4"] || AXIS_CATALOG_DEFINITIONS["4"];
+        else if (ax === "axis1_bologna" || ax === "axis1_bol") def = AXIS_CATALOG_DEFINITIONS["axis1_bologna"];
+        else if (ax === "axis2_portfolio" || ax === "axis2_port") def = AXIS_CATALOG_DEFINITIONS["axis2_portfolio"];
+        else if (ax === "axis3_hod" || ax === "axis3_head") def = AXIS_CATALOG_DEFINITIONS["axis3_hod"];
+        else if (ax === "axis4_guidance" || ax === "axis4_edu") def = AXIS_CATALOG_DEFINITIONS["axis4_guidance"];
+    }
+
+    let axisTitle = "";
+    if (def && def.name) {
+        axisTitle = def.name;
+    } else if (item.axis_name && !item.axis_name.startsWith("axis")) {
+        axisTitle = item.axis_name;
+    } else {
+        if (ax.includes("bologna") || ax.includes("bol")) axisTitle = "المحور الأول: تقييم الطالب (10%)";
+        else if (ax.includes("portfolio") || ax.includes("port")) axisTitle = "المحور الثاني: حقيبة الأستاذ (60%)";
+        else if (ax.includes("hod") || ax.includes("head")) axisTitle = "المحور الثالث: تقييم رئيس القسم (15%)";
+        else if (ax.includes("guidance") || ax.includes("edu")) axisTitle = "المحور الرابع: الجانب التربوي والإرشادي (15%)";
+        else if (ax === "1" || ax === "axis1") axisTitle = "المحور الأول: جودة التدريس والالتزام";
+        else if (ax === "2" || ax === "axis2") axisTitle = "المحور الثاني: النشاط العلمي والبحثي";
+        else if (ax === "3" || ax === "axis3") axisTitle = "المحور الثالث: النشاط التربوي واللجان";
+        else if (ax === "4" || ax === "axis4") axisTitle = "المحور الرابع: مواطن القوة والإبداع";
+        else axisTitle = ax;
+    }
+
+    let paragraphTitle = "";
+    if (def && def.paragraphs) {
+        const foundP = def.paragraphs.find(x => String(x.id) === p);
+        if (foundP) paragraphTitle = foundP.name;
+    }
+    if (!paragraphTitle) {
+        if (item.paragraph_name && !item.paragraph_name.startsWith("فقرة") && !item.paragraph_name.startsWith("الفقرة")) {
+            paragraphTitle = item.paragraph_name;
+        } else {
+            const f39Map = {
+                "load": "1. النصاب التدريسي",
+                "committees": "2. اللجان العلمية الدائمية والمؤقتة",
+                "appreciation": "3. كتب الشكر والتقدير والجوائز",
+                "holding": "4. إقامة الدورات التدريبية والورش والندوات",
+                "attending": "5. حضور الدورات التدريبية والمؤتمرات العلمية",
+                "seminars": "6. حلقات السمينار وتغذية الطلبة الراجعة",
+                "research": "7. النشر العلمي والمؤلفات وبراءات الاختراع",
+                "editorial": "8. العمل في المجلات والمنظمات العالمية والتحكيم",
+                "fund": "9. دعم إيرادات الجامعة (جلب منحة Fund)",
+                "efficiency": "استبانة تقييم كفاءة التدريس والتعلم",
+                "base": "1. الالتزام برسالة القسم ورؤيته لمسار بولونيا",
+                "penalties": "العقوبات الإدارية الانضباطية",
+                "qa": "1. لجان وورش التعليم المستمر وضمان الجودة",
+                "guidance": "2. مهام الإرشاد التربوي ومتابعة الطلبة",
+                "field": "3. الزيارات الميدانية والأعمال التطوعية وخدمة المجتمع"
+            };
+            paragraphTitle = f39Map[p] || (p ? `فقرة ${p}` : "");
+        }
+    }
+
+    const fullLabel = paragraphTitle ? `${axisTitle} - ${paragraphTitle}` : axisTitle;
+    return { axisTitle, paragraphTitle, fullLabel };
+}
+window.formatEvidenceAxisAndParagraph = formatEvidenceAxisAndParagraph;
 
 // تعريف خريطة فقرات الاستمارة وحدودها القصوى
 const PARAGRAPH_SCORE_MAPPINGS = [
@@ -2010,7 +2187,7 @@ function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph, 
             docType = "وثيقة إثبات لمواطن القوة";
             suggestedScore = 5.0;
         } else if (ax === "axis1_bologna" || ax === "axis1_bol") {
-            axisName = "المحور الأول: التدريس وفق مسار بولونيا وتقييم الكفاءة";
+            axisName = "المحور الأول: تقييم الطالب (10%)";
             if (p === "1") {
                 paragraphName = "1. تقديم موجز مسار بولونيا";
                 docType = "موجز مسار بولونيا للمادة الدراسية";
@@ -2033,11 +2210,11 @@ function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph, 
                 suggestedScore = 6.0;
             }
         } else if (ax === "axis2_portfolio" || ax === "axis2_port") {
-            axisName = "المحور الثاني: حقيبة الأستاذ الأكاديمية (Portfolio)";
+            axisName = "المحور الثاني: حقيبة الأستاذ الأكاديمية (Portfolio) (60%)";
             if (p === "load") {
-                paragraphName = "1. النصاب التدريسي";
+                paragraphName = "1. النصاب التدريسي والتكليفات";
                 docType = "جدول النصاب التدريسي والتكليفات";
-                suggestedScore = 5.0;
+                suggestedScore = 4.0;
             } else if (p === "committees") {
                 paragraphName = "2. اللجان العلمية الدائمية والمؤقتة";
                 docType = "أمر إداري بتشكيل لجنة علمية";
@@ -2061,33 +2238,33 @@ function parseArabicDocumentClient(text, filename, targetAxis, targetParagraph, 
             } else if (p === "research") {
                 paragraphName = "7. النشر العلمي والمؤلفات وبراءات الاختراع";
                 docType = "بحث علمي منشور بمستوعب Scopus / Clarivate";
-                suggestedScore = 11.0;
+                suggestedScore = 20.0;
             } else if (p === "editorial") {
-                paragraphName = "8. العمل في المجلات والمنظمات العالمية";
+                paragraphName = "8. العمل في المجلات والمنظمات العالمية والتحكيم";
                 docType = "عضوية هيئة تحرير / تقييم بحث عالمي";
                 suggestedScore = /تحرير/i.test(raw) ? 3.0 : 1.0;
             } else if (p === "fund") {
-                paragraphName = "9. الحصول على منحة تمويلية للبحث العلمي";
+                paragraphName = "9. دعم إيرادات الجامعة (جلب منحة Fund)";
                 docType = "وثيقة منحة تمويل بحث علمي";
-                suggestedScore = 5.0;
+                suggestedScore = 2.0;
             } else {
                 paragraphName = "نشاط ضمن حقيبة الأستاذ";
                 docType = "وثيقة إثبات نشاط أكاديمي";
                 suggestedScore = 2.0;
             }
         } else if (ax === "axis3_head" || ax === "axis3_hod") {
-            axisName = "المحور الثالث: تقييم رئيس القسم العلمي";
+            axisName = "المحور الثالث: تقييم رئيس القسم (15%)";
             if (p === "penalties") {
                 paragraphName = "العقوبات الإدارية الانضباطية";
                 docType = "أمر إداري بعقوبة انضباطية";
                 suggestedScore = -3.0;
             } else {
-                paragraphName = "تقييم رئيس القسم لمسار بولونيا";
+                paragraphName = "1. الالتزام برسالة القسم ورؤيته لمسار بولونيا";
                 docType = "استمارة تقييم رئيس القسم";
                 suggestedScore = 15.0;
             }
         } else if (ax === "axis4_edu" || ax === "axis4_guidance") {
-            axisName = "المحور الرابع: النشاطات التربوية والإرشادية";
+            axisName = "المحور الرابع: الجانب التربوي والإرشادي (15%)";
             if (p === "qa") {
                 paragraphName = "1. لجان وورش التعليم المستمر وضمان الجودة";
                 docType = "شهادة مشاركة / إلقاء محاضرة بالجودة";
@@ -2182,6 +2359,7 @@ async function handleClientSideEvidenceScan(file, target) {
     });
 
     let docNumber, docDate, docTitle, docType, suggestedScore, axName, pName, isHw, hwFields, recipient, issuer, autoFillSummary;
+    const resolvedFmt = formatEvidenceAxisAndParagraph({ axis: ax, paragraph: p });
 
     // أ. فحص قاعدة المعرفة المعتمدة للوثائق الرسمية
     const verifiedKnownDoc = matchVerifiedDocumentRegistry(file.name);
@@ -2192,8 +2370,8 @@ async function handleClientSideEvidenceScan(file, target) {
         docTitle = verifiedKnownDoc.title;
         docType = verifiedKnownDoc.doc_type;
         suggestedScore = verifiedKnownDoc.suggested_score;
-        axName = target ? target.label : (verifiedKnownDoc.axis === "axis1" ? "المحور الأول" : (verifiedKnownDoc.axis === "axis2" ? "المحور الثاني" : "المحور الثالث"));
-        pName = target ? target.label : `الفقرة ${verifiedKnownDoc.paragraph}`;
+        axName = resolvedFmt.axisTitle;
+        pName = target && target.label ? target.label : resolvedFmt.paragraphTitle;
         isHw = Boolean(verifiedKnownDoc.is_handwritten);
         hwFields = isHw ? ["doc_number", "date"] : [];
         recipient = "غير محدد";
@@ -2207,8 +2385,8 @@ async function handleClientSideEvidenceScan(file, target) {
         docTitle = existingMatch.title || existingMatch.subject;
         docType = existingMatch.doc_type;
         suggestedScore = existingMatch.suggested_score || 15.0;
-        axName = existingMatch.axis_name;
-        pName = existingMatch.paragraph_name;
+        axName = resolvedFmt.axisTitle || existingMatch.axis_name;
+        pName = (target && target.label) ? target.label : (existingMatch.paragraph_name || resolvedFmt.paragraphTitle);
         isHw = Boolean(existingMatch.handwritten_detected);
         hwFields = existingMatch.handwritten_fields || (isHw ? ["doc_number", "date"] : []);
         recipient = existingMatch.recipient || "غير محدد";
@@ -2239,8 +2417,8 @@ async function handleClientSideEvidenceScan(file, target) {
             hwFields = isHw ? ["doc_number", "date"] : [];
             recipient = "غير محدد";
             issuer = vlmData.issuer || "الجامعة التكنولوجية";
-            axName = target ? target.label : "المحور المختار";
-            pName = target ? target.label : "الفقرة المستهدفة";
+            axName = resolvedFmt.axisTitle;
+            pName = target && target.label ? target.label : resolvedFmt.paragraphTitle;
             autoFillSummary = isHw ? 
                 `✍️ تم قراءة العدد [${docNumber}] والتاريخ [${docDate}] بخط اليد بالذكاء الاصطناعي` : 
                 `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`;
@@ -2255,8 +2433,8 @@ async function handleClientSideEvidenceScan(file, target) {
             hwFields = parsed.handwritten_fields;
             recipient = parsed.recipient;
             issuer = parsed.issuer;
-            axName = target ? target.label : parsed.axis_name;
-            pName = target ? target.label : parsed.paragraph_name;
+            axName = resolvedFmt.axisTitle || parsed.axis_name;
+            pName = target && target.label ? target.label : (parsed.paragraph_name || resolvedFmt.paragraphTitle);
             autoFillSummary = parsed.auto_fill_summary;
         }
     }
@@ -2892,7 +3070,7 @@ function openDocumentPreview(refCodeOrItem) {
     renderPreviewMetaNumberDate(item, false);
 
     const metaAxis = document.getElementById("preview-meta-axis");
-    if (metaAxis) metaAxis.textContent = `${item.axis_name || item.axis || 'المحور'} - فقرة ${item.paragraph || item.suggested_paragraph || '1'}`;
+    if (metaAxis) metaAxis.textContent = formatEvidenceAxisAndParagraph(item).fullLabel;
 
     const metaScore = document.getElementById("preview-meta-score");
     if (metaScore) metaScore.textContent = `+${item.suggested_score || 0} درجة`;
@@ -3054,19 +3232,24 @@ function openReclassifyModal(refCode) {
 
     const currentPlacementEl = document.getElementById("reclassify-current-placement");
     if (currentPlacementEl) {
-        currentPlacementEl.textContent = `${item.axis_name || item.axis} - فقرة ${item.paragraph || '1'}`;
+        currentPlacementEl.textContent = formatEvidenceAxisAndParagraph(item).fullLabel;
     }
 
-    // استخراج رقم المحور الحالي (1, 2, 3, 4)
-    let axisNum = "1";
-    if (item.axis) {
-        const match = String(item.axis).match(/\d+/);
-        if (match) axisNum = match[0];
-    }
-    if (!["1", "2", "3", "4"].includes(axisNum)) axisNum = "1";
+    let targetAxisKey = item.axis || "axis1";
+    if (targetAxisKey === "axis3_head") targetAxisKey = "axis3_hod";
+    if (targetAxisKey === "axis4_edu") targetAxisKey = "axis4_guidance";
+    if (targetAxisKey === "1") targetAxisKey = "axis1";
+    if (targetAxisKey === "2") targetAxisKey = "axis2";
+    if (targetAxisKey === "3") targetAxisKey = "axis3";
+    if (targetAxisKey === "4") targetAxisKey = "axis4";
 
     const axisSelect = document.getElementById("reclassify-axis-select");
-    if (axisSelect) axisSelect.value = axisNum;
+    if (axisSelect) {
+        axisSelect.value = targetAxisKey;
+        if (!axisSelect.value) {
+            axisSelect.value = targetAxisKey.includes("bologna") ? "axis1_bologna" : "axis1";
+        }
+    }
 
     // تعبئة قائمة الفقرات واختيار الفقرة الحالية
     onReclassifyAxisChange(item.paragraph);
@@ -3102,8 +3285,8 @@ function onReclassifyAxisChange(preselectParagraph) {
     const paraSelect = document.getElementById("reclassify-paragraph-select");
     if (!axisSelect || !paraSelect) return;
 
-    const axisNum = axisSelect.value;
-    const def = AXIS_CATALOG_DEFINITIONS[axisNum];
+    const axisKey = axisSelect.value;
+    const def = AXIS_CATALOG_DEFINITIONS[axisKey] || AXIS_CATALOG_DEFINITIONS[axisKey.replace("axis", "")] || AXIS_CATALOG_DEFINITIONS["axis1"];
     if (!def) return;
 
     paraSelect.innerHTML = def.paragraphs.map(p => 
@@ -3129,9 +3312,9 @@ function onReclassifyParagraphChange() {
 
     if (!axisSelect || !paraSelect) return;
 
-    const axisNum = axisSelect.value;
+    const axisKey = axisSelect.value;
     const paraId = paraSelect.value;
-    const def = AXIS_CATALOG_DEFINITIONS[axisNum];
+    const def = AXIS_CATALOG_DEFINITIONS[axisKey] || AXIS_CATALOG_DEFINITIONS[axisKey.replace("axis", "")] || AXIS_CATALOG_DEFINITIONS["axis1"];
     if (!def) return;
 
     const pDef = def.paragraphs.find(p => String(p.id) === String(paraId));
@@ -3169,15 +3352,15 @@ async function confirmReclassify() {
     const notesInput = document.getElementById("reclassify-notes-input");
     const confirmBtn = document.getElementById("reclassify-confirm-btn");
 
-    const axisNum = axisSelect ? axisSelect.value : "1";
-    const newAxisKey = "axis" + axisNum;
+    const selVal = axisSelect ? axisSelect.value : "axis1";
+    const newAxisKey = selVal.startsWith("axis") ? selVal : ("axis" + selVal);
     const newParagraph = paraSelect ? paraSelect.value : "1";
     const newDocType = docTypeInput ? docTypeInput.value.trim() : (item.doc_type || "وثيقة رسمية");
     const newScore = scoreInput ? (parseFloat(scoreInput.value) || 0) : (item.suggested_score || 0);
     const notes = notesInput ? notesInput.value.trim() : "";
 
-    const def = AXIS_CATALOG_DEFINITIONS[axisNum] || AXIS_CATALOG_DEFINITIONS["1"];
-    const pDef = def.paragraphs.find(p => String(p.id) === String(newParagraph)) || def.paragraphs[0];
+    const def = AXIS_CATALOG_DEFINITIONS[newAxisKey] || AXIS_CATALOG_DEFINITIONS[selVal] || AXIS_CATALOG_DEFINITIONS["axis1"];
+    const pDef = (def && def.paragraphs) ? (def.paragraphs.find(p => String(p.id) === String(newParagraph)) || def.paragraphs[0]) : { id: newParagraph, name: `فقرة ${newParagraph}` };
 
     const oldAxis = item.axis;
     const oldParagraph = String(item.paragraph);
@@ -3232,7 +3415,7 @@ async function confirmReclassify() {
         const metaType = document.getElementById("preview-meta-type");
         if (metaType) metaType.textContent = item.doc_type;
         const metaAxis = document.getElementById("preview-meta-axis");
-        if (metaAxis) metaAxis.textContent = `${item.axis_name} - فقرة ${item.paragraph}`;
+        if (metaAxis) metaAxis.textContent = formatEvidenceAxisAndParagraph(item).fullLabel;
         const metaScore = document.getElementById("preview-meta-score");
         if (metaScore) metaScore.textContent = `+${item.suggested_score} درجة`;
     }
@@ -3892,7 +4075,11 @@ function renderMasterCatalogTable() {
 
     let filtered = indexedEvidenceList;
     if (activeFilterAxis !== "all") {
-        filtered = indexedEvidenceList.filter(e => e.axis === activeFilterAxis);
+        filtered = indexedEvidenceList.filter(e => {
+            if (activeFilterAxis === "axis3_hod") return e.axis === "axis3_hod" || e.axis === "axis3_head";
+            if (activeFilterAxis === "axis4_guidance") return e.axis === "axis4_guidance" || e.axis === "axis4_edu";
+            return e.axis === activeFilterAxis;
+        });
     }
     if (filterFacultyOnly) {
         filtered = filtered.filter(e => Boolean(e.matched_faculty_info));
@@ -3981,8 +4168,8 @@ function renderMasterCatalogTable() {
             </td>
             <td style="text-align: center;">
                 <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                    <span style="background: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; display: inline-block;">
-                        ${item.axis_name || item.axis} - فقرة ${item.paragraph}
+                    <span style="background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.78rem; display: inline-block; text-align: center; line-height: 1.4;">
+                        ${formatEvidenceAxisAndParagraph(item).fullLabel}
                     </span>
                     <button type="button" class="btn btn-outline" style="padding: 2px 7px; font-size: 0.72rem; color: #0284c7; border-color: #bae6fd; background: #f0f9ff;" onclick="openReclassifyModal('${item.ref_code}')" title="تغيير المحور والفقرة">
                         <i class="fa-solid fa-sliders"></i> تغيير المحور/الفقرة
@@ -5816,6 +6003,53 @@ async function loadSampleData() {
             showToast("تم تحميل الملف التوثيقي النموذجي مع الأدلة المفهرسة بنجاح! 🚀");
 }
 
+function populateUIFromStateForm39() {
+    if (!formData) return;
+    initForm39State();
+
+    // المحور الأول: التدريس وتقييم الكفاءة
+    const bItems = formData.axis1_bologna?.bologna_teaching_items || [0, 0, 0, 0];
+    for (let i = 1; i <= 4; i++) {
+        const cb = document.getElementById(`f39-bologna-p${i}`);
+        if (cb) cb.checked = Boolean(bItems[i - 1]);
+    }
+
+    const tItems = formData.axis1_bologna?.teaching_efficiency_items || [0, 0, 0, 0, 0, 0];
+    for (let i = 1; i <= 6; i++) {
+        const cb = document.getElementById(`f39-teach-p${i}`);
+        if (cb) cb.checked = Boolean(tItems[i - 1]);
+    }
+
+    // المحور الثاني: حقيبة الأستاذ
+    const ax2 = formData.axis2_portfolio || {};
+    const loadSelect = document.getElementById("f39-teaching-load-status");
+    if (loadSelect) loadSelect.value = ax2.teaching_load_status || "none";
+
+    const semInp = document.getElementById("f39-seminars-count");
+    if (semInp) semInp.value = ax2.attending_seminars_count || 0;
+
+    const orgSelect = document.getElementById("f39-intl-org-membership");
+    if (orgSelect) orgSelect.value = ax2.intl_org_membership || "none";
+
+    const keySelect = document.getElementById("f39-keynote-type");
+    if (keySelect) keySelect.value = ax2.keynote_speaker_type || "none";
+
+    const fundCheck = document.getElementById("f39-fund-granted");
+    if (fundCheck) fundCheck.checked = Boolean(ax2.fund_granted);
+
+    const fundDet = document.getElementById("f39-fund-details");
+    if (fundDet) fundDet.value = ax2.fund_details || "";
+
+    // المحور الثالث: تقييم رئيس القسم
+    const ax3 = formData.axis3_hod || {};
+    const hodInp = document.getElementById("f39-hod-base-score");
+    if (hodInp) hodInp.value = ax3.base_score !== undefined ? ax3.base_score : 0;
+
+    // الجداول الديناميكية
+    renderAllForm39Tables();
+}
+window.populateUIFromStateForm39 = populateUIFromStateForm39;
+
 function populateUIFromState() {
     document.querySelectorAll("[data-bind]").forEach(input => {
         const key = input.getAttribute("data-bind");
@@ -5831,6 +6065,7 @@ function populateUIFromState() {
     toggleNonTeachingUI(formData.is_non_teaching);
     updateCheckboxesUI();
     updateScoreStatusBadges();
+    populateUIFromStateForm39();
 }
 
 function saveDraft() {
@@ -5867,7 +6102,17 @@ async function loadDraft() {
         try {
             const parsed = JSON.parse(saved);
             formData = parsed.formData || (Array.isArray(parsed) ? formData : parsed);
-            const items = parsed.indexedEvidenceList || parsed.attachments || (Array.isArray(parsed) ? parsed : []);
+            let items = parsed.indexedEvidenceList || parsed.attachments || (Array.isArray(parsed) ? parsed : []);
+            
+            // تفريغ أي وثائق وملفات افتراضية سابقة لاستمارة 39 لتبدأ نظيفة
+            const hasLegacyF39Defaults = !localStorage.getItem("faculty_eval_f39_purged_v2") ||
+                items.some(e => e.ref_code && e.ref_code.startsWith("REF-P39-"));
+            if (hasLegacyF39Defaults) {
+                console.log("Purging Form 39 default/sample documents to start clean");
+                localStorage.setItem("faculty_eval_f39_purged_v2", "true");
+                items = items.filter(e => !e.ref_code || !e.ref_code.startsWith("REF-P39-"));
+            }
+
             // تفريغ المرفقات الافتراضية السابقة (48 أو 55 ملفاً) لتبدأ الصفحة بحالة نظيفة 0 ملفات وفق التوجيه
             const hasLegacyDefaults = items.length === 48 || items.length === 55 ||
                 items.some(e => e.ref_code === "REF-AX4-P2-01" && (e.doc_number === "م.ع/17" || e.doc_number === "17")) ||
@@ -5893,6 +6138,22 @@ async function loadDraft() {
                     indexedEvidenceList = items;
                 }
             }
+
+            // تنظيف الحقول الافتراضية القديمة لاستمارة 39 في حال كانت معبأة مسبقاً
+            if (!localStorage.getItem("faculty_eval_f39_state_purged_v2")) {
+                localStorage.setItem("faculty_eval_f39_state_purged_v2", "true");
+                if (formData && formData.axis1_bologna && Array.isArray(formData.axis1_bologna.bologna_teaching_items)) {
+                    if (formData.axis1_bologna.bologna_teaching_items.every(v => v === 1)) {
+                        formData.axis1_bologna.bologna_teaching_items = [0, 0, 0, 0];
+                    }
+                }
+                if (formData && formData.axis1_bologna && Array.isArray(formData.axis1_bologna.teaching_efficiency_items)) {
+                    if (formData.axis1_bologna.teaching_efficiency_items.every(v => v === 1)) {
+                        formData.axis1_bologna.teaching_efficiency_items = [0, 0, 0, 0, 0, 0];
+                    }
+                }
+            }
+
             if (parsed.manualScoreOverrides) {
                 manualScoreOverrides = parsed.manualScoreOverrides;
                 window.manualScoreOverrides = manualScoreOverrides;
@@ -7810,75 +8071,39 @@ function initForm39State() {
 
     if (!formData.axis1_bologna) {
         formData.axis1_bologna = {
-            bologna_teaching_items: [1, 1, 1, 1],
-            teaching_efficiency_items: [1, 1, 1, 1, 1, 1]
+            bologna_teaching_items: [0, 0, 0, 0],
+            teaching_efficiency_items: [0, 0, 0, 0, 0, 0]
         };
     }
 
     if (!formData.axis2_portfolio) {
         formData.axis2_portfolio = {
-            teaching_load_status: "full",
-            committees: [
-                { type: "permanent", name: "لجنة ضمان الجودة ومسار بولونيا", entity: "القسم", order_no_date: "ق/45 في 2025/09/20", score: 4.0 }
-            ],
-            appreciation_items: [
-                { type: "ministry", name: "كتاب شكر وتقدير من السيد وزير التعليم العالي", order_no_date: "و/1024 في 2025/11/15", score: 5.0 }
-            ],
-            holding_events: [
-                { type: "training_course_24h", name: "دورة التحول الرقمي وتطبيق مسار بولونيا", duration: "24 ساعة تدريبية (أسبوع)", score: 4.0 },
-                { type: "seminar", name: "ندوة الذكاء الاصطناعي في التعليم المعماري", duration: "يوم واحد", score: 2.0 }
-            ],
-            attending_courses: [
-                { type: "course", name: "دورة طرائق التدريس الحديثة ومسار بولونيا", organizer: "مركز التعليم المستمر", score: 2.0 },
-                { type: "conf_paper", name: "المؤتمر الدولي للهندسة المستدامة (بحث منشور)", organizer: "الجامعة التكنولوجية", score: 2.0 }
-            ],
-            attending_seminars_count: 10,
-            research_publications: [
-                {
-                    category: "scopus_q1",
-                    title: "BIM and Digital Twin in Sustainable Heritage Preservation",
-                    journal: "Journal of Building Engineering (Scopus Q1 / Clarivate)",
-                    author_rank: "first",
-                    doi: "10.1016/j.jobe.2025.108912",
-                    base_score: 10.0,
-                    final_score: 11.0
-                },
-                {
-                    category: "clarivate_scopus_mid",
-                    title: "Parametric Architecture Optimization for Hot-Arid Climates",
-                    journal: "Architectural Science Review (IF 2.8 / Scopus Q1)",
-                    author_rank: "corresponding",
-                    doi: "10.1080/00038628.2025.21045",
-                    base_score: 10.0,
-                    final_score: 11.0
-                }
-            ],
-            intl_org_membership: "senior_fellow",
-            editorial_items: [
-                { type: "scopus_editor", journal: "International Journal of Architectural Heritage", score: 3.0 },
-                { type: "review_paper", journal: "Building and Environment (Scopus Reviewer)", score: 1.0 }
-            ],
-            keynote_speaker_type: "intl",
-            fund_granted: true,
-            fund_details: "مشروع التوأمة الرقمية للتراث المعماري - منحة تمويلية للجامعة التكنولوجية"
+            teaching_load_status: "none",
+            committees: [],
+            appreciation_items: [],
+            holding_events: [],
+            attending_courses: [],
+            attending_seminars_count: 0,
+            research_publications: [],
+            intl_org_membership: "none",
+            editorial_items: [],
+            keynote_speaker_type: "none",
+            fund_granted: false,
+            fund_details: ""
         };
     }
 
     if (!formData.axis3_hod) {
         formData.axis3_hod = {
-            base_score: 15.0,
+            base_score: 0,
             penalties: []
         };
     }
 
     if (!formData.axis4_guidance) {
         formData.axis4_guidance = {
-            qa_committee_items: [
-                { type: "lecturer", title: "محاضر في ورش ضمان الجودة وتطبيق مسار بولونيا", score: 5.0 }
-            ],
-            field_activities: [
-                { type: "field_supervision", details: "زيارة ميدانية للإشراف على تدريب الطلبة في مشاريع الحفاظ المعماري", score: 10.0 }
-            ]
+            qa_committee_items: [],
+            field_activities: []
         };
     }
 }
@@ -7923,6 +8148,7 @@ function switchEvaluationFormMode(mode) {
         if (btnPdf) btnPdf.title = "تحميل استمارة رقم (39) مسار بولونيا بصيغة PDF (.pdf)";
 
         initForm39State();
+        populateUIFromStateForm39();
         renderAllForm39Tables();
         calculateLiveScore();
         showToast("تم تفعيل استمارة رقم (39): مسار بولونيا 2025-2026 بنجاح! 🎓");
@@ -7969,8 +8195,8 @@ function calculateEvaluationForm39Client(fd) {
 
     // المحور الأول: تقييم الطالب (10 درجات)
     const ax1 = fd.axis1_bologna || {};
-    const bItems = ax1.bologna_teaching_items || [1, 1, 1, 1];
-    const tItems = ax1.teaching_efficiency_items || [1, 1, 1, 1, 1, 1];
+    const bItems = ax1.bologna_teaching_items || [0, 0, 0, 0];
+    const tItems = ax1.teaching_efficiency_items || [0, 0, 0, 0, 0, 0];
     const p1Score = Math.min(4.0, bItems.reduce((acc, v) => acc + Math.min(1.0, Math.max(0.0, parseFloat(v) || 0)), 0));
     const p2Score = Math.min(6.0, tItems.reduce((acc, v) => acc + Math.min(1.0, Math.max(0.0, parseFloat(v) || 0)), 0));
     const axis1Total = Math.round((p1Score + p2Score) * 100) / 100;
@@ -7980,8 +8206,8 @@ function calculateEvaluationForm39Client(fd) {
     const ax2 = fd.axis2_portfolio || {};
     
     // 1. الحمل التدريسي واللجان (8 درجات)
-    const loadStatus = ax2.teaching_load_status || "full";
-    const loadPts = (loadStatus === "full" || loadStatus === "partial_department_assigned") ? 4.0 : 2.0;
+    const loadStatus = ax2.teaching_load_status || "none";
+    const loadPts = (loadStatus === "full" || loadStatus === "partial_department_assigned") ? 4.0 : (loadStatus === "partial" ? 2.0 : 0.0);
     let commPts = 0.0;
     (ax2.committees || []).forEach(c => {
         commPts += (c.type === "permanent") ? 4.0 : 2.0;
@@ -8012,8 +8238,8 @@ function calculateEvaluationForm39Client(fd) {
     });
     attendPts = Math.min(4.0, attendPts);
 
-    const seminarsCount = parseFloat(ax2.attending_seminars_count || (ax2.attending_seminars ? ax2.attending_seminars.length : 10));
-    const seminarsPts = Math.min(10.0, seminarsCount);
+    const seminarsCount = parseFloat(ax2.attending_seminars_count !== undefined ? ax2.attending_seminars_count : (ax2.attending_seminars ? ax2.attending_seminars.length : 0));
+    const seminarsPts = Math.min(10.0, isNaN(seminarsCount) ? 0 : seminarsCount);
     const p3Training = Math.min(20.0, holdingPts + attendPts + seminarsPts);
 
     // 4. البحث والتطوير والكتب وبراءات الاختراع (20 درجة مع معامل اللقب)
@@ -8037,7 +8263,7 @@ function calculateEvaluationForm39Client(fd) {
         else if (cat === "scopus_q3") base = 8.0;
         else if (cat === "scopus_q4") base = 7.0;
         else if (cat === "non_indexed_doi") base = 5.0;
-        else base = parseFloat(r.base_score || 8.0);
+        else base = parseFloat(r.base_score || 0.0);
 
         if (r.author_rank === "first" || r.author_rank === "corresponding") base += 1.0;
         else if (r.author_rank === "rank_5_10") base = Math.max(0.0, base - 2.0);
@@ -8051,7 +8277,7 @@ function calculateEvaluationForm39Client(fd) {
     const p4Research = Math.min(20.0, researchMultiplied);
 
     // 5. النشاط الدولي (5 درجات)
-    const orgMembership = ax2.intl_org_membership || "senior_fellow";
+    const orgMembership = ax2.intl_org_membership || "none";
     const orgPts = (orgMembership === "senior_fellow") ? 2.0 : (orgMembership === "member" ? 1.0 : 0.0);
 
     let editPts = 0.0;
@@ -8062,7 +8288,7 @@ function calculateEvaluationForm39Client(fd) {
     });
     editPts = Math.min(4.0, editPts);
 
-    const keynoteType = ax2.keynote_speaker_type || "intl";
+    const keynoteType = ax2.keynote_speaker_type || "none";
     const keynotePts = (keynoteType === "intl") ? 2.0 : (keynoteType === "national" ? 1.0 : 0.0);
     const p5Intl = Math.min(5.0, orgPts + editPts + keynotePts);
 
@@ -8074,7 +8300,7 @@ function calculateEvaluationForm39Client(fd) {
 
     // المحور الثالث: تقييم رئيس القسم (15 درجة)
     const ax3 = fd.axis3_hod || {};
-    const baseHod = parseFloat(ax3.base_score !== undefined ? ax3.base_score : 15.0);
+    const baseHod = parseFloat(ax3.base_score !== undefined ? ax3.base_score : 0.0);
     let penaltyDed = 0.0;
     const penaltiesDetails = [];
     (ax3.penalties || []).forEach(p => {
@@ -8218,7 +8444,7 @@ window.updateForm39Axis2 = updateForm39Axis2;
 function updateForm39Axis3() {
     initForm39State();
     const hodInp = document.getElementById("f39-hod-base-score");
-    if (hodInp) formData.axis3_hod.base_score = parseFloat(hodInp.value) || 15.0;
+    if (hodInp) formData.axis3_hod.base_score = !isNaN(parseFloat(hodInp.value)) ? parseFloat(hodInp.value) : 0;
     calculateLiveScore();
 }
 window.updateForm39Axis3 = updateForm39Axis3;

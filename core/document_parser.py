@@ -1735,12 +1735,57 @@ def deep_scan_and_index_document(
                 auto_fill_summary.append(f"⚠️ تنبيه: تم رصد هذا العدد سابقاً في الوثيقة [{duplicate_of}].")
                 break
 
+    f39_axis_names = {
+        "axis1_bologna": "المحور الأول: تقييم الطالب (10%)",
+        "axis1_bol": "المحور الأول: تقييم الطالب (10%)",
+        "axis2_portfolio": "المحور الثاني: حقيبة الأستاذ (60%)",
+        "axis2_port": "المحور الثاني: حقيبة الأستاذ (60%)",
+        "axis3_hod": "المحور الثالث: تقييم رئيس القسم (15%)",
+        "axis3_head": "المحور الثالث: تقييم رئيس القسم (15%)",
+        "axis4_guidance": "المحور الرابع: الجانب التربوي والإرشادي (15%)",
+        "axis4_edu": "المحور الرابع: الجانب التربوي والإرشادي (15%)",
+        "axis4_educational": "المحور الرابع: الجانب التربوي والإرشادي (15%)",
+        "axis1": "المحور الأول: جودة التدريس والالتزام الوظيفي",
+        "axis2": "المحور الثاني: النشاط العلمي والبحثي",
+        "axis3": "المحور الثالث: الجانب التربوي والإرشادي والتعليم المستمر",
+        "axis4": "المحور الرابع: مواطن القوة والإبداع",
+    }
+    f39_para_names = {
+        "load": "1. النصاب التدريسي",
+        "committees": "2. اللجان العلمية الدائمية والمؤقتة",
+        "appreciation": "3. كتب الشكر والتقدير والجوائز",
+        "holding": "4. إقامة الدورات التدريبية والورش والندوات",
+        "attending": "5. حضور الدورات التدريبية والمؤتمرات العلمية",
+        "seminars": "6. حلقات السمينار وتغذية الطلبة الراجعة",
+        "research": "7. النشر العلمي والمؤلفات وبراءات الاختراع",
+        "editorial": "8. العمل في المجلات والمنظمات العالمية والتحكيم",
+        "fund": "9. دعم إيرادات الجامعة (جلب منحة Fund)",
+        "efficiency": "استبانة تقييم كفاءة التدريس والتعلم",
+        "base": "1. الالتزام برسالة القسم ورؤيته لمسار بولونيا",
+        "penalties": "العقوبات الإدارية الانضباطية",
+        "qa": "1. لجان وورش التعليم المستمر وضمان الجودة",
+        "guidance": "2. مهام الإرشاد التربوي ومتابعة الطلبة",
+        "field": "3. الزيارات الميدانية والأعمال التطوعية وخدمة المجتمع",
+    }
+    if "bologna" in str(axis).lower():
+        if paragraph == "1":
+            f39_para_names["1"] = "1. تقديم موجز مسار بولونيا"
+        elif paragraph == "2":
+            f39_para_names["2"] = "2. إعداد وشرح دليل وصف المادة الدراسية (Course Guide)"
+        elif paragraph == "3":
+            f39_para_names["3"] = "3. الالتزام بجدول التقييم التكويني وتوزيع الدرجات"
+        elif paragraph == "4":
+            f39_para_names["4"] = "4. مصفوفة مخرجات التعلم CLOs وعلاقتها بالمنهاج"
+
+    resolved_axis_name = f39_axis_names.get(axis, parsed.get("axis_name", axis))
+    resolved_para_name = f39_para_names.get(paragraph, parsed.get("paragraph_name", f"الفقرة {paragraph}"))
+
     return {
         "ref_code": ref_code,
         "axis": axis,
         "paragraph": paragraph,
-        "axis_name": parsed.get("axis_name", axis),
-        "paragraph_name": parsed.get("paragraph_name", f"الفقرة {paragraph}"),
+        "axis_name": resolved_axis_name,
+        "paragraph_name": resolved_para_name,
         "title": subject_title,
         "subject": subject_title,
         "recipient": recipient or "غير محدد",

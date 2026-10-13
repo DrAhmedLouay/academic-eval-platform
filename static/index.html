@@ -1036,12 +1036,20 @@
                             <i class="fa-solid fa-user-check"></i> وثائق التدريسي (<span id="faculty-matches-count">0</span>)
                         </button>
                         <label style="font-weight: 700; font-size: 0.85rem; color: #475569;">تصفية حسب المحور:</label>
-                        <select id="catalog-filter-axis" class="form-control" style="width: 200px; font-size: 0.85rem; padding: 0.4rem 0.75rem;">
+                        <select id="catalog-filter-axis" class="form-control" style="width: 220px; font-size: 0.85rem; padding: 0.4rem 0.75rem;">
                             <option value="all">جميع المحاور والفقرات</option>
-                            <option value="axis1">المحور الأول: جودة التدريس</option>
-                            <option value="axis2">المحور الثاني: النشاط العلمي</option>
-                            <option value="axis3">المحور الثالث: التربوي والإرشادي</option>
-                            <option value="axis4">المحور الرابع: مواطن القوة</option>
+                            <optgroup label="── استمارة (39) مسار بولونيا ──">
+                                <option value="axis1_bologna">المحور الأول: تقييم الطالب (10%)</option>
+                                <option value="axis2_portfolio">المحور الثاني: حقيبة الأستاذ (60%)</option>
+                                <option value="axis3_hod">المحور الثالث: تقييم رئيس القسم (15%)</option>
+                                <option value="axis4_guidance">المحور الرابع: الجانب التربوي والإرشادي (15%)</option>
+                            </optgroup>
+                            <optgroup label="── استمارة (21) المسار السنوي ──">
+                                <option value="axis1">المحور الأول: جودة التدريس</option>
+                                <option value="axis2">المحور الثاني: النشاط العلمي</option>
+                                <option value="axis3">المحور الثالث: التربوي والإرشادي</option>
+                                <option value="axis4">المحور الرابع: مواطن القوة</option>
+                            </optgroup>
                         </select>
                     </div>
                 </div>
@@ -1299,7 +1307,7 @@
             <div class="form-card">
                 <div class="form-card-title">
                     <span><i class="fa-solid fa-chalkboard-user"></i> المحور الأول: تقييم الطالب للمادة الدراسية وطريقة التدريس (الوزن 10% - الدرجة القصوى 10 درجات)</span>
-                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;">المجموع: <span id="f39-ax1-total-badge">10.0</span> / 10</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;">المجموع: <span id="f39-ax1-total-badge">0.0</span> / 10</span>
                 </div>
                 <p style="color:#64748b; font-size:0.9rem; margin-bottom:1rem;">
                     يتم احتساب هذا المحور وفق تقييم الطلبة الإلكتروني المنفذ قبل الامتحانات النهائية للفصل الدراسي (في الأسبوع العاشر).
@@ -1309,13 +1317,13 @@
                 <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; margin-bottom:1.5rem;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:2px solid #cbd5e1; padding-bottom:0.5rem;">
                         <h4 style="color:#1e3a8a; margin:0; font-size:1rem;"><i class="fa-solid fa-1"></i> التدريس وفق مسار بولونيا (الدرجة القصوى 4 درجات - درجة واحدة لكل فقرة)</h4>
-                        <span style="font-weight:700; color:#1e40af;"><span id="f39-ax1-p1-score">4</span> / 4 درجات</span>
+                        <span style="font-weight:700; color:#1e40af;"><span id="f39-ax1-p1-score">0</span> / 4 درجات</span>
                     </div>
                     
                     <div class="bologna-check-list" style="display:flex; flex-direction:column; gap:0.75rem;">
                         <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
                             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
-                                <input type="checkbox" id="f39-bologna-p1" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <input type="checkbox" id="f39-bologna-p1" class="form-check-input" onchange="updateForm39Axis1()">
                                 <span><strong>1. يقوم المحاضر بتقديم موجز عن عملية التدريس والتقييم وفق مسار بولونيا للطلبة في أول محاضرة.</strong></span>
                             </label>
                             <div style="display:flex; align-items:center; gap:8px;">
@@ -1328,7 +1336,7 @@
 
                         <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
                             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
-                                <input type="checkbox" id="f39-bologna-p2" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <input type="checkbox" id="f39-bologna-p2" class="form-check-input" onchange="updateForm39Axis1()">
                                 <span><strong>2. يقوم المحاضر بتقديم وشرح دليل وصف المادة الدراسية في الأسبوع الأول للفصل الدراسي.</strong></span>
                             </label>
                             <div style="display:flex; align-items:center; gap:8px;">
@@ -1341,7 +1349,7 @@
 
                         <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
                             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
-                                <input type="checkbox" id="f39-bologna-p3" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <input type="checkbox" id="f39-bologna-p3" class="form-check-input" onchange="updateForm39Axis1()">
                                 <span><strong>3. يلتزم المحاضر بطريقة التقييم التكويني من حيث عدد الامتحانات القصيرة والواجبات المنزلية والفعاليات العلمية ومواعيدها والمذكورة في دليل وصف المادة الدراسية.</strong></span>
                             </label>
                             <div style="display:flex; align-items:center; gap:8px;">
@@ -1354,7 +1362,7 @@
 
                         <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
                             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
-                                <input type="checkbox" id="f39-bologna-p4" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <input type="checkbox" id="f39-bologna-p4" class="form-check-input" onchange="updateForm39Axis1()">
                                 <span><strong>4. يقوم المحاضر بتوضيح علاقة مفردات المنهاج الأسبوعي بمخرجات التعلم.</strong></span>
                             </label>
                             <div style="display:flex; align-items:center; gap:8px;">
@@ -1371,48 +1379,48 @@
                 <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; border-bottom:2px solid #cbd5e1; padding-bottom:0.5rem;">
                         <h4 style="color:#1e3a8a; margin:0; font-size:1rem;"><i class="fa-solid fa-2"></i> كفاءة الأستاذ وطريقة التدريس (الدرجة القصوى 6 درجات - درجة واحدة لكل فقرة)</h4>
-                        <span style="font-weight:700; color:#1e40af;"><span id="f39-ax1-p2-score">6</span> / 6 درجات</span>
+                        <span style="font-weight:700; color:#1e40af;"><span id="f39-ax1-p2-score">0</span> / 6 درجات</span>
                     </div>
 
                     <div class="bologna-check-list" style="display:flex; flex-direction:column; gap:0.75rem;">
                         <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
                             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
-                                <input type="checkbox" id="f39-teach-p1" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <input type="checkbox" id="f39-teach-p1" class="form-check-input" onchange="updateForm39Axis1()">
                                 <span>1. طريقة التدريس والمحاضرة مثيرة للاهتمام وتحفز الطالب ليفهم المادة العلمية.</span>
                             </label>
                             <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
                         </div>
                         <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
                             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
-                                <input type="checkbox" id="f39-teach-p2" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <input type="checkbox" id="f39-teach-p2" class="form-check-input" onchange="updateForm39Axis1()">
                                 <span>2. يتم تزويد الطالب بقائمة من المراجع المختلفة بالإضافة للمراجع الرئيسية.</span>
                             </label>
                             <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
                         </div>
                         <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
                             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
-                                <input type="checkbox" id="f39-teach-p3" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <input type="checkbox" id="f39-teach-p3" class="form-check-input" onchange="updateForm39Axis1()">
                                 <span>3. يعطي المحاضر الوقت الكافي للأسئلة والأجوبة خلال المحاضرة.</span>
                             </label>
                             <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
                         </div>
                         <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
                             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
-                                <input type="checkbox" id="f39-teach-p4" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <input type="checkbox" id="f39-teach-p4" class="form-check-input" onchange="updateForm39Axis1()">
                                 <span>4. يستخدم المحاضر التقنيات اللازمة وأدوات الصوت والفيديو لشرح محاضراته.</span>
                             </label>
                             <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
                         </div>
                         <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
                             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
-                                <input type="checkbox" id="f39-teach-p5" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <input type="checkbox" id="f39-teach-p5" class="form-check-input" onchange="updateForm39Axis1()">
                                 <span>5. خلال المحاضرة يعامل المحاضر الطلاب باحترام.</span>
                             </label>
                             <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
                         </div>
                         <div class="bologna-check-item" style="display:flex; justify-content:space-between; align-items:center; background:white; padding:10px 14px; border-radius:8px; border:1px solid #e2e8f0;">
                             <label style="display:flex; align-items:center; gap:10px; cursor:pointer; flex:1;">
-                                <input type="checkbox" id="f39-teach-p6" class="form-check-input" checked onchange="updateForm39Axis1()">
+                                <input type="checkbox" id="f39-teach-p6" class="form-check-input" onchange="updateForm39Axis1()">
                                 <span>6. تعكس أسئلة الامتحان محتويات المادة العلمية المرتبطة بمخرجات التعلم.</span>
                             </label>
                             <span class="badge" style="background:#dcfce7; color:#166534; font-weight:700;">1.0 درجة</span>
@@ -1439,7 +1447,7 @@
             <div class="form-card">
                 <div class="form-card-title">
                     <span><i class="fa-solid fa-briefcase"></i> المحور الثاني / الفقرة 1: واجبات ومسؤوليات أعضاء هيئة التدريس (الدرجة القصوى 8 درجات)</span>
-                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p1-resp-score">8.0</span> / 8</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p1-resp-score">0.0</span> / 8</span>
                 </div>
 
                 <!-- أ) الحمل التدريسي -->
@@ -1449,9 +1457,10 @@
                         <div class="form-group">
                             <label>حالة النصاب التدريسي:</label>
                             <select class="form-control" id="f39-teaching-load-status" onchange="updateForm39Axis2()">
-                                <option value="full" selected>درجة كاملة في حال اكتمال النصاب (4 درجات)</option>
+                                <option value="full">درجة كاملة في حال اكتمال النصاب (4 درجات)</option>
                                 <option value="partial_department_assigned">مستوفٍ للنصاب وفق الملاحظة الوزارية (التدريسي راغب والقسم غير قادر وتم تكليفه بمهام بديلة) (4 درجات)</option>
                                 <option value="partial">عدم اكتمال النصاب (درجتان فقط)</option>
+                                <option value="none" selected>لم يتم التحديد بعد (0 درجات)</option>
                             </select>
                         </div>
                         <div class="form-group" style="display:flex; align-items:flex-end;">
@@ -1501,7 +1510,7 @@
             <div class="form-card">
                 <div class="form-card-title">
                     <span><i class="fa-solid fa-award"></i> المحور الثاني / الفقرة 2: كتب الشكر والتقدير والجوائز الأكاديمية (الدرجة القصوى 5 درجات)</span>
-                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p2-appr-score">5.0</span> / 5</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p2-appr-score">0.0</span> / 5</span>
                 </div>
                 <p style="color:#64748b; font-size:0.85rem; margin-bottom:0.75rem;">
                     يتم تجميع الدرجات: درجتان لقسم، 3 لكلية، 4 لجامعة، 5 لوزارة، 5 لجائزة أكاديمية.
@@ -1534,7 +1543,7 @@
             <div class="form-card">
                 <div class="form-card-title">
                     <span><i class="fa-solid fa-chalkboard-user"></i> المحور الثاني / الفقرة 3: التدريب والتعليم المستمر (الدرجة القصوى 20 درجة)</span>
-                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p3-train-score">20.0</span> / 20</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p3-train-score">0.0</span> / 20</span>
                 </div>
 
                 <!-- أ) عقد الدورات والورش (6 درجات) -->
@@ -1600,7 +1609,7 @@
                     <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
                         <div class="form-group">
                             <label>عدد السمينارات وورش العمل المحضورة:</label>
-                            <input type="number" class="form-control" id="f39-seminars-count" min="0" max="10" value="10" onchange="updateForm39Axis2()">
+                            <input type="number" class="form-control" id="f39-seminars-count" min="0" max="10" value="0" onchange="updateForm39Axis2()">
                         </div>
                         <div class="form-group" style="display:flex; align-items:flex-end;">
                             <button type="button" class="btn btn-scan-paragraph" style="width:100%; justify-content:center;" onclick="triggerParagraphScan('axis2_portfolio', 'seminars', 'استمارة فيدباك سمينار')">
@@ -1615,7 +1624,7 @@
             <div class="form-card">
                 <div class="form-card-title">
                     <span><i class="fa-solid fa-book-journal-whills"></i> المحور الثاني / الفقرة 4: نشر الأبحاث والكتب وبراءات الاختراع (الدرجة القصوى 20 درجة)</span>
-                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p4-res-score">20.0</span> / 20</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p4-res-score">0.0</span> / 20</span>
                 </div>
 
                 <!-- بطاقة معامل اللقب العلمي المعتمد -->
@@ -1629,9 +1638,9 @@
                         </div>
                     </div>
                     <div style="text-align:left;">
-                        <span style="font-size:0.8rem; color:#475569;">المجموع الخام: <strong id="f39-res-raw-score">20.0</strong> / 20</span>
+                        <span style="font-size:0.8rem; color:#475569;">المجموع الخام: <strong id="f39-res-raw-score">0.0</strong> / 20</span>
                         <div style="font-size:1.15rem; font-weight:800; color:#1d4ed8;">
-                            بعد المعامل: <span id="f39-res-final-score">20.0</span> / 20
+                            بعد المعامل: <span id="f39-res-final-score">0.0</span> / 20
                         </div>
                     </div>
                 </div>
@@ -1667,7 +1676,7 @@
             <div class="form-card">
                 <div class="form-card-title">
                     <span><i class="fa-solid fa-earth-americas"></i> المحور الثاني / الفقرتان 5 و 6: النشاط الدولي (5 درجات) ودعم إيرادات الجامعة (درجتان)</span>
-                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p56-score">7.0</span> / 7</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-p56-score">0.0</span> / 7</span>
                 </div>
 
                 <!-- النشاط الدولي -->
@@ -1677,17 +1686,17 @@
                         <div class="form-group">
                             <label>أ) عضوية المؤسسات العلمية الدولية (القصوى درجتان):</label>
                             <select class="form-control" id="f39-intl-org-membership" onchange="updateForm39Axis2()">
-                                <option value="senior_fellow" selected>Senior or Fellow Member (درجتان)</option>
+                                <option value="senior_fellow">Senior or Fellow Member (درجتان)</option>
                                 <option value="member">Member (درجة واحدة)</option>
-                                <option value="none">لا توجد عضوية (0)</option>
+                                <option value="none" selected>لا توجد عضوية (0)</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label>ج) متحدث رئيسي Keynote speaker بالمؤتمرات (القصوى درجتان):</label>
                             <select class="form-control" id="f39-keynote-type" onchange="updateForm39Axis2()">
-                                <option value="intl" selected>متحدث رئيسي Keynote في مؤتمر دولي (درجتان)</option>
+                                <option value="intl">متحدث رئيسي Keynote في مؤتمر دولي (درجتان)</option>
                                 <option value="national">متحدث رئيسي في مؤتمر وطني (درجة واحدة)</option>
-                                <option value="none">غير مشارك كمتحدث رئيسي (0)</option>
+                                <option value="none" selected>غير مشارك كمتحدث رئيسي (0)</option>
                             </select>
                         </div>
                     </div>
@@ -1723,7 +1732,7 @@
                     <div class="form-grid" style="grid-template-columns: 1fr 2fr;">
                         <div class="form-group">
                             <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:1.8rem;">
-                                <input type="checkbox" id="f39-fund-granted" class="form-check-input" checked onchange="updateForm39Axis2()">
+                                <input type="checkbox" id="f39-fund-granted" class="form-check-input" onchange="updateForm39Axis2()">
                                 <strong>تم جلب تمويل / منحة بحثية (Fund)</strong>
                             </label>
                             <div style="margin-top:0.5rem;">
@@ -1734,7 +1743,7 @@
                         </div>
                         <div class="form-group">
                             <label>تفاصيل المشروع والجهة المانحة والمبلغ:</label>
-                            <input type="text" class="form-control" id="f39-fund-details" value="مشروع التوأمة الرقمية للتراث المعماري - منحة تمويلية للجامعة التكنولوجية" onchange="updateForm39Axis2()">
+                            <input type="text" class="form-control" id="f39-fund-details" value="" placeholder="تفاصيل المنحة التمويلية إن وجدت" onchange="updateForm39Axis2()">
                         </div>
                     </div>
                 </div>
@@ -1751,7 +1760,7 @@
             <div class="form-card">
                 <div class="form-card-title">
                     <span><i class="fa-solid fa-user-tie"></i> المحور الثالث: تقييم رئيس القسم للعملية التعليمية والأستاذ الجامعي (الوزن 15% - الدرجة القصوى 15 درجة)</span>
-                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-ax3-score">15.0</span> / 15</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-ax3-score">0.0</span> / 15</span>
                 </div>
                 
                 <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:1.2rem; margin-bottom:1.5rem;">
@@ -1762,7 +1771,7 @@
                     
                     <div class="form-group" style="max-width:300px;">
                         <label>درجة رئيس القسم الأساسية الممنوحة (من 15):</label>
-                        <input type="number" class="form-control" id="f39-hod-base-score" min="0" max="15" value="15" onchange="updateForm39Axis3()">
+                        <input type="number" class="form-control" id="f39-hod-base-score" min="0" max="15" value="0" onchange="updateForm39Axis3()">
                     </div>
                 </div>
 
@@ -1811,7 +1820,7 @@
             <div class="form-card">
                 <div class="form-card-title">
                     <span><i class="fa-solid fa-hand-holding-heart"></i> المحور الرابع: الجانب التربوي والإرشادي (الوزن 15% - الدرجة القصوى 15 درجة)</span>
-                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-ax4-score">15.0</span> / 15</span>
+                    <span class="badge" style="background:#2563eb; color:white; padding:4px 12px; border-radius:9999px; font-weight:700;"><span id="f39-ax4-score">0.0</span> / 15</span>
                 </div>
 
                 <!-- 1. لجان التعليم المستمر والجودة (5 درجات) -->
@@ -1880,7 +1889,7 @@
             <div class="form-card">
                 <div class="form-card-title">
                     <span><i class="fa-solid fa-file-signature"></i> النتائج النهائية للتقييم والمصادقات الرسمية (الصفحة 5)</span>
-                    <span class="badge" style="background:#16a34a; color:white; padding:4px 14px; border-radius:9999px; font-weight:800; font-size:0.95rem;">الدرجة النهائية: <span id="f39-summary-final-score">100.0</span> %</span>
+                    <span class="badge" style="background:#16a34a; color:white; padding:4px 14px; border-radius:9999px; font-weight:800; font-size:0.95rem;">الدرجة النهائية: <span id="f39-summary-final-score">0.0</span> %</span>
                 </div>
 
                 <!-- جدول النتائج الرسمية الموزونة -->
@@ -1899,38 +1908,38 @@
                                 <td style="text-align:center; font-weight:700;">1</td>
                                 <td>تقييم الطالب للمادة الدراسية وطريقة التدريس (مسار بولونيا)</td>
                                 <td style="text-align:center; font-weight:700;">%10</td>
-                                <td style="text-align:center; font-weight:800; color:#1e40af;"><span id="f39-sum-ax1">10.0</span> / 10</td>
+                                <td style="text-align:center; font-weight:800; color:#1e40af;"><span id="f39-sum-ax1">0.0</span> / 10</td>
                             </tr>
                             <tr style="border-bottom:1px solid #e2e8f0;">
                                 <td style="text-align:center; font-weight:700;">2</td>
                                 <td>تقييم حقيبة الأستاذ (الواجبات، الشكر، التدريب، البحوث بمعامل الرتبة، النشاط الدولي، الإيرادات)</td>
                                 <td style="text-align:center; font-weight:700;">%60</td>
-                                <td style="text-align:center; font-weight:800; color:#1e40af;"><span id="f39-sum-ax2">60.0</span> / 60</td>
+                                <td style="text-align:center; font-weight:800; color:#1e40af;"><span id="f39-sum-ax2">0.0</span> / 60</td>
                             </tr>
                             <tr style="border-bottom:1px solid #e2e8f0;">
                                 <td style="text-align:center; font-weight:700;">3</td>
                                 <td>تقييم رئيس القسم للعملية التعليمية والأستاذ الجامعي (شاملاً خصومات العقوبات إن وجدت)</td>
                                 <td style="text-align:center; font-weight:700;">%15</td>
-                                <td style="text-align:center; font-weight:800; color:#1e40af;"><span id="f39-sum-ax3">15.0</span> / 15</td>
+                                <td style="text-align:center; font-weight:800; color:#1e40af;"><span id="f39-sum-ax3">0.0</span> / 15</td>
                             </tr>
                             <tr style="border-bottom:1px solid #e2e8f0;">
                                 <td style="text-align:center; font-weight:700;">4</td>
                                 <td>الجانب التربوي والإرشادي (لجان الجودة والتعليم المستمر والزيارات الميدانية والتطوعية)</td>
                                 <td style="text-align:center; font-weight:700;">%15</td>
-                                <td style="text-align:center; font-weight:800; color:#1e40af;"><span id="f39-sum-ax4">15.0</span> / 15</td>
+                                <td style="text-align:center; font-weight:800; color:#1e40af;"><span id="f39-sum-ax4">0.0</span> / 15</td>
                             </tr>
                             <tr style="background:#f1f5f9; border-top:2px solid #000; font-weight:800;">
                                 <td style="text-align:center;">5</td>
                                 <td><strong>مجموع درجات المحاور الأربعة</strong></td>
                                 <td style="text-align:center;">%100</td>
-                                <td style="text-align:center; font-size:1.1rem; color:#166534;"><span id="f39-sum-total">100.0</span> %</td>
+                                <td style="text-align:center; font-size:1.1rem; color:#166534;"><span id="f39-sum-total">0.0</span> %</td>
                             </tr>
                             <tr style="background:#fffbeb; border-top:1px solid #cbd5e1;">
                                 <td colspan="2" style="font-weight:700; padding:10px 14px;">
                                     مجموع الدرجات النهائية للتقييم (رقماً وتفقيطاً):
                                 </td>
                                 <td colspan="2" style="font-weight:800; font-size:0.95rem; color:#92400e; padding:10px 14px; text-align:center;">
-                                    <span id="f39-sum-words">مئة درجة فقط لا غير</span>
+                                    <span id="f39-sum-words">صفر درجة فقط لا غير</span>
                                 </td>
                             </tr>
                             <tr style="background:#fef9c3; border-top:1px solid #cbd5e1;">
@@ -1938,7 +1947,7 @@
                                     التقدير النهائي للتقييم:
                                 </td>
                                 <td colspan="2" style="text-align:center; padding:10px 14px;">
-                                    <span class="rating-badge rating-امتياز" id="f39-sum-rating" style="font-size:1rem; padding:4px 18px;">امتياز</span>
+                                    <span class="rating-badge rating-ضعيف" id="f39-sum-rating" style="font-size:1rem; padding:4px 18px;">ضعيف</span>
                                 </td>
                             </tr>
                         </tbody>
@@ -2361,10 +2370,18 @@
                         <i class="fa-solid fa-layer-group text-blue-600"></i> المحور المستهدف الجديد:
                     </label>
                     <select id="reclassify-axis-select" class="form-control" style="font-size: 0.88rem; padding: 0.45rem 0.65rem;" onchange="onReclassifyAxisChange()">
-                        <option value="1">المحور الأول: النشاط التدريسي والتربوي (Axis 1)</option>
-                        <option value="2">المحور الثاني: النشاط العلمي والبحثي (Axis 2)</option>
-                        <option value="3">المحور الثالث: النشاط الإداري والخدمي واللجان (Axis 3)</option>
-                        <option value="4">المحور الرابع: نقاط القوة والإبداع والشهادات التقديرية (Axis 4)</option>
+                        <optgroup label="── استمارة (39) مسار بولونيا ──">
+                            <option value="axis1_bologna">المحور الأول: تقييم الطالب (10%)</option>
+                            <option value="axis2_portfolio">المحور الثاني: حقيبة الأستاذ (60%)</option>
+                            <option value="axis3_hod">المحور الثالث: تقييم رئيس القسم (15%)</option>
+                            <option value="axis4_guidance">المحور الرابع: الجانب التربوي والإرشادي (15%)</option>
+                        </optgroup>
+                        <optgroup label="── استمارة (21) المسار السنوي ──">
+                            <option value="axis1">المحور الأول: جودة التدريس والالتزام</option>
+                            <option value="axis2">المحور الثاني: النشاط العلمي والبحثي</option>
+                            <option value="axis3">المحور الثالث: النشاط التربوي واللجان</option>
+                            <option value="axis4">المحور الرابع: مواطن القوة والإبداع</option>
+                        </optgroup>
                     </select>
                 </div>
 
