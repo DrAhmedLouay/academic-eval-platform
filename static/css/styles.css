@@ -112,6 +112,18 @@ body {
 }
 .btn-outline:hover { background: rgba(255, 255, 255, 0.1); }
 
+/* تصحيح لون أزرار btn-outline داخل المحتوى الأبيض (مثل أزرار "مرفق" في محاور بولونيا) */
+.main-content .btn-outline {
+    color: #2563eb;
+    border-color: #93c5fd;
+    background: #eff6ff;
+}
+.main-content .btn-outline:hover {
+    background: #dbeafe;
+    border-color: #2563eb;
+    color: #1d4ed8;
+}
+
 /* شريط الدرجات التراكمي العائم (Sticky Live Scoreboard) */
 .sticky-scoreboard {
     background: white;
