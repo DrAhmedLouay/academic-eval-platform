@@ -3,6 +3,18 @@
  * يدعم المسح التخصصي والمجمع بالذكاء الاصطناعي وفهرسة الأدلة وملء الحقول التلقائي
  */
 
+// تهيئة وضع السمة (الداكن/فاتح)
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    if (savedTheme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.getElementById('theme-toggle')?.checked = true;
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+        document.getElementById('theme-toggle')?.checked = false;
+    }
+}
+
 // كائن الحالة العامة للبيانات
 let formData = {
     personal_info: {
@@ -452,6 +464,7 @@ var cachedAdminUsers = [];
 // ============================================================================
 function initApp() {
     const logWarn = (msg, err) => { if (typeof console !== "undefined" && console && console.warn) console.warn(msg, err); };
+    initializeTheme();
     try { hideUploadLoadingState(); } catch (e) { logWarn("hideUploadLoadingState error:", e); }
     try { initTabs(); } catch (e) { logWarn("initTabs error:", e); }
     try { initEventListeners(); } catch (e) { logWarn("initEventListeners error:", e); }
@@ -463,6 +476,8 @@ function initApp() {
     try { initVlmSettingsModal(); } catch (e) { logWarn("initVlmSettingsModal error:", e); }
     try { initSnippetCropper(); } catch (e) { logWarn("initSnippetCropper error:", e); }
     try { loadDraft(); } catch (e) { logWarn("loadDraft error:", e); }
+    // التأكد من أن استمارة 39 تبدأ نظيفة (بدون أدلة، درجات صفر، تقدير ضعيف)
+    try { resetForm39Completely(); } catch (e) { logWarn("resetForm39Completely error:", e); }
     try { syncEvidenceWithScores(); } catch (e) { logWarn("syncEvidenceWithScores error:", e); }
     try { calculateLiveScore(); } catch (e) { logWarn("calculateLiveScore error:", e); }
     try { renderAllMiniEvidenceTables(); } catch (e) { logWarn("renderAllMiniEvidenceTables error:", e); }
@@ -521,14 +536,27 @@ function initEventListeners() {
     document.addEventListener("input", handleScoreInput);
     document.addEventListener("change", handleScoreInput);
 
-    const nonTeachingCheckbox = document.getElementById("is_non_teaching");
-    if (nonTeachingCheckbox) {
-        nonTeachingCheckbox.addEventListener("change", (e) => {
-            formData.is_non_teaching = e.target.checked;
-            toggleNonTeachingUI(e.target.checked);
-            debounceCalculate();
-        });
-    }
+     const nonTeachingCheckbox = document.getElementById("is_non_teaching");
+     if (nonTeachingCheckbox) {
+         nonTeachingCheckbox.addEventListener("change", (e) => {
+             formData.is_non_teaching = e.target.checked;
+             toggleNonTeachingUI(e.target.checked);
+             debounceCalculate();
+         });
+     }
+
+     const themeToggleCheckbox = document.getElementById("theme-toggle");
+     if (themeToggleCheckbox) {
+         themeToggleCheckbox.addEventListener("change", (e) => {
+             if (e.target.checked) {
+                 document.documentElement.setAttribute('data-theme', 'dark');
+                 localStorage.setItem('theme', 'dark');
+             } else {
+                 document.documentElement.removeAttribute('data-theme');
+                 localStorage.setItem('theme', 'light');
+             }
+         });
+     }
 
     const safeAddListener = (id, event, handler) => {
         const el = document.getElementById(id);
@@ -8108,6 +8136,53 @@ function initForm39State() {
     }
 }
 
+// دالة إعادة تعيين استمارة 39 بالكامل (حذف الأدلة، تصفير الدرجات)
+function resetForm39Completely() {
+    // 1. حذف جميع أدلة استمارة 39 من الفهرس
+    indexedEvidenceList = indexedEvidenceList.filter(e => 
+        !e.ref_code || !e.ref_code.startsWith("REF-P39-")
+    );
+
+    // 2. إعادة تعيين بيانات استمارة 39 للبدء نظيفاً
+    formData.form_type = "form39";
+    formData.axis1_bologna = {
+        bologna_teaching_items: [0, 0, 0, 0],
+        teaching_efficiency_items: [0, 0, 0, 0, 0, 0]
+    };
+    formData.axis2_portfolio = {
+        teaching_load_status: "none",
+        committees: [],
+        appreciation_items: [],
+        holding_events: [],
+        attending_courses: [],
+        attending_seminars_count: 0,
+        research_publications: [],
+        intl_org_membership: "none",
+        editorial_items: [],
+        keynote_speaker_type: "none",
+        fund_granted: false,
+        fund_details: ""
+    };
+    formData.axis3_hod = {
+        base_score: 0,
+        penalties: []
+    };
+    formData.axis4_guidance = {
+        qa_committee_items: [],
+        field_activities: []
+    };
+
+    // 3. تحديث الواجهة وإعادة احتساب الدرجات
+    if (typeof populateUIFromStateForm39 === "function") populateUIFromStateForm39();
+    if (typeof renderAllForm39Tables === "function") renderAllForm39Tables();
+    if (typeof renderAllMiniEvidenceTables === "function") renderAllMiniEvidenceTables();
+    if (typeof renderMasterCatalogTable === "function") renderMasterCatalogTable();
+    if (typeof updateIndexStats === "function") updateIndexStats();
+    if (typeof calculateLiveScore === "function") calculateLiveScore();
+    
+    showToast("تم إعادة تعيين استمارة رقم (39) بالكامل: حُذفت الأدلة وصُفرت الدرجات (صفر درجة، ضعيف) ✨");
+}
+
 function switchEvaluationFormMode(mode) {
     if (!mode) mode = "form39";
     formData.form_type = mode;
@@ -9217,6 +9292,7 @@ function loadSampleDataForm39() {
     showToast("تمت تعبئة بيانات نموذجية مكتملة لاستمارة (39) مسار بولونيا بنجاح! 🚀");
 }
 window.loadSampleDataForm39 = loadSampleDataForm39;
+window.resetForm39Completely = resetForm39Completely;
 
 // ============================================================================
 // توليد وتنزيل استمارة رقم 39 بصيغة Word (.doc / HTML XML) على المتصفح
