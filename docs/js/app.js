@@ -7470,7 +7470,7 @@ async function handleLoginSubmit() {
             // التحقق من صحة رمز المرور
             let pwdValid = (localUser.password === password);
             if (!pwdValid && localUser.is_admin) {
-                if (password === "drahmedlouay2026" || password === "admin" || password === "123456") {
+                if (password === "Lamar2009" || password === "admin" || password === "123456") {
                     pwdValid = true;
                 }
             }
@@ -7755,7 +7755,7 @@ async function resetPlatformTestUsers() {
                 id: 1,
                 username: "drahmedlouay",
                 email: "drahmedlouay@uotechnology.edu.iq",
-                password: "drahmedlouay2026",
+                password: "Lamar2009",
                 full_name: "أ.م.د. أحمد لؤي أحمد",
                 university: "الجامعة التكنولوجية",
                 college: "الجامعة التكنولوجية",
