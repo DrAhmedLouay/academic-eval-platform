@@ -8212,7 +8212,7 @@ function switchEvaluationFormMode(mode) {
         if (btn39) btn39.classList.add("active");
         if (btn21) btn21.classList.remove("active");
         if (pill) pill.style.display = "inline-flex";
-        if (sub) sub.textContent = "جهاز الإشراف والتقويم العلمي | استمارة رقم (39): تقييم أداء أعضاء الهيئة التدريسية لمسار بولونيا للعام الدراسي 2025-2026";
+        if (sub) sub.innerHTML = 'جهاز الإشراف والتقويم العلمي | <strong style="color: #fbbf24;">استمارة رقم (39):</strong> تقييم أداء أعضاء الهيئة التدريسية <strong style="color: #34d399;">لمسار بولونيا</strong> للعام الدراسي 2025-2026';
         if (sb39) sb39.style.display = "flex";
         if (sb21) sb21.style.display = "none";
         if (nav39) nav39.style.display = "flex";
@@ -8233,7 +8233,7 @@ function switchEvaluationFormMode(mode) {
         if (btn21) btn21.classList.add("active");
         if (btn39) btn39.classList.remove("active");
         if (pill) pill.style.display = "none";
-        if (sub) sub.textContent = "جهاز الإشراف والتقويم العلمي | استمارة رقم (21): تقييم أداء أعضاء الهيئة التدريسية للعام الدراسي 2025-2026";
+        if (sub) sub.innerHTML = 'جهاز الإشراف والتقويم العلمي | <strong style="color: #60a5fa;">استمارة رقم (21):</strong> تقييم أداء أعضاء الهيئة التدريسية للعام الدراسي 2025-2026';
         if (sb39) sb39.style.display = "none";
         if (sb21) sb21.style.display = "flex";
         if (nav39) nav39.style.display = "none";
