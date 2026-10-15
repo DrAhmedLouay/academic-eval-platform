@@ -5013,6 +5013,12 @@ function openDossierPrintWindow() {
     const dept = teacher.department || 'القسم الأكاديمي';
     const year = teacher.academic_year || '2025-2026';
     const printDate = new Date().toLocaleDateString('ar-IQ', { year: 'numeric', month: 'long', day: 'numeric' });
+    
+    // تحديد عنوان الاستمارة حسب النوع
+    const isForm39 = formData.form_type === "form39";
+    const formTitle = isForm39 
+        ? "استمارة تقييم أداء أعضاء الهيئة التدريسية لمسار بولونيا للعام الدراسي (39)"
+        : "استمارة تقييم أداء أعضاء الهيئة التدريسية (21)";
 
     // 1. بناء صفوف جدول الوثائق والمرفقات المنظم
     let evidenceRows = '';
@@ -5673,7 +5679,7 @@ function openDossierPrintWindow() {
             <div>جهاز الإشراف والتقويم العلمي</div>
         </div>
         <div class="inst-col-center">
-            <h1>استمارة تقييم أداء أعضاء الهيئة التدريسية (21)</h1>
+            <h1>${formTitle}</h1>
             <div class="sub-head">جدول فهرس وتوثيق المرفقات والأدلة الثبوتية الرسمية</div>
         </div>
         <div class="inst-col-left">
