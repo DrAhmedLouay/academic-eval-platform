@@ -476,14 +476,14 @@ function initApp() {
     try { initVlmSettingsModal(); } catch (e) { logWarn("initVlmSettingsModal error:", e); }
     try { initSnippetCropper(); } catch (e) { logWarn("initSnippetCropper error:", e); }
     try { loadDraft(); } catch (e) { logWarn("loadDraft error:", e); }
-    // التأكد من أن استمارة 39 تبدأ نظيفة (بدون أدلة، درجات صفر، تقدير ضعيف)
-    try { resetForm39Completely(); } catch (e) { logWarn("resetForm39Completely error:", e); }
     try { syncEvidenceWithScores(); } catch (e) { logWarn("syncEvidenceWithScores error:", e); }
     try { calculateLiveScore(); } catch (e) { logWarn("calculateLiveScore error:", e); }
     try { renderAllMiniEvidenceTables(); } catch (e) { logWarn("renderAllMiniEvidenceTables error:", e); }
     try { renderMasterCatalogTable(); } catch (e) { logWarn("renderMasterCatalogTable error:", e); }
     try { updateIndexStats(); } catch (e) { logWarn("updateIndexStats error:", e); }
     try { initForm39State(); switchEvaluationFormMode("form39"); } catch (e) { logWarn("Form39 init error:", e); }
+    // إعادة تعيين استمارة 39 بعد تهيئة الوضع لضمان البدء النظيف
+    try { resetForm39Completely(); } catch (e) { logWarn("resetForm39Completely error:", e); }
 }
 
 if (document.readyState === "loading") {
@@ -8143,8 +8143,7 @@ function resetForm39Completely() {
         !e.ref_code || !e.ref_code.startsWith("REF-P39-")
     );
 
-    // 2. إعادة تعيين بيانات استمارة 39 للبدء نظيفاً
-    formData.form_type = "form39";
+    // 2. إعادة تعيين بيانات استمارة 39 للبدء نظيفاً (مطابق لـ initForm39State)
     formData.axis1_bologna = {
         bologna_teaching_items: [0, 0, 0, 0],
         teaching_efficiency_items: [0, 0, 0, 0, 0, 0]
@@ -8172,15 +8171,12 @@ function resetForm39Completely() {
         field_activities: []
     };
 
-    // 3. تحديث الواجهة وإعادة احتساب الدرجات
-    if (typeof populateUIFromStateForm39 === "function") populateUIFromStateForm39();
-    if (typeof renderAllForm39Tables === "function") renderAllForm39Tables();
+    // 3. تحديث جداول الأدلة والإحصائيات فقط (الواجهة تحدثها switchEvaluationFormMode)
     if (typeof renderAllMiniEvidenceTables === "function") renderAllMiniEvidenceTables();
     if (typeof renderMasterCatalogTable === "function") renderMasterCatalogTable();
     if (typeof updateIndexStats === "function") updateIndexStats();
-    if (typeof calculateLiveScore === "function") calculateLiveScore();
     
-    showToast("تم إعادة تعيين استمارة رقم (39) بالكامل: حُذفت الأدلة وصُفرت الدرجات (صفر درجة، ضعيف) ✨");
+    showToast("تم إعادة تعيين استمارة رقم (39): حُذفت الأدلة وصُفرت الدرجات (صفر درجة، ضعيف) ✨");
 }
 
 function switchEvaluationFormMode(mode) {
