@@ -5132,7 +5132,7 @@ function openDossierPrintWindow() {
 
             <!-- تذييل و Caption المرفق أسفل الصورة مباشرة -->
             <div class="doc-page-footer-strip">
-                <div>المصبار التوثيقي المعتمد (استمارة 21) — بيان الوثيقة: ${docTitle}</div>
+                <div>المصبار التوثيقي المعتمد (استمارة ${isForm39 ? '39' : '21'}) — بيان الوثيقة: ${docTitle}</div>
                 <div>رمز المرفق: [${refCode}] | وثيقة رقم (${idx + 1} من ${indexedEvidenceList.length})</div>
             </div>
         </div>`;
