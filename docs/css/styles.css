@@ -454,9 +454,9 @@ body {
 
 /* البطاقات الحاوية */
 .form-card {
-    background: white;
+    background: var(--card-bg);
     border-radius: 0.75rem;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--form-tab-border-inactive, var(--border-color));
     padding: 1.75rem;
     margin-bottom: 1.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
@@ -465,13 +465,150 @@ body {
 .form-card-title {
     font-size: 1.15rem;
     font-weight: 800;
-    color: var(--primary-dark);
+    color: var(--form-primary-dark);
     margin-bottom: 1rem;
     padding-bottom: 0.5rem;
-    border-bottom: 2px solid #f1f5f9;
+    border-bottom: 2px solid var(--form-tab-border-inactive, #f1f5f9);
     display: flex;
     justify-content: space-between;
     align-items: center;
+}
+
+/* تمييز بصري للمحاور داخل البطاقات */
+[data-form="form39"] .form-card {
+    border-left: 4px solid var(--form-primary-light, #10b981);
+}
+
+[data-form="form21"] .form-card {
+    border-left: 4px solid var(--form-primary-light, #3b82f6);
+}
+
+/* ألوان مميزة لفقرة كل محور */
+[data-form="form39"] .teaching-only h4,
+[data-form="form39"] .paragraph-header h4 {
+    color: var(--form-primary, #065f46);
+}
+
+[data-form="form21"] .teaching-only h4,
+[data-form="form21"] .paragraph-header h4 {
+    color: var(--form-primary, #1e3a8a);
+}
+
+/* حالة الدرجة (Badge) بألوان المحور */
+[data-form="form39"] .score-status-badge {
+    background: var(--form-primary-light, #d1fae5);
+    color: var(--form-primary-dark, #064e3b);
+    border: 1px solid var(--form-primary, #10b981);
+}
+
+[data-form="form21"] .score-status-badge {
+    background: var(--form-primary-light, #dbeafe);
+    color: var(--form-primary-dark, #1e3a8a);
+    border: 1px solid var(--form-primary, #3b82f6);
+}
+
+/* زر المسح بالذكاء الاصطناعي لكل فقرة */
+[data-form="form39"] .btn-scan-paragraph {
+    background: linear-gradient(135deg, var(--form-primary-light), var(--form-primary));
+    border-color: var(--form-primary);
+    color: white;
+}
+
+[data-form="form39"] .btn-scan-paragraph:hover {
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+[data-form="form21"] .btn-scan-paragraph {
+    background: linear-gradient(135deg, var(--form-primary-light), var(--form-primary));
+    border-color: var(--form-primary);
+    color: white;
+}
+
+[data-form="form21"] .btn-scan-paragraph:hover {
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+/* حاويات الأدلة لكل فقرة */
+[data-form="form39"] .evidence-container {
+    border-left: 3px solid var(--form-primary-light, #10b981);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+[data-form="form21"] .evidence-container {
+    border-left: 3px solid var(--form-primary-light, #3b82f6);
+    background: rgba(59, 130, 246, 0.05);
+}
+
+/* بطاقات الملخص في قسم النتائج */
+[data-form="form39"] .summary-card,
+[data-form="form39"] .score-summary-box {
+    border-left: 4px solid var(--form-primary, #065f46);
+    background: linear-gradient(135deg, rgba(6, 95, 70, 0.08), rgba(6, 95, 70, 0.03));
+}
+
+[data-form="form21"] .summary-card,
+[data-form="form21"] .score-summary-box {
+    border-left: 4px solid var(--form-primary, #1e3a8a);
+    background: linear-gradient(135deg, rgba(30, 58, 138, 0.08), rgba(30, 58, 138, 0.03));
+}
+
+/* بطاقات الملخص في قسم النتائج */
+[data-form="form39"] .summary-card,
+[data-form="form39"] .score-summary-box {
+    border-left: 4px solid var(--form-primary, #065f46);
+    background: linear-gradient(135deg, rgba(6, 95, 70, 0.08), rgba(6, 95, 70, 0.03));
+}
+
+[data-form="form21"] .summary-card,
+[data-form="form21"] .score-summary-box {
+    border-left: 4px solid var(--form-primary, #1e3a8a);
+    background: linear-gradient(135deg, rgba(30, 58, 138, 0.08), rgba(30, 58, 138, 0.03));
+}
+
+/* مؤشرات الوزن للمحاور */
+[data-form="form39"] .axis-weight-badge {
+    background: var(--form-primary);
+    color: white;
+}
+
+[data-form="form21"] .axis-weight-badge {
+    background: var(--form-primary);
+    color: white;
+}
+
+/* تمييز جدول محاور استمارة 39 في الفهرس الرئيسي */
+[data-form="form39"] .master-catalog-table tbody tr[data-axis^="axis1_bologna"] {
+    background: rgba(6, 95, 70, 0.03);
+    border-left: 3px solid var(--form-primary-light, #10b981);
+}
+
+[data-form="form39"] .master-catalog-table tbody tr[data-axis^="axis2_portfolio"] {
+    background: rgba(6, 95, 70, 0.05);
+    border-left: 3px solid var(--form-primary, #065f46);
+}
+
+[data-form="form39"] .master-catalog-table tbody tr[data-axis^="axis3_hod"] {
+    background: rgba(6, 95, 70, 0.02);
+    border-left: 3px solid var(--form-accent, #34d399);
+}
+
+[data-form="form39"] .master-catalog-table tbody tr[data-axis^="axis4_guidance"] {
+    background: rgba(6, 95, 70, 0.04);
+    border-left: 3px solid var(--warning, #f59e0b);
+}
+
+/* مؤشرات مرئية لعناوين المحاور في استمارة 39 */
+[data-form="form39"] .tab-pane[id^="tab-f39-axis"] .form-card-title {
+    background: linear-gradient(90deg, var(--form-primary-light), var(--form-primary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* ألوان خاصة لبطاقات الاستمارة 39 في قسم evidence */
+[data-form="form39"] .evidence-card,
+[data-form="form39"] .mini-evidence-table {
+    border-left: 3px solid var(--form-primary-light, #10b981);
 }
 
 /* شبكة الحقول */
@@ -1668,20 +1805,21 @@ body.auditor-active .evidence-table td.auditor-col {
     transition: background-color 0.15s ease;
 }
 .bologna-check-item:hover {
-    background-color: #f1f5f9 !important;
+    background-color: var(--bg-main, #f1f5f9) !important;
 }
 .bologna-subcard {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
+    background: var(--card-bg);
+    border: 1px solid var(--form-tab-border-inactive, #e2e8f0);
     border-radius: 10px;
     padding: 1.25rem;
     margin-bottom: 1.5rem;
+    border-left: 4px solid var(--form-primary, #065f46);
 }
 .bologna-subcard-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid #cbd5e1;
+    border-bottom: 2px solid var(--form-tab-border-inactive, #cbd5e1);
     padding-bottom: 0.5rem;
     margin-bottom: 1rem;
 }
