@@ -7266,11 +7266,17 @@ function updateAuthUI(user) {
         if (user.is_admin) {
             if (adminBadge) adminBadge.style.display = "inline-block";
             if (adminBtn) adminBtn.style.display = "inline-flex";
+            // إظهار زر Streamlit Cloud للمشرف فقط
+            const streamlitBanner = document.getElementById("streamlit-banner");
+            if (streamlitBanner) streamlitBanner.style.display = "flex";
             const adminModalUser = document.getElementById("admin-modal-username");
             if (adminModalUser) adminModalUser.textContent = user.username || "drahmedlouay";
         } else {
             if (adminBadge) adminBadge.style.display = "none";
             if (adminBtn) adminBtn.style.display = "none";
+            // إخفاء زر Streamlit Cloud عن المستخدمين العاديين
+            const streamlitBanner = document.getElementById("streamlit-banner");
+            if (streamlitBanner) streamlitBanner.style.display = "none";
         }
 
         // تعبئة البيانات الشخصية في الاستمارة إن كانت فارغة
@@ -8184,6 +8190,9 @@ function switchEvaluationFormMode(mode) {
     if (!mode) mode = "form39";
     formData.form_type = mode;
 
+    // تعيين سمة النموذج للتمييز اللوني
+    document.body.setAttribute('data-form', mode);
+
     const btn39 = document.getElementById("btn-mode-form39");
     const btn21 = document.getElementById("btn-mode-form21");
     const pill = document.getElementById("form39-status-pill");
@@ -8194,18 +8203,8 @@ function switchEvaluationFormMode(mode) {
     const nav21 = document.getElementById("tabs-nav-form21");
 
     if (mode === "form39") {
-        if (btn39) {
-            btn39.style.background = "#2563eb";
-            btn39.style.color = "white";
-            btn39.style.borderColor = "#60a5fa";
-            btn39.classList.add("active");
-        }
-        if (btn21) {
-            btn21.style.background = "transparent";
-            btn21.style.color = "#cbd5e1";
-            btn21.style.borderColor = "#64748b";
-            btn21.classList.remove("active");
-        }
+        if (btn39) btn39.classList.add("active");
+        if (btn21) btn21.classList.remove("active");
         if (pill) pill.style.display = "inline-flex";
         if (sub) sub.textContent = "جهاز الإشراف والتقويم العلمي | استمارة رقم (39): تقييم أداء أعضاء الهيئة التدريسية لمسار بولونيا للعام الدراسي 2025-2026";
         if (sb39) sb39.style.display = "flex";
@@ -8225,18 +8224,8 @@ function switchEvaluationFormMode(mode) {
         calculateLiveScore();
         showToast("تم تفعيل استمارة رقم (39): مسار بولونيا 2025-2026 بنجاح! 🎓");
     } else {
-        if (btn21) {
-            btn21.style.background = "#2563eb";
-            btn21.style.color = "white";
-            btn21.style.borderColor = "#60a5fa";
-            btn21.classList.add("active");
-        }
-        if (btn39) {
-            btn39.style.background = "transparent";
-            btn39.style.color = "#cbd5e1";
-            btn39.style.borderColor = "#64748b";
-            btn39.classList.remove("active");
-        }
+        if (btn21) btn21.classList.add("active");
+        if (btn39) btn39.classList.remove("active");
         if (pill) pill.style.display = "none";
         if (sub) sub.textContent = "جهاز الإشراف والتقويم العلمي | استمارة رقم (21): تقييم أداء أعضاء الهيئة التدريسية للعام الدراسي 2025-2026";
         if (sb39) sb39.style.display = "none";

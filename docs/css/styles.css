@@ -17,6 +17,36 @@
     --border-dark: #334155;
 }
 
+/* Form 21 (Standard Evaluation) - Blue Theme */
+[data-form="form21"] {
+    --form-primary: #1e3a8a;
+    --form-primary-light: #3b82f6;
+    --form-primary-dark: #172554;
+    --form-accent: #60a5fa;
+    --form-header-bg: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    --form-tab-active: #2563eb;
+    --form-tab-inactive: transparent;
+    --form-tab-text-active: white;
+    --form-tab-text-inactive: #cbd5e1;
+    --form-tab-border-active: #60a5fa;
+    --form-tab-border-inactive: #64748b;
+}
+
+/* Form 39 (Bologna Process) - Emerald/Teal Theme */
+[data-form="form39"] {
+    --form-primary: #065f46;
+    --form-primary-light: #10b981;
+    --form-primary-dark: #047857;
+    --form-accent: #34d399;
+    --form-header-bg: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+    --form-tab-active: #059669;
+    --form-tab-inactive: transparent;
+    --form-tab-text-active: white;
+    --form-tab-text-inactive: #a7f3d0;
+    --form-tab-border-active: #34d399;
+    --form-tab-border-inactive: #6ee7b7;
+}
+
 [data-theme="dark"] {
     --primary: #60a5fa;
     --primary-light: #93c5fd;
@@ -32,6 +62,34 @@
     --text-muted: #94a3b8;
     --border-color: #334155;
     --border-dark: #64748b;
+}
+
+[data-theme="dark"][data-form="form21"] {
+    --form-primary: #60a5fa;
+    --form-primary-light: #93c5fd;
+    --form-primary-dark: #1d4ed8;
+    --form-accent: #93c5fd;
+    --form-header-bg: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    --form-tab-active: #3b82f6;
+    --form-tab-inactive: transparent;
+    --form-tab-text-active: white;
+    --form-tab-text-inactive: #93c5fd;
+    --form-tab-border-active: #93c5fd;
+    --form-tab-border-inactive: #60a5fa;
+}
+
+[data-theme="dark"][data-form="form39"] {
+    --form-primary: #34d399;
+    --form-primary-light: #6ee7b7;
+    --form-primary-dark: #10b981;
+    --form-accent: #6ee7b7;
+    --form-header-bg: linear-gradient(135deg, #065f46 0%, #047857 100%);
+    --form-tab-active: #10b981;
+    --form-tab-inactive: transparent;
+    --form-tab-text-active: white;
+    --form-tab-text-inactive: #a7f3d0;
+    --form-tab-border-active: #6ee7b7;
+    --form-tab-border-inactive: #34d399;
 }
 
 * {
@@ -53,7 +111,7 @@ body {
 
 /* الترويسة الرئيسية */
 .main-header {
-    background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    background: var(--form-header-bg, linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%));
     color: white;
     padding: 1.25rem 2rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -241,9 +299,9 @@ body {
     font-size: clamp(0.72rem, 0.8vw, 0.86rem);
     font-weight: 700;
     background: #ffffff;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--form-tab-border-inactive, #e2e8f0);
     border-radius: 0.5rem;
-    color: #475569;
+    color: var(--form-tab-text-inactive, #475569);
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -262,25 +320,25 @@ body {
 }
 
 /* ألوان مميزة لأيقونات المحاور في المسطرة */
-.tab-btn[data-tab="tab-personal"] i { color: #2563eb; }
-.tab-btn[data-tab="tab-axis1"] i { color: #0284c7; }
+.tab-btn[data-tab="tab-personal"] i { color: var(--form-primary-light, #2563eb); }
+.tab-btn[data-tab="tab-axis1"] i { color: var(--form-primary, #0284c7); }
 .tab-btn[data-tab="tab-axis2"] i { color: #7c3aed; }
-.tab-btn[data-tab="tab-axis3"] i { color: #d97706; }
-.tab-btn[data-tab="tab-axis45"] i { color: #dc2626; }
+.tab-btn[data-tab="tab-axis3"] i { color: var(--form-accent, #d97706); }
+.tab-btn[data-tab="tab-axis45"] i { color: var(--danger, #dc2626); }
 .tab-btn[data-tab="tab-summary"] i { color: #4f46e5; }
 
 .tab-btn:hover {
-    color: #0f172a;
+    color: var(--form-primary, #0f172a);
     background: #f8fafc;
-    border-color: #cbd5e1;
+    border-color: var(--form-primary-light, #cbd5e1);
     transform: translateY(-1px);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 .tab-btn.active {
-    color: var(--primary);
-    border-color: var(--primary);
-    border-bottom: 3px solid var(--primary);
+    color: var(--form-tab-active, var(--form-primary));
+    border-color: var(--form-tab-border-active, var(--form-primary));
+    border-bottom: 3px solid var(--form-tab-border-active, var(--form-primary));
     background: #ffffff;
     box-shadow: 0 3px 8px rgba(37, 99, 235, 0.14);
 }
@@ -1586,9 +1644,9 @@ body.auditor-active .evidence-table td.auditor-col {
 /* استمارة رقم (39) مسار بولونيا 2025-2026 */
 /* ============================================================== */
 .evaluation-form-switcher {
-    background: #0f172a;
+    background: var(--form-header-bg, #0f172a);
     color: #f8fafc;
-    border-bottom: 2px solid #3b82f6;
+    border-bottom: 2px solid var(--form-primary-light, #3b82f6);
     padding: 8px 16px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
@@ -1600,9 +1658,9 @@ body.auditor-active .evidence-table td.auditor-col {
     transition: all 0.2s ease;
 }
 .btn-mode.active {
-    background: #2563eb !important;
+    background: var(--form-tab-active, #2563eb) !important;
     color: white !important;
-    border-color: #60a5fa !important;
+    border-color: var(--form-tab-border-active, #60a5fa) !important;
     font-weight: 700;
     box-shadow: 0 2px 6px rgba(37,99,235,0.4);
 }
