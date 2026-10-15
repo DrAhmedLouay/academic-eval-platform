@@ -6,12 +6,13 @@
 // تهيئة وضع السمة (الداكن/فاتح)
 function initializeTheme() {
     const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const themeToggle = document.getElementById('theme-toggle');
     if (savedTheme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
-        document.getElementById('theme-toggle')?.checked = true;
+        if (themeToggle) themeToggle.checked = true;
     } else {
         document.documentElement.removeAttribute('data-theme');
-        document.getElementById('theme-toggle')?.checked = false;
+        if (themeToggle) themeToggle.checked = false;
     }
 }
 
