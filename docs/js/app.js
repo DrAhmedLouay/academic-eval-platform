@@ -931,6 +931,21 @@ function initParagraphScanInputs() {
         });
     }
 
+    const manualInput = document.getElementById("manual-add-input");
+    if (manualInput) {
+        manualInput.addEventListener("change", async (e) => {
+            if (e.target.files.length > 0 && activeManualTarget) {
+                const files = e.target.files;
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    await processManualEvidenceItem(file, activeManualTarget);
+                }
+                e.target.value = "";
+                showToast(`تمت إضافة ${files.length} ملفات يدوياً بنجاح! 📁`);
+            }
+        });
+    }
+
     const batchInput = document.getElementById("batch-scan-input");
     if (batchInput) {
         batchInput.addEventListener("change", async (e) => {
@@ -949,6 +964,17 @@ function triggerParagraphScan(axis, paragraph, label) {
         input.click();
     }
 }
+
+let activeManualTarget = null;
+function triggerManualAdd(axis, paragraph, label) {
+    activeManualTarget = { axis, paragraph, label };
+    const input = document.getElementById("manual-add-input");
+    if (input) {
+        input.value = ""; // Reset
+        input.click();
+    }
+}
+window.triggerManualAdd = triggerManualAdd;
 
 function triggerBatchScan() {
     const input = document.getElementById("batch-scan-input");
@@ -2501,6 +2527,45 @@ async function handleClientSideEvidenceScan(file, target) {
     showToast(`تم مسح وقراءة المستند (${file.name}) بنجاح! العدد: ${docNumber} | التاريخ: ${docDate}`);
     openEvidenceReviewModal(evidenceItem, fieldUpdates, autoFillSummary);
 }
+
+async function processManualEvidenceItem(file, target) {
+    if (!file || !target) return;
+    
+    const localUrl = URL.createObjectURL(file);
+    const counter = getNextCounterForParagraph(target.axis, target.paragraph);
+    const refCode = `${target.axis.toUpperCase()}-P${target.paragraph}-M${counter}`;
+
+    const newItem = {
+        ref_code: refCode,
+        axis: target.axis,
+        axis_name: target.label || target.axis,
+        paragraph: target.paragraph,
+        doc_type: target.label || 'وثيقة يدوية',
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        filename: file.name,
+        file_path: localUrl,
+        doc_number: 'يدوي-' + Math.floor(Math.random() * 9000 + 1000),
+        date: new Date().toISOString().split('T')[0],
+        issuer: 'إضافة يدوية',
+        subject: file.name,
+        suggested_score: 5,
+        audit_status: 'pending',
+        is_manual: true,
+        auto_fill_summary: 'تم إرفاق هذه الوثيقة يدوياً من قبل المستخدم بدون مسح آلي.'
+    };
+
+    indexedEvidenceList.push(newItem);
+    
+    try {
+        if (typeof renderAllForm39Tables === 'function') renderAllForm39Tables();
+        if (typeof renderMasterEvidenceCatalog === 'function') renderMasterEvidenceCatalog();
+        if (typeof calculateLiveScore === 'function') calculateLiveScore();
+        if (typeof saveFormDataToLocalStorage === 'function') saveFormDataToLocalStorage();
+    } catch(err) {
+        console.error("Error refreshing after manual add:", err);
+    }
+}
+window.processManualEvidenceItem = processManualEvidenceItem;
 
 async function processSingleEvidenceScan(file, target) {
     if (!file) return;

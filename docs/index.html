@@ -64,6 +64,7 @@
                 </button>
                 <input type="file" id="restore-file-input" style="display: none;" accept=".json">
                 <input type="file" id="paragraph-scan-input" style="display: none;" accept=".pdf,.jpg,.jpeg,.png,.webp">
+                <input type="file" id="manual-add-input" style="display: none;" multiple accept=".pdf,.jpg,.jpeg,.png,.webp">
                 <input type="file" id="batch-scan-input" style="display: none;" multiple accept=".pdf,.jpg,.jpeg,.png,.webp">
                 <button type="button" class="btn btn-outline" id="btn-vlm-settings-header" title="إعدادات محرك الذكاء الاصطناعي (Gemini / Apple Vision)">
                     <i class="fa-solid fa-brain"></i> إعدادات الذكاء
@@ -499,13 +500,18 @@
 
                 <!-- فقرة 1: المقررات -->
                 <div class="teaching-only" style="margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 8px;">
                         <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
                             1. المقررات التي قام بتدريسها (الدرجة القصوى: 20 درجة)
                         </h4>
-                        <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 1, 'المقررات التي قام بتدريسها')">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> مسح وقراءة أمر تكليف التدريس AI
-                        </button>
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 1, 'المقررات التي قام بتدريسها')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> مسح AI
+                            </button>
+                            <button type="button" class="btn btn-outline" style="padding: 5px 10px; font-size: 0.78rem; background: #f8fafc; color: #047857; border-color: #34d399; border-radius: 6px; cursor: pointer;" onclick="triggerManualAdd('axis1', 1, 'المقررات التي قام بتدريسها')" title="إضافة ملفات متعددة يدوياً">
+                                <i class="fa-solid fa-folder-plus"></i> إضافة يدوية
+                            </button>
+                        </div>
                     </div>
                     <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
                         تمنح (20) درجة لكل مقرر دراسي فصلي أو سنوي (أولية أو عليا) (نظري أو عملي). ويعتمد كل 2 نشاط مادة دراسية لتدريسي النشاطات الطلابية.
@@ -520,13 +526,18 @@
 
                 <!-- فقرة 2: إدارة الصف والاستبيان -->
                 <div class="teaching-only" style="margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 8px;">
                         <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
                             2. إدارة الصف والعلاقة مع الطلبة وإثارة دافعيتهم (الدرجة القصوى: 20 درجة)
                         </h4>
-                        <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 2, 'استبيان تقييم الطلبة')">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> مسح استمارة تقييم الطلبة AI
-                        </button>
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 2, 'استبيان تقييم الطلبة')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> مسح AI
+                            </button>
+                            <button type="button" class="btn btn-outline" style="padding: 5px 10px; font-size: 0.78rem; background: #f8fafc; color: #047857; border-color: #34d399; border-radius: 6px; cursor: pointer;" onclick="triggerManualAdd('axis1', 2, 'استبيان تقييم الطلبة')" title="إضافة ملفات متعددة يدوياً">
+                                <i class="fa-solid fa-folder-plus"></i> إضافة يدوية
+                            </button>
+                        </div>
                     </div>
                     <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 0.75rem;">
                         التقييم من خلال استمارة استبيان توزع على الطلبة: (20 درجة لنسبة 80% فأكثر)، (17 درجة لنسبة 70-79%)، (14 درجة لنسبة 69-60%)، (12 درجة لنسبة 59-50%)، (8 درجات لما دون ذلك).
@@ -541,13 +552,18 @@
 
                 <!-- فقرة 3: التعليم المدمج -->
                 <div class="teaching-only" style="margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 8px;">
                         <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
                             3. التعليم المدمج (تمنح 5 درجات لكل فقرة - القصوى: 20 درجة)
                         </h4>
-                        <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 3, 'التعليم المدمج')">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> مسح وتوثيق التعليم المدمج AI
-                        </button>
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 3, 'التعليم المدمج')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> مسح AI
+                            </button>
+                            <button type="button" class="btn btn-outline" style="padding: 5px 10px; font-size: 0.78rem; background: #f8fafc; color: #047857; border-color: #34d399; border-radius: 6px; cursor: pointer;" onclick="triggerManualAdd('axis1', 3, 'التعليم المدمج')" title="إضافة ملفات متعددة يدوياً">
+                                <i class="fa-solid fa-folder-plus"></i> إضافة يدوية
+                            </button>
+                        </div>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.9rem;">
                         <label><input type="checkbox" onchange="updateBlendedItems()"> يستخدم طرائق تدريس متعددة ومتنوعة (المحاضرة، المناقشة، الاستقصاء، العصف الذهني...)</label>
@@ -561,13 +577,18 @@
 
                 <!-- فقرة 4: وصف المقرر -->
                 <div class="teaching-only" style="margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1.25rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 8px;">
                         <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
                             4. وصف المقرر الدراسي وتحديثه والأساليب المستعملة في تقييم الطلبة (تمنح 4 درجات لكل فقرة - القصوى: 20 درجة)
                         </h4>
-                        <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 4, 'وصف المقرر الدراسي')">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> مسح وثيقة وصف المقرر AI
-                        </button>
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 4, 'وصف المقرر الدراسي')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> مسح AI
+                            </button>
+                            <button type="button" class="btn btn-outline" style="padding: 5px 10px; font-size: 0.78rem; background: #f8fafc; color: #047857; border-color: #34d399; border-radius: 6px; cursor: pointer;" onclick="triggerManualAdd('axis1', 4, 'وصف المقرر الدراسي')" title="إضافة ملفات متعددة يدوياً">
+                                <i class="fa-solid fa-folder-plus"></i> إضافة يدوية
+                            </button>
+                        </div>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.9rem;">
                         <label><input type="checkbox" onchange="updateCourseDescItems()"> يقدم وصف المقرر الدراسي في بداية العام الدراسي متضمنة الخطة الدراسية</label>
@@ -582,13 +603,18 @@
 
                 <!-- فقرة 5: الالتزام الوظيفي -->
                 <div style="margin-bottom: 1rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 8px;">
                         <h4 style="font-weight: 800; color: #1e293b; margin: 0;">
                             5. الالتزام الوظيفي (تمنح 4 درجات لكل فقرة للتدريسي المكلف / 20 درجة للتدريسي غير المكلف)
                         </h4>
-                        <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 5, 'الالتزام الوظيفي')">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i> مسح وثائق الالتزام والدوام AI
-                        </button>
+                        <div style="display: flex; gap: 6px;">
+                            <button type="button" class="btn-scan-paragraph" onclick="triggerParagraphScan('axis1', 5, 'الالتزام الوظيفي')">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i> مسح AI
+                            </button>
+                            <button type="button" class="btn btn-outline" style="padding: 5px 10px; font-size: 0.78rem; background: #f8fafc; color: #047857; border-color: #34d399; border-radius: 6px; cursor: pointer;" onclick="triggerManualAdd('axis1', 5, 'الالتزام الوظيفي')" title="إضافة ملفات متعددة يدوياً">
+                                <i class="fa-solid fa-folder-plus"></i> إضافة يدوية
+                            </button>
+                        </div>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.9rem;">
                         <label><input type="checkbox" onchange="updateCommitmentItems()"> الالتزام بالأنظمة والتعليمات والدوام اليومي والمحاضرات واجتماعات القسم</label>
