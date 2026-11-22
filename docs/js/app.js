@@ -949,7 +949,37 @@ function initParagraphScanInputs() {
         });
     }
 
-    const batchInput = document.getElementById("batch-scan-input");
+    const replaceInput = document.getElementById("replace-file-input");
+    if (replaceInput) {
+        replaceInput.addEventListener("change", async (e) => {
+            const file = e.target.files[0];
+            if (!file || !activeReplaceRefCode) return;
+            const item = indexedEvidenceList.find(ev => ev.ref_code === activeReplaceRefCode);
+            if (!item) {
+                showToast("تعذر العثور على الدليل المراد استبداله.");
+                return;
+            }
+            const fileDataUrl = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (ev) => resolve(ev.target.result);
+                reader.onerror = () => resolve("");
+                reader.readAsDataURL(file);
+            });
+            item.filename = file.name;
+            item.title = file.name.replace(/\.[^/.]+$/, "");
+            item.file_path = fileDataUrl || URL.createObjectURL(file);
+            
+            try {
+                if (typeof renderAllForm39Tables === 'function') renderAllForm39Tables();
+                if (typeof renderMasterEvidenceCatalog === 'function') renderMasterEvidenceCatalog();
+                if (typeof renderAllMiniEvidenceTables === 'function') renderAllMiniEvidenceTables();
+                if (typeof saveFormDataToLocalStorage === 'function') saveFormDataToLocalStorage();
+            } catch(e) {}
+            showToast(`تم استبدال الملف للوثيقة [${activeReplaceRefCode}] بـ (${file.name}) بنجاح! 🔄`);
+            activeReplaceRefCode = null;
+            e.target.value = "";
+        });
+    }
     if (batchInput) {
         batchInput.addEventListener("change", async (e) => {
             if (e.target.files.length > 0) {
@@ -969,6 +999,8 @@ function triggerParagraphScan(axis, paragraph, label) {
 }
 
 let activeManualTarget = null;
+let activeReplaceRefCode = null;
+
 function triggerManualAdd(axis, paragraph, label) {
     activeManualTarget = { 
         axis: axis || 'axis1', 
@@ -982,6 +1014,39 @@ function triggerManualAdd(axis, paragraph, label) {
     }
 }
 window.triggerManualAdd = triggerManualAdd;
+
+function triggerReplaceEvidence(refCode) {
+    activeReplaceRefCode = refCode;
+    const input = document.getElementById("replace-file-input");
+    if (input) {
+        input.value = "";
+        input.click();
+    }
+}
+window.triggerReplaceEvidence = triggerReplaceEvidence;
+
+function promptRenameEvidence(refCode) {
+    const item = indexedEvidenceList.find(e => e.ref_code === refCode);
+    if (!item) {
+        showToast("تعذر العثور على الوثيقة المحددة.");
+        return;
+    }
+    const currentName = item.title || item.filename || "";
+    const newName = prompt("أدخل الاسم الجديد للوثيقة أو الملف:", currentName);
+    if (newName !== null && newName.trim() !== "") {
+        item.title = newName.trim();
+        item.filename = newName.trim() + (item.filename && item.filename.includes('.') ? item.filename.substring(item.filename.lastIndexOf('.')) : '.pdf');
+        
+        try {
+            if (typeof renderAllForm39Tables === 'function') renderAllForm39Tables();
+            if (typeof renderMasterEvidenceCatalog === 'function') renderMasterEvidenceCatalog();
+            if (typeof renderAllMiniEvidenceTables === 'function') renderAllMiniEvidenceTables();
+            if (typeof saveFormDataToLocalStorage === 'function') saveFormDataToLocalStorage();
+        } catch(e) {}
+        showToast(`تم تغيير اسم الوثيقة إلى: "${item.title}" بنجاح! ✏️`);
+    }
+}
+window.promptRenameEvidence = promptRenameEvidence;
 
 function triggerBatchScan() {
     const input = document.getElementById("batch-scan-input");
@@ -4196,6 +4261,12 @@ function renderMiniEvidenceTable(axis, paragraph) {
                         <td style="text-align: center; white-space: nowrap;">
                             <button type="button" class="btn btn-outline" style="padding: 2px 6px; font-size: 0.75rem; color: #0284c7; border-color: #bae6fd; margin-left: 3px;" onclick="openReclassifyModal('${item.ref_code}')" title="تغيير المحور والفقرة">
                                 <i class="fa-solid fa-sliders"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline" style="padding: 2px 6px; font-size: 0.75rem; color: #059669; border-color: #a7f3d0; margin-left: 3px;" onclick="promptRenameEvidence('${item.ref_code}')" title="تغيير اسم الملف والوثيقة">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline" style="padding: 2px 6px; font-size: 0.75rem; color: #d97706; border-color: #fde68a; margin-left: 3px;" onclick="triggerReplaceEvidence('${item.ref_code}')" title="استبدال الملف المرفوع">
+                                <i class="fa-solid fa-file-arrow-up"></i>
                             </button>
                             <button type="button" class="btn btn-outline" style="padding: 2px 7px; font-size: 0.75rem; color: #2563eb; border-color: #93c5fd; margin-left: 3px;" onclick="openDocumentPreview('${item.ref_code}')" title="معاينة وتحميل الوثيقة">
                                 <i class="fa-regular fa-eye"></i> معاينة
