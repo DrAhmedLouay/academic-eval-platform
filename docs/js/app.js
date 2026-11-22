@@ -2396,7 +2396,13 @@ function matchVerifiedDocumentRegistry(filename) {
 
 async function handleClientSideEvidenceScan(file, target) {
     hideUploadLoadingState();
-    const objectUrl = URL.createObjectURL(file);
+    const fileDataUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => resolve("");
+        reader.readAsDataURL(file);
+    });
+    const objectUrl = fileDataUrl || URL.createObjectURL(file);
     const ax = target ? target.axis : "axis1";
     const p = target ? String(target.paragraph) : "1";
     const counter = getNextCounterForParagraph(ax, p);
@@ -2531,7 +2537,13 @@ async function handleClientSideEvidenceScan(file, target) {
 async function processManualEvidenceItem(file, target) {
     if (!file || !target) return;
     
-    const localUrl = URL.createObjectURL(file);
+    const fileDataUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => resolve("");
+        reader.readAsDataURL(file);
+    });
+    const localUrl = fileDataUrl || URL.createObjectURL(file);
     const counter = getNextCounterForParagraph(target.axis, target.paragraph);
     const refCode = `${target.axis.toUpperCase()}-P${target.paragraph}-M${counter}`;
 
