@@ -3242,7 +3242,10 @@ function openDocumentPreview(refCodeOrItem) {
     if (btnCrop) btnCrop.style.display = isImage ? "inline-flex" : "none";
     if (btnBbox) btnBbox.style.display = isImage ? "inline-flex" : "none";
 
-    if (!filePath || filePath.includes("undefined") || filePath.includes("null")) {
+    const isStaticEnv = isCloudOrStaticEnv();
+    const hasRealFile = filePath && (filePath.startsWith('data:') || filePath.startsWith('blob:') || (!filePath.startsWith('/uploads/') && !isStaticEnv));
+
+    if (!hasRealFile || filePath.includes("undefined") || filePath.includes("null")) {
         const htmlContent = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
