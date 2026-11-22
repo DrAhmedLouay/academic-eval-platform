@@ -934,14 +934,17 @@ function initParagraphScanInputs() {
     const manualInput = document.getElementById("manual-add-input");
     if (manualInput) {
         manualInput.addEventListener("change", async (e) => {
-            if (e.target.files.length > 0 && activeManualTarget) {
-                const files = e.target.files;
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    await processManualEvidenceItem(file, activeManualTarget);
-                }
-                e.target.value = "";
-                showToast(`تمت إضافة ${files.length} ملفات يدوياً بنجاح! 📁`);
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+            const target = activeManualTarget || { axis: 'axis1', paragraph: '1', label: 'وثيقة مرفقة' };
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                await processManualEvidenceItem(file, target);
+            }
+            const count = files.length;
+            e.target.value = "";
+            if (count > 0) {
+                showToast(`تمت إضافة ${count} ملفات يدوياً بنجاح! 📁`);
             }
         });
     }
@@ -967,7 +970,11 @@ function triggerParagraphScan(axis, paragraph, label) {
 
 let activeManualTarget = null;
 function triggerManualAdd(axis, paragraph, label) {
-    activeManualTarget = { axis, paragraph, label };
+    activeManualTarget = { 
+        axis: axis || 'axis1', 
+        paragraph: paragraph || '1', 
+        label: label || 'وثيقة مرفقة' 
+    };
     const input = document.getElementById("manual-add-input");
     if (input) {
         input.value = ""; // Reset
