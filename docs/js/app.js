@@ -3219,6 +3219,8 @@ function openDocumentPreview(refCodeOrItem) {
 
     const modal = document.getElementById("doc-preview-modal");
     if (!modal) return;
+    modal.classList.add("active");
+    modal.style.display = "flex";
 
     document.getElementById("preview-modal-title").textContent = `معاينة: ${item.filename || item.title || 'وثيقة'}`;
     const refBadgeEl = document.getElementById("preview-modal-ref");
