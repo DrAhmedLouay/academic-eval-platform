@@ -2717,85 +2717,96 @@ async function processBatchEvidenceScan(filesList) {
     if (isCloudOrStaticEnv()) {
         showUploadLoadingState(true, files.length);
         showToast(`جارٍ استخراج وقراءة بيانات ${files.length} مستندات وتفقيطها... ⏳`);
+        let successCount = 0;
 
         for (const file of files) {
-            let extractedText = "";
-            if (file.name.toLowerCase().endsWith(".pdf")) {
-                extractedText = await extractTextFromPdfClient(file);
-            }
-            const cleanBase = file.name.trim().toLowerCase();
-            const catalogPool = (window.DEFAULT_EVIDENCE_CATALOG && Array.isArray(window.DEFAULT_EVIDENCE_CATALOG) && window.DEFAULT_EVIDENCE_CATALOG.length > 0) 
-                ? window.DEFAULT_EVIDENCE_CATALOG 
-                : indexedEvidenceList;
-            const existingMatch = catalogPool.find(item => {
-                if (!item.filename) return false;
-                const fn = item.filename.trim().toLowerCase();
-                return fn === cleanBase || cleanBase.includes(fn) || fn.includes(cleanBase);
-            });
+            try {
+                let extractedText = "";
+                if (file.name.toLowerCase().endsWith(".pdf")) {
+                    extractedText = await extractTextFromPdfClient(file);
+                }
+                const cleanBase = file.name.trim().toLowerCase();
+                const catalogPool = (window.DEFAULT_EVIDENCE_CATALOG && Array.isArray(window.DEFAULT_EVIDENCE_CATALOG) && window.DEFAULT_EVIDENCE_CATALOG.length > 0) 
+                    ? window.DEFAULT_EVIDENCE_CATALOG 
+                    : indexedEvidenceList;
+                const existingMatch = catalogPool.find(item => {
+                    if (!item.filename) return false;
+                    const fn = item.filename.trim().toLowerCase();
+                    return fn === cleanBase || cleanBase.includes(fn) || fn.includes(cleanBase);
+                });
 
-            let docNumber, docDate, docTitle, docType, suggestedScore, ax, p, axName, pName, isHw, hwFields, autoFillSummary;
-            if (existingMatch && existingMatch.doc_number && !existingMatch.doc_number.includes("قيد التدقيق") && existingMatch.doc_number !== "غير محدد") {
-                docNumber = existingMatch.doc_number;
-                docDate = existingMatch.date || "2024/09/19";
-                docTitle = existingMatch.title || existingMatch.subject;
-                docType = existingMatch.doc_type;
-                suggestedScore = existingMatch.suggested_score || 10.0;
-                ax = existingMatch.axis;
-                p = existingMatch.paragraph;
-                axName = existingMatch.axis_name;
-                pName = existingMatch.paragraph_name;
-                isHw = Boolean(existingMatch.handwritten_detected);
-                hwFields = existingMatch.handwritten_fields || (isHw ? ["doc_number", "date"] : []);
-                autoFillSummary = existingMatch.auto_fill_summary || (isHw ? 
-                    `✍️ تم قراءة العدد [${docNumber}] والتاريخ [${docDate}] بخط اليد بالذكاء الاصطناعي` : 
-                    `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`);
-            } else {
-                const parsed = parseArabicDocumentClient(extractedText, file.name, null, null, getCurrentFacultyName());
-                docNumber = parsed.doc_number;
-                docDate = parsed.date;
-                docTitle = parsed.title;
-                docType = parsed.doc_type;
-                suggestedScore = parsed.suggested_score;
-                ax = parsed.axis;
-                p = parsed.paragraph;
-                axName = parsed.axis_name;
-                pName = parsed.paragraph_name;
-                isHw = parsed.handwritten_detected;
-                hwFields = parsed.handwritten_fields;
-                autoFillSummary = parsed.auto_fill_summary;
-            }
+                let docNumber, docDate, docTitle, docType, suggestedScore, ax, p, axName, pName, isHw, hwFields, autoFillSummary;
+                if (existingMatch && existingMatch.doc_number && !existingMatch.doc_number.includes("قيد التدقيق") && existingMatch.doc_number !== "غير محدد") {
+                    docNumber = existingMatch.doc_number;
+                    docDate = existingMatch.date || "2024/09/19";
+                    docTitle = existingMatch.title || existingMatch.subject;
+                    docType = existingMatch.doc_type;
+                    suggestedScore = existingMatch.suggested_score || 10.0;
+                    ax = existingMatch.axis;
+                    p = existingMatch.paragraph;
+                    axName = existingMatch.axis_name;
+                    pName = existingMatch.paragraph_name;
+                    isHw = Boolean(existingMatch.handwritten_detected);
+                    hwFields = existingMatch.handwritten_fields || (isHw ? ["doc_number", "date"] : []);
+                    autoFillSummary = existingMatch.auto_fill_summary || (isHw ? 
+                        `✍️ تم قراءة العدد [${docNumber}] والتاريخ [${docDate}] بخط اليد بالذكاء الاصطناعي` : 
+                        `تم استخراج وقراءة العدد [${docNumber}] والتاريخ [${docDate}] بنجاح`);
+                } else {
+                    const parsed = parseArabicDocumentClient(extractedText, file.name, null, null, getCurrentFacultyName());
+                    docNumber = parsed.doc_number;
+                    docDate = parsed.date;
+                    docTitle = parsed.title;
+                    docType = parsed.doc_type;
+                    suggestedScore = parsed.suggested_score;
+                    ax = parsed.axis;
+                    p = parsed.paragraph;
+                    axName = parsed.axis_name;
+                    pName = parsed.paragraph_name;
+                    isHw = parsed.handwritten_detected;
+                    hwFields = parsed.handwritten_fields;
+                    autoFillSummary = parsed.auto_fill_summary;
+                }
 
-            const counter = getNextCounterForParagraph(ax, p);
-            const refCode = `REF-${ax.toUpperCase().replace("AXIS", "AX")}-P${p}-${String(counter).padStart(2, '0')}`;
-            const objectUrl = URL.createObjectURL(file);
-            const item = {
-                ref_code: refCode,
-                axis: ax,
-                paragraph: p,
-                axis_name: axName,
-                paragraph_name: pName,
-                title: docTitle,
-                doc_type: docType,
-                doc_number: docNumber,
-                date: docDate,
-                issuer: (formData && formData.personal_info && formData.personal_info.college) ? formData.personal_info.college : "الجامعة التكنولوجية",
-                suggested_score: suggestedScore,
-                file_path: objectUrl,
-                filename: file.name,
-                handwritten_detected: isHw,
-                handwritten_fields: hwFields,
-                auto_fill_summary: autoFillSummary,
-                matched_faculty_info: (typeof parsed !== "undefined" && parsed && parsed.matched_faculty_info) || extractFacultyRoleInDocument(extractedText, getCurrentFacultyName())
-            };
-            applyIndexedItem(item);
+                const counter = getNextCounterForParagraph(ax, p);
+                const refCode = `REF-${ax.toUpperCase().replace("AXIS", "AX")}-P${p}-${String(counter).padStart(2, '0')}`;
+                const objectUrl = URL.createObjectURL(file);
+                const item = {
+                    ref_code: refCode,
+                    axis: ax,
+                    paragraph: p,
+                    axis_name: axName,
+                    paragraph_name: pName,
+                    title: docTitle,
+                    doc_type: docType,
+                    doc_number: docNumber,
+                    date: docDate,
+                    issuer: (formData && formData.personal_info && formData.personal_info.college) ? formData.personal_info.college : "الجامعة التكنولوجية",
+                    suggested_score: suggestedScore,
+                    file_path: objectUrl,
+                    filename: file.name,
+                    handwritten_detected: isHw,
+                    handwritten_fields: hwFields,
+                    auto_fill_summary: autoFillSummary,
+                    matched_faculty_info: (typeof parsed !== "undefined" && parsed && parsed.matched_faculty_info) || extractFacultyRoleInDocument(extractedText, getCurrentFacultyName())
+                };
+                applyIndexedItem(item);
+                successCount++;
+                console.log(`✅ Processed file: ${file.name} -> ${refCode}`);
+            } catch (err) {
+                console.error(`❌ Error processing ${file.name}:`, err);
+                showToast(`فشل معالجة ${file.name}: ${err.message}`);
+            }
         }
 
-        renderAllMiniEvidenceTables();
-        renderMasterCatalogTable();
-        updateIndexStats();
-        calculateLiveScore();
-        showToast(`تم مسح وقراءة واستخراج أعداد وتواريخ ${files.length} مستندات بنجاح! 🚀`);
-        switchTab("tab-ocr");
+        if (successCount > 0) {
+            renderAllMiniEvidenceTables();
+            renderMasterCatalogTable();
+            updateIndexStats();
+            calculateLiveScore();
+            showToast(`تم مسح وقراءة واستخراج أعداد وتواريخ ${successCount} مستندات بنجاح! 🚀`);
+        } else {
+            showToast("لم تتم معالجة أي ملف بنجاح.", "error");
+        }
         hideUploadLoadingState();
         return;
     }
