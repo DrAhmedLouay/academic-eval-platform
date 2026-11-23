@@ -4478,7 +4478,11 @@ function initDropzones() {
     const dropzone = document.getElementById("main-ocr-dropzone");
     const fileInput = document.getElementById("ocr-file-input");
 
-    if (!dropzone || !fileInput) return;
+    if (!dropzone || !fileInput) {
+        console.warn("⚠️ Dropzone elements not found:", { dropzone: !!dropzone, fileInput: !!fileInput });
+        return;
+    }
+    console.log("✅ Dropzone initialized:", { dropzone: dropzone.id, fileInput: fileInput.id });
 
     dropzone.addEventListener("click", () => fileInput.click());
 
@@ -4494,18 +4498,30 @@ function initDropzones() {
     dropzone.addEventListener("drop", (e) => {
         e.preventDefault();
         dropzone.classList.remove("dragover");
-        if (e.dataTransfer.files.length === 1) {
-            processSingleEvidenceScan(e.dataTransfer.files[0], null);
-        } else if (e.dataTransfer.files.length > 1) {
-            processBatchEvidenceScan(e.dataTransfer.files);
+        console.log("📥 Drop event triggered, files:", e.dataTransfer.files.length);
+        try {
+            if (e.dataTransfer.files.length === 1) {
+                processSingleEvidenceScan(e.dataTransfer.files[0], null);
+            } else if (e.dataTransfer.files.length > 1) {
+                processBatchEvidenceScan(e.dataTransfer.files);
+            }
+        } catch (err) {
+            console.error("❌ Error processing dropped files:", err);
+            showToast("حدث خطأ أثناء معالجة الملفات: " + err.message);
         }
     });
 
     fileInput.addEventListener("change", (e) => {
-        if (e.target.files.length === 1) {
-            processSingleEvidenceScan(e.target.files[0], null);
-        } else if (e.target.files.length > 1) {
-            processBatchEvidenceScan(e.target.files);
+        console.log("📁 File input change, files:", e.target.files.length);
+        try {
+            if (e.target.files.length === 1) {
+                processSingleEvidenceScan(e.target.files[0], null);
+            } else if (e.target.files.length > 1) {
+                processBatchEvidenceScan(e.target.files);
+            }
+        } catch (err) {
+            console.error("❌ Error processing selected files:", err);
+            showToast("حدث خطأ أثناء معالجة الملفات: " + err.message);
         }
         e.target.value = "";
     });
