@@ -1016,7 +1016,12 @@ function triggerManualAdd(axis, paragraph, label) {
 window.triggerManualAdd = triggerManualAdd;
 
 function triggerReplaceEvidence(refCode) {
-    activeReplaceRefCode = refCode;
+    const code = refCode || (activePreviewItem && activePreviewItem.ref_code);
+    if (!code) {
+        showToast("تعذر تحديد الوثيقة المراد استبدالها.");
+        return;
+    }
+    activeReplaceRefCode = code;
     const input = document.getElementById("replace-file-input");
     if (input) {
         input.value = "";
@@ -3309,7 +3314,8 @@ function openDocumentPreview(refCodeOrItem) {
     if (btnCrop) btnCrop.style.display = isImage ? "inline-flex" : "none";
     if (btnBbox) btnBbox.style.display = isImage ? "inline-flex" : "none";
 
-    const hasRealFile = filePath && filePath.startsWith('data:');
+    // ملفات حقيقية: data: URLs (base64)، blob: URLs، أو مسارات HTTP/HTTPS صالحة
+    const hasRealFile = filePath && (filePath.startsWith('data:') || filePath.startsWith('blob:') || filePath.startsWith('http'));
 
     if (!hasRealFile || filePath.includes("undefined") || filePath.includes("null")) {
         const htmlContent = `<!DOCTYPE html>
