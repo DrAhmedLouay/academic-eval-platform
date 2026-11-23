@@ -3309,8 +3309,7 @@ function openDocumentPreview(refCodeOrItem) {
     if (btnCrop) btnCrop.style.display = isImage ? "inline-flex" : "none";
     if (btnBbox) btnBbox.style.display = isImage ? "inline-flex" : "none";
 
-    const isStaticEnv = isCloudOrStaticEnv();
-    const hasRealFile = filePath && (filePath.startsWith('data:') || filePath.startsWith('blob:') || (!filePath.startsWith('/uploads/') && !isStaticEnv));
+    const hasRealFile = filePath && filePath.startsWith('data:');
 
     if (!hasRealFile || filePath.includes("undefined") || filePath.includes("null")) {
         const htmlContent = `<!DOCTYPE html>
@@ -3425,7 +3424,10 @@ function openDocumentPreview(refCodeOrItem) {
 
 function closeDocumentPreview() {
     const modal = document.getElementById("doc-preview-modal");
-    if (modal) modal.classList.remove("active");
+    if (modal) {
+        modal.classList.remove("active");
+        modal.style.display = "none";
+    }
     const frame = document.getElementById("preview-frame");
     if (frame) frame.src = "";
     const img = document.getElementById("preview-image");
@@ -3438,6 +3440,7 @@ function closeDocumentPreview() {
     }
     activePreviewItem = null;
 }
+window.closeDocumentPreview = closeDocumentPreview;
 
 window.openDocumentPreview = openDocumentPreview;
 window.closeDocumentPreview = closeDocumentPreview;
